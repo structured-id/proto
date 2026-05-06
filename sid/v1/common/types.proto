@@ -1,0 +1,19 @@
+// StructuredID Common Types
+// Shared message types used across domains.
+syntax = "proto3";
+
+package sid.v1.common;
+
+import "google/protobuf/timestamp.proto";
+
+// Reusable time range filter.
+message TimeRange {
+  optional google.protobuf.Timestamp from = 1;
+  optional google.protobuf.Timestamp to = 2;
+}
+
+// Sort specification for list queries.
+message SortOrder {
+  string field = 1;       // Field name to sort by
+  bool descending = 2;    // true = DESC, false = ASC (default)
+}

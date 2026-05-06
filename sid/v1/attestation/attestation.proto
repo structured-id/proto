@@ -1,0 +1,128 @@
+// StructuredID Device Attestation Service
+// Manages device keys, platform attestation, and device-bound credentials.
+//
+// Split responsibility: sid-identity handles device metadata (UX),
+// sid-attestation handles cryptographic identity (keys, attestation).
+syntax = "proto3";
+
+package sid.v1.attestation;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+// Attestation format reported by the device.
+enum AttestationFormat {
+  ATTESTATION_FORMAT_UNSPECIFIED = 0;
+  ATTESTATION_FORMAT_NONE = 1;          // No attestation provided
+  ATTESTATION_FORMAT_PACKED = 2;        // FIDO2 packed attestation
+  ATTESTATION_FORMAT_TPM = 3;           // TPM 2.0 attestation
+  ATTESTATION_FORMAT_ANDROID_KEY = 4;   // Android Keystore attestation
+  ATTESTATION_FORMAT_APPLE = 5;         // Apple App Attest / Secure Enclave
+  ATTESTATION_FORMAT_FIDO_U2F = 6;     // FIDO U2F attestation
+}
+
+// Type of hardware key storage on the device.
+enum KeyStorageType {
+  KEY_STORAGE_TYPE_UNSPECIFIED = 0;
+  KEY_STORAGE_TYPE_SOFTWARE = 1;        // Software-only key (no hardware backing)
+  KEY_STORAGE_TYPE_TPM = 2;             // Trusted Platform Module
+  KEY_STORAGE_TYPE_SECURE_ENCLAVE = 3;  // Apple Secure Enclave
+  KEY_STORAGE_TYPE_STRONGBOX = 4;       // Android StrongBox
+  KEY_STORAGE_TYPE_TEE = 5;             // ARM TrustZone or similar TEE
+}
+
+// Attestation verification status.
+enum AttestationStatus {
+  ATTESTATION_STATUS_UNSPECIFIED = 0;
+  ATTESTATION_STATUS_PENDING = 1;       // Received, not yet verified
+  ATTESTATION_STATUS_VERIFIED = 2;      // Attestation chain verified (EE)
+  ATTESTATION_STATUS_UNVERIFIED = 3;    // Stored but not verified (CE default)
+  ATTESTATION_STATUS_REJECTED = 4;      // Verification failed (EE)
+  ATTESTATION_STATUS_REVOKED = 5;       // Key has been revoked
+}
+
+// Device attestation record — cryptographic identity of a device.
+message DeviceAttestation {
+  string id = 1;                                    // Attestation record ID (UUIDv7)
+  string device_id = 2;                             // References Device in sid-identity
+  string profile_id = 3;                            // Owner profile
+  AttestationFormat format = 4;                     // Attestation format
+  KeyStorageType key_storage = 5;                   // Hardware key type
+  AttestationStatus status = 6;                     // Verification status
+  bytes device_public_key = 7;                      // Device public key (DER-encoded)
+  optional bytes attestation_object = 8;            // Raw attestation blob (platform-specific)
+  optional bytes attestation_certificate = 9;       // Leaf certificate from attestation chain
+  optional string aaguid = 10;                      // Authenticator Attestation GUID (WebAuthn)
+  optional string credential_id = 11;               // Bound credential ID (WebAuthn/OPAQUE)
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional google.protobuf.Timestamp revoked_at = 14;
+}
+
+// ── Attestation Service RPCs ──
+
+service AttestationService {
+  // Register a device key with platform attestation.
+  // CE: stores attestation data, marks device as hardware_attested.
+  // EE: additionally verifies attestation chain and AAGUID policy.
+  rpc RegisterDeviceKey(RegisterDeviceKeyRequest) returns (DeviceAttestation) {
+    option (google.api.http) = { post: "/v1/attestation/devices/{device_id}/keys" body: "*" };
+  }
+
+  // Get attestation details for a device.
+  rpc GetDeviceAttestation(GetDeviceAttestationRequest) returns (DeviceAttestation) {
+    option (google.api.http) = { get: "/v1/attestation/devices/{device_id}" };
+  }
+
+  // Rotate a device key (triggered by OS update or manual re-attestation).
+  rpc RotateDeviceKey(RotateDeviceKeyRequest) returns (DeviceAttestation) {
+    option (google.api.http) = { post: "/v1/attestation/devices/{device_id}/rotate" body: "*" };
+  }
+
+  // Revoke a device key (device removed or compromised).
+  rpc RevokeDeviceKey(RevokeDeviceKeyRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = { post: "/v1/attestation/devices/{device_id}/revoke" body: "*" };
+  }
+
+  // List all attestations for a profile.
+  rpc ListDeviceAttestations(ListDeviceAttestationsRequest) returns (ListDeviceAttestationsResponse) {
+    option (google.api.http) = { get: "/v1/attestation/profiles/{profile_id}/devices" };
+  }
+}
+
+// ── Request/Response Messages ──
+
+message RegisterDeviceKeyRequest {
+  string device_id = 1;                     // Device to register key for
+  AttestationFormat format = 2;             // Attestation format
+  KeyStorageType key_storage = 3;           // Hardware key type
+  bytes device_public_key = 4;              // Device public key (DER-encoded)
+  optional bytes attestation_object = 5;    // Raw attestation blob
+  optional bytes attestation_certificate = 6; // Leaf certificate
+  optional string aaguid = 7;              // Authenticator AAGUID
+  optional string credential_id = 8;       // Bound credential ID
+}
+
+message GetDeviceAttestationRequest {
+  string device_id = 1;
+}
+
+message RotateDeviceKeyRequest {
+  string device_id = 1;
+  bytes new_device_public_key = 2;                  // New public key
+  optional bytes new_attestation_object = 3;        // New attestation blob
+  optional bytes new_attestation_certificate = 4;   // New leaf certificate
+}
+
+message RevokeDeviceKeyRequest {
+  string device_id = 1;
+}
+
+message ListDeviceAttestationsRequest {
+  string profile_id = 1;
+}
+
+message ListDeviceAttestationsResponse {
+  repeated DeviceAttestation attestations = 1;
+}

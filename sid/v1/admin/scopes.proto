@@ -1,0 +1,190 @@
+// StructuredID Scope & Claims Service
+// Manages OAuth2/OIDC scope registry, claim mappings, and realm defaults.
+// All RPCs require admin role.
+syntax = "proto3";
+
+package sid.v1.admin;
+
+import "google/protobuf/empty.proto";
+import "google/api/annotations.proto";
+
+service ScopeService {
+  // ── Scope CRUD ──
+
+  rpc ListScopes(google.protobuf.Empty) returns (ListScopesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/scopes" };
+  }
+
+  rpc GetScope(GetScopeRequest) returns (Scope) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/scopes/{scope_id}" };
+  }
+
+  rpc CreateScope(CreateScopeRequest) returns (Scope) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/admin/scopes" body: "*" };
+  }
+
+  rpc UpdateScope(UpdateScopeRequest) returns (Scope) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/admin/scopes/{scope_id}" body: "*" };
+  }
+
+  rpc DeleteScope(DeleteScopeRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/admin/scopes/{scope_id}" };
+  }
+
+  // ── Realm Defaults ──
+
+  rpc GetRealmDefaults(google.protobuf.Empty) returns (RealmScopeDefaults) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/scopes/defaults" };
+  }
+
+  rpc UpdateRealmDefaults(RealmScopeDefaults) returns (RealmScopeDefaults) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { put: "/v1/admin/scopes/defaults" body: "*" };
+  }
+
+  // ── Claim Mappings ──
+
+  rpc ListClaimMappings(ListClaimMappingsRequest) returns (ListClaimMappingsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/scopes/{scope_id}/claims" };
+  }
+
+  rpc AddClaimMapping(AddClaimMappingRequest) returns (ClaimMapping) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/admin/scopes/{scope_id}/claims" body: "*" };
+  }
+
+  rpc UpdateClaimMapping(UpdateClaimMappingRequest) returns (ClaimMapping) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/admin/scopes/{scope_id}/claims/{mapping_id}" body: "*" };
+  }
+
+  rpc DeleteClaimMapping(DeleteClaimMappingRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/admin/scopes/{scope_id}/claims/{mapping_id}" };
+  }
+}
+
+// ── Enums ──
+
+enum ScopeType {
+  SCOPE_TYPE_UNSPECIFIED = 0;
+  SCOPE_TYPE_OPENID = 1;       // OpenID Connect standard scope
+  SCOPE_TYPE_CUSTOM = 2;       // User-defined scope
+}
+
+enum ClaimSource {
+  CLAIM_SOURCE_UNSPECIFIED = 0;
+  CLAIM_SOURCE_PROFILE = 1;       // From profile fields (email, name, etc.)
+  CLAIM_SOURCE_METADATA = 2;      // From profile metadata key-value store
+  CLAIM_SOURCE_ROLES = 3;         // From assigned roles
+  CLAIM_SOURCE_GROUPS = 4;        // From group memberships
+  CLAIM_SOURCE_STATIC = 5;        // Static value
+  CLAIM_SOURCE_EXPRESSION = 6;    // CEL expression (EE)
+}
+
+// ── Messages ──
+
+message Scope {
+  string id = 1;
+  string name = 2;             // "openid", "profile", "email", "custom:billing"
+  string display_name = 3;     // Human-readable for consent screen
+  string description = 4;
+  ScopeType type = 5;
+  bool consent_required = 6;   // Show on consent screen
+  bool include_in_token_scope = 7;
+  repeated ClaimMapping claim_mappings = 8;
+}
+
+message ListScopesResponse {
+  repeated Scope scopes = 1;
+}
+
+message GetScopeRequest {
+  string scope_id = 1;
+}
+
+message CreateScopeRequest {
+  string name = 1;
+  string display_name = 2;
+  string description = 3;
+  bool consent_required = 4;
+  bool include_in_token_scope = 5;
+}
+
+message UpdateScopeRequest {
+  string scope_id = 1;
+  optional string display_name = 2;
+  optional string description = 3;
+  optional bool consent_required = 4;
+  optional bool include_in_token_scope = 5;
+}
+
+message DeleteScopeRequest {
+  string scope_id = 1;
+}
+
+// ── Realm Defaults ──
+
+message RealmScopeDefaults {
+  repeated string default_scopes = 1;     // Scopes granted without explicit consent
+  repeated string optional_scopes = 2;    // Available but not default
+}
+
+// ── Claim Mappings ──
+
+message ClaimMapping {
+  string id = 1;
+  string claim_name = 2;        // JWT claim name: "email", "name", "roles"
+  ClaimSource source = 3;
+  string source_key = 4;        // Field path or metadata key
+  string static_value = 5;      // For STATIC source
+  bool multivalued = 6;
+  bool add_to_id_token = 7;
+  bool add_to_access_token = 8;
+  bool add_to_userinfo = 9;
+}
+
+message ListClaimMappingsRequest {
+  string scope_id = 1;
+}
+
+message ListClaimMappingsResponse {
+  repeated ClaimMapping mappings = 1;
+}
+
+message AddClaimMappingRequest {
+  string scope_id = 1;
+  string claim_name = 2;
+  ClaimSource source = 3;
+  string source_key = 4;
+  string static_value = 5;
+  bool multivalued = 6;
+  bool add_to_id_token = 7;
+  bool add_to_access_token = 8;
+  bool add_to_userinfo = 9;
+}
+
+message UpdateClaimMappingRequest {
+  string scope_id = 1;
+  string mapping_id = 2;
+  optional string claim_name = 3;
+  optional ClaimSource source = 4;
+  optional string source_key = 5;
+  optional string static_value = 6;
+  optional bool multivalued = 7;
+  optional bool add_to_id_token = 8;
+  optional bool add_to_access_token = 9;
+  optional bool add_to_userinfo = 10;
+}
+
+message DeleteClaimMappingRequest {
+  string scope_id = 1;
+  string mapping_id = 2;
+}

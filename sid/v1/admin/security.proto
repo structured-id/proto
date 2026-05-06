@@ -1,0 +1,579 @@
+// StructuredID Security Service
+// Password policies, brute force protection, security headers, rate limits,
+// anomaly detection, CAPTCHA, breach detection, and security policy management.
+// All RPCs require admin role.
+syntax = "proto3";
+
+package sid.v1.admin;
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+service SecurityService {
+  // ── Password Policy (Page 10.7) ──
+
+  rpc GetPasswordPolicy(GetPasswordPolicyRequest) returns (PasswordPolicy) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/security/password-policy" };
+  }
+  rpc UpdatePasswordPolicy(PasswordPolicy) returns (PasswordPolicy) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { put: "/v1/admin/security/password-policy" body: "*" };
+  }
+
+  // ── Brute Force Protection (Page 10.7) ──
+
+  rpc GetBruteForceConfig(GetBruteForceConfigRequest) returns (BruteForceConfig) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/security/brute-force" };
+  }
+  rpc UpdateBruteForceConfig(BruteForceConfig) returns (BruteForceConfig) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { put: "/v1/admin/security/brute-force" body: "*" };
+  }
+
+  // ── Security Headers (Page 10.7) ──
+
+  rpc GetSecurityHeaders(GetSecurityHeadersRequest) returns (SecurityHeaders) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/security/headers" };
+  }
+  rpc UpdateSecurityHeaders(SecurityHeaders) returns (SecurityHeaders) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { put: "/v1/admin/security/headers" body: "*" };
+  }
+
+  // ── Rate Limits (Page 17.1) ──
+
+  rpc GetRateLimitConfig(GetRateLimitConfigRequest) returns (RateLimitConfig) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/security/rate-limits" };
+  }
+  rpc GetRateLimitDashboard(GetRateLimitDashboardRequest) returns (RateLimitDashboard) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/security/rate-limits/dashboard" };
+  }
+
+  // ── Anomaly Rules (Page 17.2) ──
+
+  rpc ListAnomalyRules(ListAnomalyRulesRequest) returns (ListAnomalyRulesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/security/anomaly-rules" };
+  }
+  rpc GetAnomalyEventLog(GetAnomalyEventLogRequest) returns (AnomalyEventLog) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/security/anomaly-events" };
+  }
+
+  // ── CAPTCHA (Page 17.3) ──
+
+  rpc GetCaptchaConfig(GetCaptchaConfigRequest) returns (CaptchaConfig) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/security/captcha" };
+  }
+  rpc UpdateCaptchaConfig(CaptchaConfig) returns (CaptchaConfig) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { put: "/v1/admin/security/captcha" body: "*" };
+  }
+  rpc TestCaptchaProvider(TestCaptchaProviderRequest) returns (TestCaptchaProviderResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/admin/security/captcha/test" body: "*" };
+  }
+
+  // ── Security Policy (Page 17.4) ──
+
+  rpc GetSecurityPolicy(GetSecurityPolicyRequest) returns (SecurityPolicyResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/security/policy" };
+  }
+  rpc ListApplicationOverrides(ListApplicationOverridesRequest) returns (ListApplicationOverridesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/security/policy/overrides" };
+  }
+
+  // Get effective policy for a specific application (org policy + app overrides merged).
+  // Returns the combined policy that would be applied when a user logs in to this app.
+  rpc GetEffectivePolicy(GetEffectivePolicyRequest) returns (SecurityPolicyResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/security/policy/effective/{client_id}" };
+  }
+
+  // Evaluate enforcement decision for a profile + application.
+  // Returns what would happen if this user tried to log in to this app right now.
+  // Used for admin debugging and policy preview.
+  rpc EvaluateEnforcement(EvaluateEnforcementRequest) returns (EvaluateEnforcementResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/security/policy/evaluate" };
+  }
+
+  // ── Network Policy (Page 17.6) ──
+
+  rpc GetNetworkPolicy(GetNetworkPolicyRequest) returns (NetworkPolicy) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/security/network-policy" };
+  }
+  rpc UpdateNetworkPolicy(NetworkPolicy) returns (NetworkPolicy) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { put: "/v1/admin/security/network-policy" body: "*" };
+  }
+
+  // ── Breach Detection (Page 17.7) ──
+
+  rpc GetBreachDetectionConfig(GetBreachDetectionConfigRequest) returns (BreachDetectionConfig) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/security/breach-detection" };
+  }
+  rpc UpdateBreachDetectionConfig(BreachDetectionConfig) returns (BreachDetectionConfig) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { put: "/v1/admin/security/breach-detection" body: "*" };
+  }
+
+  // ── Data Integrity (Page 17.8) ──
+
+  // Run integrity verification across all layers.
+  // CE: audit chain + graph consistency. EE: all 5 layers.
+  rpc RunIntegrityCheck(RunIntegrityCheckRequest) returns (IntegrityCheckResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/admin/security/integrity/check" body: "*" };
+  }
+
+  // ── IP Allowlist (IP Intelligence) ──
+
+  // List all admin-configured IP allowlist entries.
+  // Allowlisted IPs/CIDRs override ALL negative IP intelligence labels.
+  rpc ListIpAllowlistEntries(ListIpAllowlistEntriesRequest) returns (IpAllowlistResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/security/ip-allowlist" };
+  }
+
+  // Add an IP or CIDR to the allowlist.
+  rpc AddIpAllowlistEntry(AddIpAllowlistEntryRequest) returns (IpAllowlistResponse) {
+    option (google.api.http) = { post: "/v1/admin/security/ip-allowlist" body: "*" };
+  }
+
+  // Remove an IP or CIDR from the allowlist.
+  rpc RemoveIpAllowlistEntry(RemoveIpAllowlistEntryRequest) returns (IpAllowlistResponse) {
+    option (google.api.http) = { delete: "/v1/admin/security/ip-allowlist/{cidr}" };
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Empty request messages (buf lint: no google.protobuf.Empty as request)
+// ══════════════════════════════════════════════════════════════════════════
+
+message GetPasswordPolicyRequest {}
+message GetBruteForceConfigRequest {}
+message GetSecurityHeadersRequest {}
+message GetRateLimitConfigRequest {}
+message GetRateLimitDashboardRequest {}
+message ListAnomalyRulesRequest {}
+message GetCaptchaConfigRequest {}
+message GetSecurityPolicyRequest {}
+message ListApplicationOverridesRequest {}
+message GetNetworkPolicyRequest {}
+message GetBreachDetectionConfigRequest {}
+message ListIpAllowlistEntriesRequest {}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Password Policy
+// ══════════════════════════════════════════════════════════════════════════
+
+message PasswordPolicy {
+  repeated PasswordPolicyRule rules = 1;
+}
+
+message PasswordPolicyRule {
+  PasswordPolicyRuleType type = 1;
+  int32 value = 2;            // Meaning depends on type
+  string pattern = 3;         // For REGEX type
+}
+
+enum PasswordPolicyRuleType {
+  PASSWORD_POLICY_RULE_TYPE_UNSPECIFIED = 0;
+  PASSWORD_POLICY_RULE_TYPE_MIN_LENGTH = 1;
+  PASSWORD_POLICY_RULE_TYPE_UPPERCASE = 2;
+  PASSWORD_POLICY_RULE_TYPE_LOWERCASE = 3;
+  PASSWORD_POLICY_RULE_TYPE_DIGITS = 4;
+  PASSWORD_POLICY_RULE_TYPE_SPECIAL_CHARS = 5;
+  PASSWORD_POLICY_RULE_TYPE_NOT_USERNAME = 6;
+  PASSWORD_POLICY_RULE_TYPE_NOT_EMAIL = 7;
+  PASSWORD_POLICY_RULE_TYPE_PASSWORD_HISTORY = 8;  // value = last N
+  PASSWORD_POLICY_RULE_TYPE_REGEX = 9;
+  PASSWORD_POLICY_RULE_TYPE_MAX_AGE_DAYS = 10;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Brute Force Protection
+// ══════════════════════════════════════════════════════════════════════════
+
+message BruteForceConfig {
+  bool enabled = 1;
+  BruteForceLockoutMode mode = 2;
+  int32 max_login_failures = 3;
+  int32 lockout_duration_seconds = 4;
+  int32 max_lockout_duration_seconds = 5;
+  int32 failure_reset_seconds = 6;
+  int32 quick_login_check_ms = 7;
+}
+
+enum BruteForceLockoutMode {
+  BRUTE_FORCE_LOCKOUT_MODE_UNSPECIFIED = 0;
+  BRUTE_FORCE_LOCKOUT_MODE_PERMANENT = 1;
+  BRUTE_FORCE_LOCKOUT_MODE_TEMPORARY = 2;
+  BRUTE_FORCE_LOCKOUT_MODE_PROGRESSIVE = 3;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Security Headers
+// ══════════════════════════════════════════════════════════════════════════
+
+message SecurityHeaders {
+  string x_frame_options = 1;              // DENY, SAMEORIGIN, ALLOW-FROM
+  string content_security_policy = 2;
+  bool x_content_type_options_nosniff = 3;
+  int32 hsts_max_age = 4;
+  bool hsts_include_subdomains = 5;
+  bool hsts_preload = 6;
+  bool x_xss_protection = 7;
+  string referrer_policy = 8;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Rate Limits
+// ══════════════════════════════════════════════════════════════════════════
+
+message RateLimitConfig {
+  repeated RateLimitRule rules = 1;
+  repeated RateLimitOverride overrides = 2;
+  repeated string ip_allowlist = 3;
+}
+
+message RateLimitRule {
+  string endpoint = 1;        // "login", "register", "token", etc.
+  int32 max_requests = 2;
+  int32 window_seconds = 3;
+  string scope = 4;           // "ip", "user", "global"
+}
+
+message RateLimitOverride {
+  string id = 1;
+  string target_type = 2;     // "ip", "cidr", "application"
+  string target = 3;
+  int32 max_requests = 4;
+  int32 window_seconds = 5;
+}
+
+message RateLimitDashboard {
+  int32 total_blocked_last_hour = 1;
+  int32 total_blocked_last_day = 2;
+  repeated RateLimitTopEntry top_blocked_ips = 3;
+  repeated RateLimitTopEntry top_blocked_endpoints = 4;
+}
+
+message RateLimitTopEntry {
+  string key = 1;
+  int32 count = 2;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Anomaly Rules
+// ══════════════════════════════════════════════════════════════════════════
+
+message AnomalyRule {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  AnomalyRuleType type = 4;
+  bool enabled = 5;
+  int32 weight = 6;           // CE: fixed, EE: configurable
+  string tier = 7;            // "ce" or "ee"
+}
+
+enum AnomalyRuleType {
+  ANOMALY_RULE_TYPE_UNSPECIFIED = 0;
+  ANOMALY_RULE_TYPE_IMPOSSIBLE_TRAVEL = 1;
+  ANOMALY_RULE_TYPE_NEW_DEVICE = 2;
+  ANOMALY_RULE_TYPE_NEW_COUNTRY = 3;
+  ANOMALY_RULE_TYPE_CREDENTIAL_STUFFING = 4;
+  ANOMALY_RULE_TYPE_BRUTE_FORCE = 5;
+  ANOMALY_RULE_TYPE_TOKEN_ABUSE = 6;
+  ANOMALY_RULE_TYPE_SESSION_ANOMALY = 7;
+  ANOMALY_RULE_TYPE_CUSTOM = 8;
+}
+
+message ListAnomalyRulesResponse {
+  repeated AnomalyRule rules = 1;
+}
+
+message GetAnomalyEventLogRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  optional string rule_id = 3;
+}
+
+message AnomalyEventLog {
+  repeated AnomalyEvent events = 1;
+  string next_page_token = 2;
+}
+
+message AnomalyEvent {
+  string id = 1;
+  string rule_id = 2;
+  string profile_id = 3;
+  string ip_address = 4;
+  string description = 5;
+  int32 risk_score = 6;
+  google.protobuf.Timestamp timestamp = 7;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// CAPTCHA
+// ══════════════════════════════════════════════════════════════════════════
+
+message CaptchaConfig {
+  bool enabled = 1;
+  CaptchaProvider provider = 2;
+  string site_key = 3;
+  string secret_key = 4;       // Write-only, masked in responses
+  double score_threshold = 5;  // For reCAPTCHA v3 / Turnstile
+  repeated CaptchaTrigger triggers = 6;
+}
+
+enum CaptchaProvider {
+  CAPTCHA_PROVIDER_UNSPECIFIED = 0;
+  CAPTCHA_PROVIDER_RECAPTCHA_V2 = 1;
+  CAPTCHA_PROVIDER_RECAPTCHA_V3 = 2;
+  CAPTCHA_PROVIDER_HCAPTCHA = 3;
+  CAPTCHA_PROVIDER_TURNSTILE = 4;
+}
+
+enum CaptchaTrigger {
+  CAPTCHA_TRIGGER_UNSPECIFIED = 0;
+  CAPTCHA_TRIGGER_LOGIN = 1;
+  CAPTCHA_TRIGGER_REGISTER = 2;
+  CAPTCHA_TRIGGER_PASSWORD_RESET = 3;
+  CAPTCHA_TRIGGER_AFTER_FAILURES = 4;
+}
+
+message TestCaptchaProviderRequest {
+  CaptchaProvider provider = 1;
+  string site_key = 2;
+  string secret_key = 3;
+}
+
+message TestCaptchaProviderResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Security Policy
+// ══════════════════════════════════════════════════════════════════════════
+
+// Full org-level security policy response.
+// CE: returns hardcoded values (read-only).
+// EE: returns configurable stored policy.
+message SecurityPolicyResponse {
+  // Overall enforcement mode.
+  string enforcement_mode = 1;  // "hard", "soft", "audit"
+
+  // Sub-policy toggles.
+  bool rate_limits_enabled = 2;
+  bool anomaly_detection_enabled = 3;
+  bool captcha_enabled = 4;
+  bool breach_detection_enabled = 5;
+  bool enrollment_enabled = 6;
+
+  // Auth requirements.
+  string min_auth_level = 7;        // "basic", "standard", "elevated", "critical"
+  string mfa_enforcement = 8;       // "optional", "required", "adaptive"
+  repeated string allowed_mfa_methods = 9;
+  bool require_phishing_resistant = 10;
+
+  // Password requirements.
+  int32 password_min_length = 11;
+  int32 password_max_age_days = 12;
+
+  // Session requirements.
+  int32 session_max_lifetime_hours = 13;
+  int32 session_idle_timeout_hours = 14;
+  int32 session_max_concurrent = 15;
+
+  // Network restrictions.
+  NetworkPolicy network = 16;
+
+  // Whether policy is configurable (false for CE).
+  bool read_only = 17;
+
+  // Whether a single passkey with user verification satisfies MFA requirement.
+  // When true (default): passkey login grants standard assurance (no second factor needed).
+  // When false: passkey login grants basic assurance only.
+  bool passkey_satisfies_mfa = 18;
+}
+
+message ApplicationOverride {
+  string application_id = 1;
+  string application_name = 2;
+  optional string min_auth_level = 3;
+  optional string enforcement_mode = 4;
+  repeated string required_amr = 5;
+}
+
+message ListApplicationOverridesResponse {
+  repeated ApplicationOverride overrides = 1;
+}
+
+// Request for effective policy on a specific application.
+message GetEffectivePolicyRequest {
+  string client_id = 1;
+}
+
+// Request for enforcement evaluation.
+message EvaluateEnforcementRequest {
+  string profile_id = 1;
+  string client_id = 2;  // Which application
+}
+
+message EvaluateEnforcementResponse {
+  EnforcementAction action = 1;
+  repeated PolicyViolation violations = 2;
+  repeated PolicyRequiredAction required_actions = 3;
+}
+
+enum EnforcementAction {
+  ENFORCEMENT_ACTION_UNSPECIFIED = 0;
+  ENFORCEMENT_ACTION_ALLOW = 1;
+  ENFORCEMENT_ACTION_STEP_UP = 2;
+  ENFORCEMENT_ACTION_GRACE = 3;
+  ENFORCEMENT_ACTION_BLOCK = 4;
+}
+
+message PolicyViolation {
+  string requirement = 1;  // "mfa_required", "min_auth_level", etc.
+  string current = 2;      // Current user state
+  string required = 3;     // Required by policy
+}
+
+message PolicyRequiredAction {
+  string action_type = 1;  // "enroll_mfa", "step_up_auth", "change_password", etc.
+  string description = 2;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Breach Detection
+// ══════════════════════════════════════════════════════════════════════════
+
+message BreachDetectionConfig {
+  bool enabled = 1;
+  bool check_on_login = 2;
+  bool check_on_password_change = 3;
+  bool force_password_change_on_breach = 4;
+  string provider = 5;         // "hibp" (Have I Been Pwned k-anonymity API)
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Network Policy
+// ══════════════════════════════════════════════════════════════════════════
+
+// Network restrictions — country blocking, Tor/datacenter IP filtering.
+// Sub-policy of SecurityPolicy. Enforced at login via anomaly detection rules
+// (country_restriction, tor_exit_node, datacenter_ip).
+message NetworkPolicy {
+  // Country allow-list (ISO 3166-1 alpha-2). Empty = all countries allowed.
+  // When non-empty, ONLY listed countries are permitted (allow-list mode).
+  // Mutually exclusive with blocked_countries.
+  repeated string allowed_countries = 1;
+
+  // Country block-list (ISO 3166-1 alpha-2). Empty = no countries blocked.
+  // Mutually exclusive with allowed_countries.
+  repeated string blocked_countries = 2;
+
+  // Block logins from known Tor exit nodes.
+  // Uses auto-updated CDN blocklist.
+  bool block_tor = 3;
+
+  // Block logins from datacenter/hosting provider IPs
+  // (AWS, GCP, Azure, DigitalOcean, etc.) via MaxMind ASN database.
+  bool block_datacenter_ips = 4;
+
+  // Reaction for network policy violations.
+  NetworkViolationReaction violation_reaction = 5;
+}
+
+// How to handle network policy violations.
+enum NetworkViolationReaction {
+  NETWORK_VIOLATION_REACTION_UNSPECIFIED = 0;
+  // Deny login immediately. Default for CE.
+  NETWORK_VIOLATION_REACTION_BLOCK = 1;
+  // Require additional authentication factor.
+  NETWORK_VIOLATION_REACTION_STEP_UP = 2;
+  // Allow but trigger alert to admin (EE, audit mode).
+  NETWORK_VIOLATION_REACTION_ALERT = 3;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Data Integrity
+// ══════════════════════════════════════════════════════════════════════════
+
+message RunIntegrityCheckRequest {
+  // Which layers to check (empty = all available).
+  // CE: "audit_chain", "graph_consistency". Others return pass with 0 entities.
+  repeated string layers = 1;
+}
+
+message IntegrityCheckResponse {
+  bool passed = 1;
+  int64 total_entities_checked = 2;
+  int64 total_issues_found = 3;
+  int64 duration_ms = 4;
+  repeated IntegrityLayerResult layers = 5;
+}
+
+message IntegrityLayerResult {
+  string layer = 1;           // "audit_chain", "graph_consistency", etc.
+  int64 entities_checked = 2;
+  int64 entities_passed = 3;
+  int64 issues_found = 4;
+  int64 duration_ms = 5;
+  repeated IntegrityIssue issues = 6;
+}
+
+message IntegrityIssue {
+  string layer = 1;
+  string severity = 2;        // "info", "warning", "error", "critical"
+  string entity_type = 3;
+  string entity_id = 4;
+  string description = 5;
+  bool auto_repairable = 6;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// IP Allowlist
+// ══════════════════════════════════════════════════════════════════════════
+
+// Add an IP address or CIDR range to the global allowlist.
+// Allowlisted IPs override ALL negative IP intelligence labels (Tor, datacenter, blocklist).
+message AddIpAllowlistEntryRequest {
+  // IP address or CIDR (e.g., "10.0.0.0/8", "192.168.1.1").
+  string cidr = 1;
+  // Optional human-readable description (e.g., "Office VPN", "CI/CD runner").
+  string description = 2;
+}
+
+// Remove an IP address or CIDR from the global allowlist.
+message RemoveIpAllowlistEntryRequest {
+  // Exact CIDR to remove (must match stored value).
+  string cidr = 1;
+}
+
+// Current state of the IP allowlist.
+message IpAllowlistResponse {
+  repeated IpAllowlistEntry entries = 1;
+}
+
+// A single IP allowlist entry.
+message IpAllowlistEntry {
+  string cidr = 1;
+  string description = 2;
+  google.protobuf.Timestamp created_at = 3;
+}

@@ -1,0 +1,56 @@
+// StructuredID Organization / Site Service
+// CE: site summary (single-instance = one site = one org).
+// EE: B2B partners, federation, custom domains.
+// SaaS: full org lifecycle, subscriptions, invitations.
+// Admin access required.
+syntax = "proto3";
+
+package sid.v1.admin;
+
+import "google/api/annotations.proto";
+
+service SiteService {
+  // Get site summary info (CE/EE).
+  rpc GetSiteInfo(GetSiteInfoRequest) returns (SiteInfo) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/site" };
+  }
+
+  // Update site name.
+  rpc UpdateSiteName(UpdateSiteNameRequest) returns (SiteInfo) {
+    option (google.api.http) = { patch: "/v1/admin/site/name" body: "*" };
+  }
+}
+
+// ── Messages ──
+
+message GetSiteInfoRequest {}
+
+message SiteInfo {
+  string site_name = 1;
+  string version = 2;
+  EditionType edition = 3;
+  string primary_domain = 4;
+  string admin_contact = 5;
+  // Quick stats.
+  SiteStats stats = 6;
+}
+
+message SiteStats {
+  uint64 total_users = 1;
+  uint64 active_sessions = 2;
+  uint64 applications_count = 3;
+  uint64 external_users = 4;
+}
+
+message UpdateSiteNameRequest {
+  string site_name = 1;
+}
+
+// ── Enums ──
+
+enum EditionType {
+  EDITION_TYPE_UNSPECIFIED = 0;
+  EDITION_TYPE_CE = 1;
+  EDITION_TYPE_EE = 2;
+}

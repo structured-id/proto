@@ -1,0 +1,35 @@
+// StructuredID WebTransport Framing Protocol
+// Defines the framing messages for RPC over WebTransport (QUIC) streams.
+// Each unary RPC uses one bidirectional stream:
+//   Client → Server: [4B len][RequestHeader] [4B len][request body]
+//   Server → Client: [4B len][ResponseHeader] [4B len][response body]
+syntax = "proto3";
+
+package sid.v1.common;
+
+// RequestHeader is the first frame on a bidi stream.
+// Identifies which service method to call and carries per-RPC metadata.
+message RequestHeader {
+  // Full gRPC-style method path, e.g. "sid.v1.AuthService/OpaqueLoginStart".
+  string method = 1;
+
+  // Per-RPC metadata (session-id, authorization, trace-id, etc.).
+  // Browser WebTransport API cannot set HTTP headers on CONNECT,
+  // so all metadata travels here.
+  map<string, string> metadata = 2;
+
+  // Optional timeout in milliseconds (0 = server default).
+  uint32 timeout_ms = 3;
+}
+
+// ResponseHeader is the first frame sent back by the server.
+message ResponseHeader {
+  // Status code (mirrors gRPC: 0=OK, 1=CANCELLED, 2=UNKNOWN, ... 12=UNIMPLEMENTED).
+  uint32 status_code = 1;
+
+  // Human-readable message for non-OK statuses.
+  string status_message = 2;
+
+  // Response metadata.
+  map<string, string> metadata = 3;
+}

@@ -1,0 +1,126 @@
+// StructuredID Admin Service
+// Administrative operations: bootstrap, profile metadata, bulk session revocation.
+// These RPCs require admin role in Bearer token (except Bootstrap).
+syntax = "proto3";
+
+package sid.v1.admin;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+import "google/api/annotations.proto";
+import "sid/v1/identity/identity.proto";
+
+// AdminService provides privileged operations for instance administrators.
+service AdminService {
+  // Create the first admin profile. Only works when no admin profiles exist.
+  // No authentication required — returns ALREADY_EXISTS if admin exists.
+  rpc Bootstrap(BootstrapRequest) returns (BootstrapResponse) {
+    option (google.api.http) = { post: "/v1/admin/bootstrap" body: "*" };
+  }
+
+  // Update a profile with admin-only fields (status, roles, email verification).
+  rpc AdminUpdateProfile(AdminUpdateProfileRequest) returns (AdminUpdateProfileResponse) {
+    option (google.api.http) = { patch: "/v1/admin/profiles/{profile_id}" body: "*" };
+  }
+
+  // Revoke all sessions for a profile (force logout).
+  rpc RevokeAllSessions(RevokeAllSessionsRequest) returns (RevokeAllSessionsResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/admin/profiles/{profile_id}/sessions" };
+  }
+
+  // ── Profile Metadata (free-form key-value storage) ──
+
+  rpc ListProfileMetadata(ListProfileMetadataRequest) returns (ListProfileMetadataResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/profiles/{profile_id}/metadata" };
+  }
+
+  rpc GetProfileMetadata(GetProfileMetadataRequest) returns (ProfileMetadataEntry) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/profiles/{profile_id}/metadata/{key}" };
+  }
+
+  rpc SetProfileMetadata(SetProfileMetadataRequest) returns (ProfileMetadataEntry) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { put: "/v1/admin/profiles/{profile_id}/metadata/{key}" body: "*" };
+  }
+
+  rpc DeleteProfileMetadata(DeleteProfileMetadataRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/admin/profiles/{profile_id}/metadata/{key}" };
+  }
+}
+
+// ── Bootstrap ──
+
+message BootstrapRequest {
+  string username = 1;
+}
+
+message BootstrapResponse {
+  string profile_id = 1;
+  string message = 2;
+}
+
+// ── Admin Update Profile ──
+
+message AdminUpdateProfileRequest {
+  // Target profile UUID. Admin specifies which profile to update.
+  string profile_id = 1;
+  // New profile status. Server validates transition (e.g., ACTIVE→SUSPENDED allowed,
+  // CLOSED→ACTIVE not allowed). Zero value = no change.
+  sid.v1.identity.ProfileStatus profile_status = 2;
+  // Roles to assign (replaces existing role set).
+  repeated string roles = 3;
+  // Override email verification status.
+  optional bool email_verified = 4;
+}
+
+message AdminUpdateProfileResponse {
+  string profile_id = 1;
+}
+
+// ── Revoke All Sessions ──
+
+message RevokeAllSessionsRequest {
+  string profile_id = 1;
+}
+
+message RevokeAllSessionsResponse {
+  uint64 revoked_count = 1;
+}
+
+// ── Profile Metadata ──
+
+message ProfileMetadataEntry {
+  string profile_id = 1;
+  string key = 2;
+  google.protobuf.Value value = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+message ListProfileMetadataRequest {
+  string profile_id = 1;
+}
+
+message ListProfileMetadataResponse {
+  repeated ProfileMetadataEntry entries = 1;
+}
+
+message GetProfileMetadataRequest {
+  string profile_id = 1;
+  string key = 2;
+}
+
+message SetProfileMetadataRequest {
+  string profile_id = 1;
+  string key = 2;
+  google.protobuf.Value value = 3;
+}
+
+message DeleteProfileMetadataRequest {
+  string profile_id = 1;
+  string key = 2;
+}

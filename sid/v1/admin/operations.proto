@@ -1,0 +1,347 @@
+// StructuredID Instance Operations
+// Feature flags, system health, notification channel configuration.
+// Superadmin access required.
+syntax = "proto3";
+
+package sid.v1.admin;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+// ── Feature Flag Service ──
+
+service FeatureFlagService {
+  rpc ListFlags(google.protobuf.Empty) returns (ListFlagsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/operations/flags" };
+  }
+
+  rpc SetFlag(SetFlagRequest) returns (FeatureFlag) {
+    option (google.api.http) = { put: "/v1/admin/operations/flags/{flag_name}" body: "*" };
+  }
+
+  rpc ResetFlag(ResetFlagRequest) returns (FeatureFlag) {
+    option (google.api.http) = { post: "/v1/admin/operations/flags/{flag_name}/reset" body: "*" };
+  }
+
+  rpc ListFlagHistory(ListFlagHistoryRequest) returns (ListFlagHistoryResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/operations/flags/{flag_name}/history" };
+  }
+
+  rpc GetPropagationStatus(google.protobuf.Empty) returns (PropagationStatusResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/operations/flags/propagation" };
+  }
+}
+
+// ── System Health Service ──
+
+service SystemHealthService {
+  rpc GetHealthStatus(google.protobuf.Empty) returns (HealthStatusResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/operations/health" };
+  }
+
+  rpc GetInstanceInfo(google.protobuf.Empty) returns (InstanceInfo) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/operations/instance" };
+  }
+}
+
+// ── Notification Channel Service ──
+
+service NotificationChannelService {
+  rpc ListChannels(google.protobuf.Empty) returns (ListChannelsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/operations/channels" };
+  }
+
+  rpc GetChannelConfig(GetChannelConfigRequest) returns (ChannelConfig) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/operations/channels/{channel}" };
+  }
+
+  rpc UpdateChannelConfig(UpdateChannelConfigRequest) returns (ChannelConfig) {
+    option (google.api.http) = { put: "/v1/admin/operations/channels/{channel}" body: "*" };
+  }
+
+  rpc TestChannel(TestChannelRequest) returns (TestChannelResponse) {
+    option (google.api.http) = { post: "/v1/admin/operations/channels/{channel}/test" body: "*" };
+  }
+
+  rpc GetDeliveryHealth(GetDeliveryHealthRequest) returns (DeliveryHealthResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/operations/channels/delivery-health" };
+  }
+
+  rpc GetDefaultPreferences(google.protobuf.Empty) returns (DefaultNotificationPreferences) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/operations/channels/default-preferences" };
+  }
+
+  rpc UpdateDefaultPreferences(DefaultNotificationPreferences) returns (DefaultNotificationPreferences) {
+    option (google.api.http) = { put: "/v1/admin/operations/channels/default-preferences" body: "*" };
+  }
+}
+
+// ── Enums ──
+
+enum FlagStatus {
+  FLAG_STATUS_UNSPECIFIED = 0;
+  FLAG_STATUS_ON = 1;
+  FLAG_STATUS_OFF = 2;
+  FLAG_STATUS_DEFAULT = 3;
+}
+
+enum DependencyStatus {
+  DEPENDENCY_STATUS_UNSPECIFIED = 0;
+  DEPENDENCY_STATUS_UP = 1;
+  DEPENDENCY_STATUS_DEGRADED = 2;
+  DEPENDENCY_STATUS_DOWN = 3;
+}
+
+enum ProbeStatus {
+  PROBE_STATUS_UNSPECIFIED = 0;
+  PROBE_STATUS_OK = 1;
+  PROBE_STATUS_FAIL = 2;
+}
+
+enum ChannelType {
+  CHANNEL_TYPE_UNSPECIFIED = 0;
+  CHANNEL_TYPE_EMAIL = 1;
+  CHANNEL_TYPE_SMS = 2;
+  CHANNEL_TYPE_WEB_PUSH = 3;
+  CHANNEL_TYPE_MOBILE_PUSH = 4;
+}
+
+enum ChannelHealth {
+  CHANNEL_HEALTH_UNSPECIFIED = 0;
+  CHANNEL_HEALTH_HEALTHY = 1;
+  CHANNEL_HEALTH_DEGRADED = 2;
+  CHANNEL_HEALTH_DOWN = 3;
+  CHANNEL_HEALTH_NOT_CONFIGURED = 4;
+}
+
+enum SmtpEncryption {
+  SMTP_ENCRYPTION_UNSPECIFIED = 0;
+  SMTP_ENCRYPTION_NONE = 1;
+  SMTP_ENCRYPTION_STARTTLS = 2;
+  SMTP_ENCRYPTION_IMPLICIT_TLS = 3;
+}
+
+enum SmsHttpMethod {
+  SMS_HTTP_METHOD_UNSPECIFIED = 0;
+  SMS_HTTP_METHOD_POST = 1;
+  SMS_HTTP_METHOD_GET = 2;
+}
+
+enum InstanceTier {
+  INSTANCE_TIER_UNSPECIFIED = 0;
+  INSTANCE_TIER_CE = 1;
+  INSTANCE_TIER_EE = 2;
+  INSTANCE_TIER_SAAS = 3;
+}
+
+// ── Feature Flag Messages ──
+
+message FeatureFlag {
+  string flag_name = 1;
+  string description = 2;
+  bool default_value = 3;
+  // Null if using default.
+  bool override_value = 4;
+  bool has_override = 5;
+  // Effective value (override if set, default otherwise).
+  bool enabled = 6;
+  string changed_by = 7;
+  google.protobuf.Timestamp changed_at = 8;
+  // Whether this is a built-in CE flag or EE flag.
+  bool built_in = 9;
+}
+
+message ListFlagsResponse {
+  repeated FeatureFlag flags = 1;
+}
+
+message SetFlagRequest {
+  string flag_name = 1;
+  bool enabled = 2;
+}
+
+message ResetFlagRequest {
+  string flag_name = 1;
+}
+
+message FlagHistoryEntry {
+  google.protobuf.Timestamp timestamp = 1;
+  string admin_name = 2;
+  // "enabled", "disabled", "reset_to_default"
+  string action = 3;
+  bool previous_value = 4;
+}
+
+message ListFlagHistoryRequest {
+  string flag_name = 1;
+}
+
+message ListFlagHistoryResponse {
+  repeated FlagHistoryEntry entries = 1;
+}
+
+message PropagationStatusResponse {
+  uint32 total_nodes = 1;
+  uint32 synced_nodes = 2;
+  google.protobuf.Timestamp last_sync = 3;
+}
+
+// ── System Health Messages ──
+
+message DependencyHealth {
+  string name = 1;
+  DependencyStatus status = 2;
+  // Latency in milliseconds.
+  uint32 latency_ms = 3;
+  string version = 4;
+  string detail = 5;
+  google.protobuf.Timestamp last_check = 6;
+}
+
+message HealthProbe {
+  string name = 1;
+  ProbeStatus status = 2;
+  string error_message = 3;
+}
+
+message HealthStatusResponse {
+  repeated DependencyHealth dependencies = 1;
+  repeated HealthProbe probes = 2;
+}
+
+message InstanceInfo {
+  string version = 1;
+  string build_commit = 2;
+  string build_date = 3;
+  InstanceTier tier = 4;
+  string instance_id = 5;
+  string uptime = 6;
+  string rust_version = 7;
+  repeated string compiled_features = 8;
+  string os = 9;
+  uint32 node_count = 10;
+  uint32 healthy_nodes = 11;
+}
+
+// ── Notification Channel Messages ──
+
+message ChannelSummary {
+  ChannelType channel = 1;
+  ChannelHealth health = 2;
+  uint32 sent_today = 3;
+  uint32 failed_today = 4;
+  uint32 avg_latency_ms = 5;
+}
+
+message ListChannelsResponse {
+  repeated ChannelSummary channels = 1;
+}
+
+message EmailConfig {
+  string smtp_host = 1;
+  uint32 smtp_port = 2;
+  SmtpEncryption encryption = 3;
+  string username = 4;
+  // Write-only: empty on read, set on write.
+  string password = 5;
+  string from_address = 6;
+  string from_name = 7;
+  string reply_to = 8;
+  uint32 rate_limit_per_minute = 9;
+  uint32 connection_timeout_seconds = 10;
+}
+
+message SmsConfig {
+  string gateway_url = 1;
+  SmsHttpMethod http_method = 2;
+  string auth_header = 3;
+  // JSON template with {{phone}} and {{text}} placeholders.
+  string body_template = 4;
+  uint32 rate_limit_per_minute = 5;
+}
+
+message WebPushConfig {
+  string vapid_subject = 1;
+  // Read-only: auto-generated.
+  string vapid_public_key = 2;
+  // Write-only: empty on read.
+  string vapid_private_key = 3;
+}
+
+message ChannelConfig {
+  ChannelType channel = 1;
+  bool enabled = 2;
+  oneof config {
+    EmailConfig email = 3;
+    SmsConfig sms = 4;
+    WebPushConfig web_push = 5;
+  }
+}
+
+message GetChannelConfigRequest {
+  ChannelType channel = 1;
+}
+
+message UpdateChannelConfigRequest {
+  ChannelType channel = 1;
+  ChannelConfig config = 2;
+}
+
+message TestChannelRequest {
+  ChannelType channel = 1;
+  // Email address, phone number, or empty for push.
+  string recipient = 2;
+}
+
+message TestChannelResponse {
+  bool success = 1;
+  string message = 2;
+  uint32 delivery_time_ms = 3;
+}
+
+message GetDeliveryHealthRequest {
+  // "24h", "7d", "30d"
+  string period = 1;
+}
+
+message DeliveryHealthResponse {
+  uint32 total_sent = 1;
+  uint32 total_delivered = 2;
+  uint32 total_failed = 3;
+  double bounce_rate = 4;
+  uint32 avg_latency_ms = 5;
+  repeated ChannelDeliveryStats per_channel = 6;
+}
+
+message ChannelDeliveryStats {
+  ChannelType channel = 1;
+  uint32 sent = 2;
+  uint32 delivered = 3;
+  uint32 failed = 4;
+  uint32 avg_latency_ms = 5;
+}
+
+// Default notification preferences for new users.
+message DefaultNotificationPreferences {
+  repeated EventPreference preferences = 1;
+}
+
+message EventPreference {
+  string event_category = 1;
+  bool email = 2;
+  bool sms = 3;
+  bool push = 4;
+  bool webhook = 5;
+  // If true, users cannot disable this category.
+  bool mandatory = 6;
+}

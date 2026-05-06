@@ -1,0 +1,506 @@
+// StructuredID Account Service
+// Self-service account management for authenticated users.
+// Consents, activity history, and dashboard aggregation.
+syntax = "proto3";
+
+package sid.v1.account;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "sid/v1/identity/identity.proto";
+
+// ══════════════════════════════════════════════════════════════════════════
+// Consent management — claim-level consent control (SID differentiator)
+// ══════════════════════════════════════════════════════════════════════════
+
+// ConsentInfo summarizes an active consent grant to an application.
+message ConsentInfo {
+  string site_id = 1;
+  string site_name = 2;
+  optional string site_favicon = 3;
+  ConsentStatus status = 4;
+  google.protobuf.Timestamp connected_at = 5;
+  int32 claims_mandatory = 6;
+  int32 claims_optional = 7;
+  optional google.protobuf.Timestamp last_sync = 8;
+}
+
+enum ConsentStatus {
+  CONSENT_STATUS_UNSPECIFIED = 0;
+  CONSENT_STATUS_ACTIVE = 1;
+  CONSENT_STATUS_INACTIVE = 2;
+}
+
+// ClaimConsent describes the consent state for a single claim.
+message ClaimConsent {
+  string claim_name = 1;
+  ClaimType claim_type = 2;
+  ClaimConsentStatus current_status = 3;
+  string value_preview = 4;  // Masked (e.g., "j***@example.com")
+  optional google.protobuf.Timestamp last_propagated = 5;
+}
+
+enum ClaimType {
+  CLAIM_TYPE_UNSPECIFIED = 0;
+  CLAIM_TYPE_MANDATORY = 1;
+  CLAIM_TYPE_OPTIONAL = 2;
+}
+
+enum ClaimConsentStatus {
+  CLAIM_CONSENT_STATUS_UNSPECIFIED = 0;
+  CLAIM_CONSENT_STATUS_GRANTED = 1;
+  CLAIM_CONSENT_STATUS_DENIED = 2;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Activity history — security event log
+// ══════════════════════════════════════════════════════════════════════════
+
+message ActivityEvent {
+  string id = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  string event_type = 3;    // sign_in, sign_out, password_change, mfa_added, etc.
+  ActivityEventStatus status = 4;
+
+  // Application context (for sign-in/sign-out events).
+  optional string application_name = 5;
+  optional string application_favicon = 6;
+
+  // Device info.
+  optional string device_browser = 7;
+  optional string device_os = 8;
+
+  // Location (city + country only — IP never exposed to UI).
+  optional string location_city = 9;
+  optional string location_country = 10;
+
+  // Authentication methods used (amr values).
+  repeated string auth_methods = 11;
+
+  // Whether user marked this event as disputed ("This wasn't me").
+  bool disputed = 12;
+}
+
+enum ActivityEventStatus {
+  ACTIVITY_EVENT_STATUS_UNSPECIFIED = 0;
+  ACTIVITY_EVENT_STATUS_SUCCESS = 1;
+  ACTIVITY_EVENT_STATUS_FAILED = 2;
+  ACTIVITY_EVENT_STATUS_BLOCKED = 3;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Linked accounts — bindings to upstream identity providers
+// ══════════════════════════════════════════════════════════════════════════
+
+// LinkedAccount represents a binding between the current profile and an
+// upstream identity provider (Google, GitHub, corporate SAML, etc.).
+message LinkedAccount {
+  string id = 1;
+  string provider_id = 2;
+  string provider_name = 3;
+  optional string provider_logo_url = 4;
+  LinkedAccountTrustCategory trust_category = 5;
+  string external_id_masked = 6;          // Masked external identifier
+  LinkedAccountStatus status = 7;
+  google.protobuf.Timestamp linked_at = 8;
+  optional google.protobuf.Timestamp last_login_at = 9;
+}
+
+enum LinkedAccountTrustCategory {
+  LINKED_ACCOUNT_TRUST_CATEGORY_UNSPECIFIED = 0;
+  LINKED_ACCOUNT_TRUST_CATEGORY_SOCIAL = 1;       // Google, GitHub, Apple
+  LINKED_ACCOUNT_TRUST_CATEGORY_CORPORATE = 2;    // Azure AD, Okta
+  LINKED_ACCOUNT_TRUST_CATEGORY_GOVERNMENT = 3;   // eID, DigiD
+  LINKED_ACCOUNT_TRUST_CATEGORY_FINANCIAL = 4;    // Bank-issued identity
+}
+
+enum LinkedAccountStatus {
+  LINKED_ACCOUNT_STATUS_UNSPECIFIED = 0;
+  LINKED_ACCOUNT_STATUS_ACTIVE = 1;
+  LINKED_ACCOUNT_STATUS_EXPIRED = 2;      // Token expired and refresh failed
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Service definition
+// ══════════════════════════════════════════════════════════════════════════
+
+service AccountService {
+  // ── Consents ──
+
+  // List all active consents for the current profile.
+  rpc ListConsents(ListConsentsRequest) returns (ListConsentsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/account/consents" };
+  }
+
+  // Get claim-level detail for a specific consent.
+  rpc GetConsentDetail(GetConsentDetailRequest) returns (GetConsentDetailResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/account/consents/{site_id}" };
+  }
+
+  // Update consent for a single claim (grant or deny).
+  rpc UpdateClaimConsent(UpdateClaimConsentRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = { patch: "/v1/account/consents/{site_id}/claims/{claim_name}" body: "*" };
+  }
+
+  // Disconnect site: revoke all claims + sessions + delete consent.
+  rpc DisconnectSite(DisconnectSiteRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = { delete: "/v1/account/consents/{site_id}" };
+  }
+
+  // ── Activity History ──
+
+  // List activity events with optional filters.
+  rpc ListActivityEvents(ListActivityEventsRequest) returns (ListActivityEventsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/account/activity" };
+  }
+
+  // Get full details for a single event.
+  rpc GetActivityEventDetail(GetActivityEventDetailRequest) returns (ActivityEvent) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/account/activity/{event_id}" };
+  }
+
+  // Report suspicious activity ("This wasn't me").
+  // Side effects: revoke associated session, mark as disputed.
+  rpc ReportSuspiciousEvent(ReportSuspiciousEventRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = { post: "/v1/account/activity/{event_id}/report" body: "*" };
+  }
+
+  // ── Linked Accounts ──
+
+  // List all linked upstream identity provider accounts.
+  rpc ListLinkedAccounts(google.protobuf.Empty) returns (ListLinkedAccountsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/account/linked-accounts" };
+  }
+
+  // Initiate linking to an upstream IdP. Returns a redirect URL.
+  rpc LinkAccount(LinkAccountRequest) returns (LinkAccountResponse) {
+    option (google.api.http) = { post: "/v1/account/linked-accounts" body: "*" };
+  }
+
+  // Unlink an upstream IdP account. Blocked if this is the only login method.
+  rpc UnlinkAccount(UnlinkAccountRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = { delete: "/v1/account/linked-accounts/{linked_account_id}" };
+  }
+
+  // Force re-authentication with the upstream IdP to refresh tokens/claims.
+  rpc ReauthenticateLink(ReauthenticateLinkRequest) returns (ReauthenticateLinkResponse) {
+    option (google.api.http) = { post: "/v1/account/linked-accounts/{linked_account_id}/reauth" body: "*" };
+  }
+
+  // ── App Launcher ──
+
+  // List applications available for SSO quick-launch.
+  rpc ListAvailableApps(google.protobuf.Empty) returns (ListAvailableAppsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/account/apps" };
+  }
+
+  // Launch SSO redirect to an application.
+  rpc LaunchApp(LaunchAppRequest) returns (LaunchAppResponse) {
+    option (google.api.http) = { post: "/v1/account/apps/{app_id}/launch" body: "*" };
+  }
+
+  // ── Notification Preferences ──
+
+  // Get notification delivery preferences for the current profile.
+  rpc GetNotificationPreferences(google.protobuf.Empty) returns (NotificationPreferences) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/account/notification-preferences" };
+  }
+
+  // Update notification delivery preferences.
+  // Security-critical categories cannot be disabled (server enforces).
+  rpc UpdateNotificationPreferences(UpdateNotificationPreferencesRequest) returns (NotificationPreferences) {
+    option (google.api.http) = { put: "/v1/account/notification-preferences" body: "*" };
+  }
+
+  // ── Passwordless ──
+
+  // Get current passwordless status and requirement checks.
+  rpc GetPasswordlessStatus(google.protobuf.Empty) returns (PasswordlessStatus) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/account/passwordless" };
+  }
+
+  // Enable passwordless mode: removes OPAQUE credential (password hash).
+  // Requires step-up authentication. Blocked unless all requirements are met.
+  rpc EnablePasswordless(google.protobuf.Empty) returns (google.protobuf.Empty) {
+    option (google.api.http) = { post: "/v1/account/passwordless/enable" body: "*" };
+  }
+
+  // Disable passwordless mode: triggers password enrollment flow.
+  rpc DisablePasswordless(google.protobuf.Empty) returns (DisablePasswordlessResponse) {
+    option (google.api.http) = { post: "/v1/account/passwordless/disable" body: "*" };
+  }
+
+  // ── Phone Management ──
+
+  // Add a phone number to the current profile.
+  rpc AddPhone(AddPhoneRequest) returns (sid.v1.identity.ProfilePhone) {
+    option (google.api.http) = { post: "/v1/account/phones" body: "*" };
+  }
+
+  // Remove a phone number from the current profile.
+  rpc RemovePhone(RemovePhoneRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = { delete: "/v1/account/phones/{phone_id}" };
+  }
+
+  // Update a phone number's label or capabilities.
+  rpc UpdatePhone(UpdatePhoneRequest) returns (sid.v1.identity.ProfilePhone) {
+    option (google.api.http) = { patch: "/v1/account/phones/{phone_id}" body: "*" };
+  }
+
+  // Set a phone as the primary phone for this profile.
+  rpc SetPrimaryPhone(SetPrimaryPhoneRequest) returns (sid.v1.identity.ProfilePhone) {
+    option (google.api.http) = { post: "/v1/account/phones/{phone_id}/primary" body: "*" };
+  }
+
+  // List all phone numbers for the current profile.
+  rpc ListPhones(google.protobuf.Empty) returns (ListPhonesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/account/phones" };
+  }
+
+  // ── Email Management ──
+
+  // Add an email address to the current profile.
+  rpc AddEmail(AddEmailRequest) returns (sid.v1.identity.ProfileEmail) {
+    option (google.api.http) = { post: "/v1/account/emails" body: "*" };
+  }
+
+  // Remove an email address from the current profile.
+  rpc RemoveEmail(RemoveEmailRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = { delete: "/v1/account/emails/{email_id}" };
+  }
+
+  // Update an email address's label.
+  rpc UpdateEmail(UpdateEmailRequest) returns (sid.v1.identity.ProfileEmail) {
+    option (google.api.http) = { patch: "/v1/account/emails/{email_id}" body: "*" };
+  }
+
+  // Set an email as the primary email for this profile.
+  rpc SetPrimaryEmail(SetPrimaryEmailRequest) returns (sid.v1.identity.ProfileEmail) {
+    option (google.api.http) = { post: "/v1/account/emails/{email_id}/primary" body: "*" };
+  }
+
+  // List all email addresses for the current profile.
+  rpc ListEmails(google.protobuf.Empty) returns (ListEmailsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/account/emails" };
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Request/Response messages
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── Consent messages ──
+
+message ListConsentsRequest {}
+
+message ListConsentsResponse {
+  repeated ConsentInfo consents = 1;
+}
+
+message GetConsentDetailRequest {
+  string site_id = 1;
+}
+
+message GetConsentDetailResponse {
+  ConsentInfo site_info = 1;
+  repeated ClaimConsent claims = 2;
+}
+
+message UpdateClaimConsentRequest {
+  string site_id = 1;
+  string claim_name = 2;
+  bool grant = 3;  // true = grant, false = deny
+}
+
+message DisconnectSiteRequest {
+  string site_id = 1;
+}
+
+// ── Activity messages ──
+
+message ListActivityEventsRequest {
+  // Filters (all optional).
+  repeated string event_types = 1;
+  optional string application_id = 2;
+  optional ActivityEventStatus status_filter = 3;
+  optional google.protobuf.Timestamp date_from = 4;
+  optional google.protobuf.Timestamp date_to = 5;
+  optional string search = 6;
+
+  // Pagination.
+  int32 page_size = 10;
+  string page_token = 11;
+}
+
+message ListActivityEventsResponse {
+  repeated ActivityEvent events = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+message GetActivityEventDetailRequest {
+  string event_id = 1;
+}
+
+message ReportSuspiciousEventRequest {
+  string event_id = 1;
+  optional string description = 2;
+}
+
+// ── Linked account messages ──
+
+message ListLinkedAccountsResponse {
+  repeated LinkedAccount accounts = 1;
+  // Whether the user has other login methods (password/passkey).
+  // If false, unlinking the last account is blocked.
+  bool has_other_credentials = 2;
+}
+
+message LinkAccountRequest {
+  string provider_id = 1;
+  string redirect_uri = 2;   // Where to redirect after IdP flow
+}
+
+message LinkAccountResponse {
+  string redirect_url = 1;   // URL to redirect user to for IdP auth
+}
+
+message UnlinkAccountRequest {
+  string linked_account_id = 1;
+}
+
+message ReauthenticateLinkRequest {
+  string linked_account_id = 1;
+  string redirect_uri = 2;
+}
+
+message ReauthenticateLinkResponse {
+  string redirect_url = 1;
+}
+
+// ── App launcher messages ──
+
+message AvailableApp {
+  string id = 1;
+  string name = 2;
+  optional string description = 3;
+  optional string favicon_url = 4;
+  string domain = 5;                       // e.g., "app.example.com"
+  optional google.protobuf.Timestamp last_used = 6;
+}
+
+message ListAvailableAppsResponse {
+  repeated AvailableApp apps = 1;
+}
+
+message LaunchAppRequest {
+  string app_id = 1;
+}
+
+message LaunchAppResponse {
+  string redirect_url = 1;               // SSO redirect URL
+}
+
+// ── Passwordless messages ──
+
+// Current passwordless status and whether requirements are met.
+message PasswordlessStatus {
+  bool enabled = 1;                      // Whether passwordless mode is active
+  bool has_passkey_or_security_key = 2;  // ≥1 WebAuthn credential enrolled
+  bool has_recovery_method = 3;          // ≥1 recovery method configured
+  bool can_enable = 4;                   // All requirements met (computed server-side)
+}
+
+// Response for DisablePasswordless — returns redirect to password enrollment.
+message DisablePasswordlessResponse {
+  string enrollment_url = 1;             // Redirect URL for OPAQUE password enrollment
+}
+
+// ── Notification preference messages ──
+
+message NotificationPreferences {
+  repeated NotificationCategoryPreference categories = 1;
+}
+
+message NotificationCategoryPreference {
+  string category = 1;          // "security_alerts", "login_notifications", etc.
+  bool enabled = 2;             // Whether this category is active (ignored for mandatory)
+  repeated string channels = 3; // "email", "sms", "web_push", "app_push"
+  bool mandatory = 4;           // Server-set: true for security_alerts (read-only for client)
+}
+
+message UpdateNotificationPreferencesRequest {
+  repeated NotificationCategoryPreference categories = 1;
+}
+
+// ── Phone management messages ──
+
+message AddPhoneRequest {
+  uint64 e164 = 1;                                        // E.164 digits only (no +)
+  optional uint32 extension = 2;                          // RFC 3966 ;ext=N
+  sid.v1.identity.PhoneLabel label = 3;
+  optional string custom_label = 4;
+  bool is_primary = 5;
+  bool can_receive_sms = 6;
+  bool can_receive_fax = 7;
+  bool can_receive_voice = 8;
+}
+
+message RemovePhoneRequest {
+  string phone_id = 1;
+}
+
+message UpdatePhoneRequest {
+  string phone_id = 1;
+  optional sid.v1.identity.PhoneLabel label = 2;
+  optional string custom_label = 3;
+  optional bool can_receive_sms = 4;
+  optional bool can_receive_fax = 5;
+  optional bool can_receive_voice = 6;
+}
+
+message SetPrimaryPhoneRequest {
+  string phone_id = 1;
+}
+
+message ListPhonesResponse {
+  repeated sid.v1.identity.ProfilePhone phones = 1;
+}
+
+// ── Email management messages ──
+
+message AddEmailRequest {
+  string email = 1;                                       // Normalized by server
+  sid.v1.identity.EmailLabel label = 2;
+  optional string custom_label = 3;
+  bool is_primary = 4;
+}
+
+message RemoveEmailRequest {
+  string email_id = 1;
+}
+
+message UpdateEmailRequest {
+  string email_id = 1;
+  optional sid.v1.identity.EmailLabel label = 2;
+  optional string custom_label = 3;
+}
+
+message SetPrimaryEmailRequest {
+  string email_id = 1;
+}
+
+message ListEmailsResponse {
+  repeated sid.v1.identity.ProfileEmail emails = 1;
+}

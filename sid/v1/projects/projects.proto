@@ -1,0 +1,360 @@
+// StructuredID Project Service
+// Manages projects, applications (OIDC clients), and project-scoped roles.
+syntax = "proto3";
+
+package sid.v1.projects;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "sid/v1/authz/authz.proto";
+import "google/api/annotations.proto";
+
+// Project is a container for related applications that share authorization scope.
+message Project {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string owner_profile_id = 4;
+  bool is_system = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+// Application represents an OIDC client within a project.
+message Application {
+  string client_id = 1;
+  string project_id = 2;
+  string name = 3;
+  ApplicationType type = 4;
+
+  // OIDC configuration.
+  repeated string redirect_uris = 5;
+  repeated string allowed_scopes = 6;
+  repeated string grant_types = 7;
+  bool active = 8;
+
+  google.protobuf.Timestamp created_at = 9;
+
+  // DCR fields (RFC 7591).
+  TokenEndpointAuthMethod token_endpoint_auth_method = 10;
+  repeated string response_types = 11;
+  SubjectType subject_type = 12;
+  optional string sector_identifier_uri = 13;
+  repeated string contacts = 14;
+  google.protobuf.Timestamp client_id_issued_at = 15;
+  optional google.protobuf.Timestamp client_secret_expires_at = 16;
+  bool dynamically_registered = 17;
+
+  // Organization this client belongs to. Used as the binding grouping
+  // key for pairwise sub derivation (org-model.md §Binding Grouping):
+  //   sub = HMAC(salt, profile_id || org_id || "sid-pairwise-sub-v1")
+  // All clients within the same org produce the same BindingId for a
+  // given profile — domain changes don't affect sub stability.
+  // Empty = no org association (legacy CE clients before org model).
+  optional string org_id = 18;
+}
+
+enum TokenEndpointAuthMethod {
+  TOKEN_ENDPOINT_AUTH_METHOD_UNSPECIFIED = 0;
+  TOKEN_ENDPOINT_AUTH_METHOD_CLIENT_SECRET_POST = 1;
+  TOKEN_ENDPOINT_AUTH_METHOD_CLIENT_SECRET_BASIC = 2;
+  TOKEN_ENDPOINT_AUTH_METHOD_NONE = 3;
+  TOKEN_ENDPOINT_AUTH_METHOD_PRIVATE_KEY_JWT = 4;
+}
+
+enum SubjectType {
+  SUBJECT_TYPE_UNSPECIFIED = 0;
+  SUBJECT_TYPE_PAIRWISE = 1;
+  SUBJECT_TYPE_PUBLIC = 2;
+}
+
+// Initial Access Token constrains DCR registrations.
+message InitialAccessToken {
+  string id = 1;
+  string project_id = 2;
+  uint32 max_clients = 3;
+  uint32 clients_registered = 4;
+  repeated string allowed_scopes = 5;
+  repeated string allowed_grant_types = 6;
+  repeated string allowed_redirect_patterns = 7;
+  google.protobuf.Timestamp expires_at = 8;
+  google.protobuf.Timestamp created_at = 9;
+  string created_by = 10;
+  bool revoked = 11;
+}
+
+enum ApplicationType {
+  APPLICATION_TYPE_UNSPECIFIED = 0;
+  APPLICATION_TYPE_WEB = 1;
+  APPLICATION_TYPE_NATIVE = 2;
+  APPLICATION_TYPE_API = 3;
+  APPLICATION_TYPE_SPA = 4;
+}
+
+// ProjectService manages projects and their resources.
+service ProjectService {
+  // Project CRUD.
+  rpc CreateProject(CreateProjectRequest) returns (Project) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/projects" body: "*" };
+  }
+  rpc GetProject(GetProjectRequest) returns (Project) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/projects/{id}" };
+  }
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/projects" };
+  }
+  rpc UpdateProject(UpdateProjectRequest) returns (Project) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/projects/{id}" body: "*" };
+  }
+  rpc DeleteProject(DeleteProjectRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/projects/{id}" };
+  }
+
+  // Applications within project.
+  rpc CreateApplication(CreateApplicationRequest) returns (CreateApplicationResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/projects/{project_id}/applications" body: "*" };
+  }
+  rpc GetApplication(GetApplicationRequest) returns (Application) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/projects/applications/{client_id}" };
+  }
+  rpc ListApplications(ListApplicationsRequest) returns (ListApplicationsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/projects/{project_id}/applications" };
+  }
+  rpc UpdateApplication(UpdateApplicationRequest) returns (Application) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/projects/applications/{client_id}" body: "*" };
+  }
+  rpc DeleteApplication(DeleteApplicationRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/projects/applications/{client_id}" };
+  }
+
+  // Roles within project (uses Role type from authz.proto).
+  rpc AddRole(AddRoleRequest) returns (sid.v1.authz.Role) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/projects/{project_id}/roles" body: "*" };
+  }
+  rpc RemoveRole(RemoveRoleRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/projects/{project_id}/roles/{role_id}" };
+  }
+  // ListRoles is already defined in AuthzService; reuse authz.proto messages.
+
+  // Dynamic Client Registration (RFC 7591).
+  rpc RegisterClient(RegisterClientRequest) returns (RegisterClientResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/projects/dcr/register" body: "*" };
+  }
+  rpc GetRegisteredClient(GetRegisteredClientRequest) returns (Application) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/projects/dcr/clients/{client_id}" };
+  }
+  rpc UpdateRegisteredClient(UpdateRegisteredClientRequest) returns (Application) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { put: "/v1/projects/dcr/clients/{client_id}" body: "*" };
+  }
+  rpc DeleteRegisteredClient(DeleteRegisteredClientRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/projects/dcr/clients/{client_id}" };
+  }
+
+  // Initial Access Token management (admin operations).
+  rpc CreateInitialAccessToken(CreateInitialAccessTokenRequest) returns (CreateInitialAccessTokenResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/projects/{project_id}/iat" body: "*" };
+  }
+  rpc ListInitialAccessTokens(ListInitialAccessTokensRequest) returns (ListInitialAccessTokensResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/projects/{project_id}/iat" };
+  }
+  rpc RevokeInitialAccessToken(RevokeInitialAccessTokenRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/projects/iat/{id}" };
+  }
+}
+
+// ── Project messages ──
+
+message CreateProjectRequest {
+  string name = 1;
+  string description = 2;
+  string owner_profile_id = 3;
+}
+
+message GetProjectRequest {
+  string id = 1;
+}
+
+message ListProjectsRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+message ListProjectsResponse {
+  repeated Project projects = 1;
+  string next_page_token = 2;
+}
+
+message UpdateProjectRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string description = 3;
+}
+
+message DeleteProjectRequest {
+  string id = 1;
+}
+
+// ── Application messages ──
+
+message CreateApplicationRequest {
+  string project_id = 1;
+  string name = 2;
+  ApplicationType type = 3;
+  repeated string redirect_uris = 4;
+  repeated string allowed_scopes = 5;
+  repeated string grant_types = 6;
+  // Organization to associate this client with (for pairwise sub derivation).
+  // Empty = inherit from project's org (if any).
+  optional string org_id = 7;
+}
+
+// Returns client_secret in plaintext (only on creation, never stored).
+message CreateApplicationResponse {
+  Application application = 1;
+  string client_secret = 2;
+}
+
+message GetApplicationRequest {
+  string client_id = 1;
+}
+
+message ListApplicationsRequest {
+  string project_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+message ListApplicationsResponse {
+  repeated Application applications = 1;
+  string next_page_token = 2;
+}
+
+message UpdateApplicationRequest {
+  string client_id = 1;
+  optional string name = 2;
+  repeated string redirect_uris = 3;
+  repeated string allowed_scopes = 4;
+  repeated string grant_types = 5;
+  optional bool active = 6;
+  // "public" or "pairwise". Changing from public→pairwise triggers
+  // 90-day dual-sub transition (sid_legacy_sub in tokens).
+  optional string subject_type = 7;
+}
+
+message DeleteApplicationRequest {
+  string client_id = 1;
+}
+
+// ── Role messages (AddRole/RemoveRole specific to ProjectService) ──
+
+message AddRoleRequest {
+  string project_id = 1;
+  string key = 2;
+  string display_name = 3;
+  optional string description = 4;
+  optional string group = 5;
+  repeated string permissions = 6;
+}
+
+message RemoveRoleRequest {
+  string project_id = 1;
+  string role_id = 2;
+}
+
+// ── Dynamic Client Registration messages (RFC 7591/7592) ──
+
+message RegisterClientRequest {
+  // Bearer initial_access_token in gRPC metadata (authorization header).
+  string client_name = 1;
+  repeated string redirect_uris = 2;
+  repeated string grant_types = 3;
+  repeated string response_types = 4;
+  TokenEndpointAuthMethod token_endpoint_auth_method = 5;
+  ApplicationType application_type = 6;
+  SubjectType subject_type = 7;
+  optional string sector_identifier_uri = 8;
+  repeated string contacts = 9;
+  repeated string scope = 10;
+}
+
+message RegisterClientResponse {
+  Application application = 1;
+  // Plaintext secret — only returned on registration. Never stored.
+  optional string client_secret = 2;
+  // Registration Access Token for future management (RFC 7592).
+  string registration_access_token = 3;
+}
+
+// RFC 7592: client reads own registration. RAT in authorization header.
+message GetRegisteredClientRequest {
+  string client_id = 1;
+}
+
+// RFC 7592: client updates own registration. RAT in authorization header.
+message UpdateRegisteredClientRequest {
+  string client_id = 1;
+  optional string client_name = 2;
+  repeated string redirect_uris = 3;
+  repeated string grant_types = 4;
+  repeated string response_types = 5;
+  optional TokenEndpointAuthMethod token_endpoint_auth_method = 6;
+  optional SubjectType subject_type = 7;
+  optional string sector_identifier_uri = 8;
+  repeated string contacts = 9;
+  repeated string scope = 10;
+}
+
+// RFC 7592: client deletes own registration. RAT in authorization header.
+message DeleteRegisteredClientRequest {
+  string client_id = 1;
+}
+
+// ── Initial Access Token messages ──
+
+message CreateInitialAccessTokenRequest {
+  string project_id = 1;
+  uint32 max_clients = 2;
+  repeated string allowed_scopes = 3;
+  repeated string allowed_grant_types = 4;
+  repeated string allowed_redirect_patterns = 5;
+  // Token lifetime in seconds.
+  int64 expires_in_seconds = 6;
+}
+
+// Returns plaintext token — only on creation.
+message CreateInitialAccessTokenResponse {
+  InitialAccessToken token = 1;
+  // Plaintext bearer token — never stored, never returned again.
+  string token_value = 2;
+}
+
+message ListInitialAccessTokensRequest {
+  string project_id = 1;
+}
+
+message ListInitialAccessTokensResponse {
+  repeated InitialAccessToken tokens = 1;
+}
+
+message RevokeInitialAccessTokenRequest {
+  string id = 1;
+}

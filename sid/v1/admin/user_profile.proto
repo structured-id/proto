@@ -1,0 +1,101 @@
+// StructuredID User Profile Schema Service
+// Defines custom profile attributes, groups, validation, permissions.
+// Admin access required.
+syntax = "proto3";
+
+package sid.v1.admin;
+
+import "google/api/annotations.proto";
+
+service UserProfileService {
+  // Get the full profile schema.
+  rpc GetSchema(GetSchemaRequest) returns (ProfileSchema) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/user-profile/schema" };
+  }
+
+  // Replace the entire schema (full replace).
+  rpc UpdateSchema(UpdateSchemaRequest) returns (ProfileSchema) {
+    option (google.api.http) = { put: "/v1/admin/user-profile/schema" body: "*" };
+  }
+}
+
+// ── Messages ──
+
+message GetSchemaRequest {}
+
+message UpdateSchemaRequest {
+  ProfileSchema schema = 1;
+}
+
+message ProfileSchema {
+  repeated AttributeGroup groups = 1;
+  // Raw JSON representation for JSON editor toggle.
+  string json_schema = 2;
+}
+
+message AttributeGroup {
+  string name = 1;
+  string display_name = 2;
+  uint32 order = 3;
+  repeated ProfileAttribute attributes = 4;
+}
+
+message ProfileAttribute {
+  string variable_name = 1;
+  string display_name = 2;
+  AttributeDataType data_type = 3;
+  // Required in different contexts.
+  bool required_on_registration = 4;
+  bool required_on_admin_edit = 5;
+  bool required_on_user_edit = 6;
+  // Permissions.
+  AttributePermission permission = 7;
+  // Validation constraints.
+  AttributeValidation validation = 8;
+  // UI hints.
+  AttributeAnnotations annotations = 9;
+  // Is this a base attribute (read-only definition)?
+  bool is_base = 10;
+  // Order within group.
+  uint32 order = 11;
+  // Enum options (only when data_type = ATTRIBUTE_DATA_TYPE_ENUM).
+  repeated string enum_options = 12;
+}
+
+message AttributeValidation {
+  uint32 min_length = 1;
+  uint32 max_length = 2;
+  string regex_pattern = 3;
+  double min_value = 4;
+  double max_value = 5;
+}
+
+message AttributeAnnotations {
+  string placeholder = 1;
+  string help_text = 2;
+  // Input type hint: text, textarea, email, tel, url, number, date, select.
+  string input_type = 3;
+}
+
+// ── Enums ──
+
+enum AttributeDataType {
+  ATTRIBUTE_DATA_TYPE_UNSPECIFIED = 0;
+  ATTRIBUTE_DATA_TYPE_STRING = 1;
+  ATTRIBUTE_DATA_TYPE_NUMBER = 2;
+  ATTRIBUTE_DATA_TYPE_BOOLEAN = 3;
+  ATTRIBUTE_DATA_TYPE_DATE = 4;
+  ATTRIBUTE_DATA_TYPE_ENUM = 5;
+  ATTRIBUTE_DATA_TYPE_ARRAY = 6;
+}
+
+enum AttributePermission {
+  ATTRIBUTE_PERMISSION_UNSPECIFIED = 0;
+  // Only admins can see and edit.
+  ATTRIBUTE_PERMISSION_ADMIN_ONLY = 1;
+  // Users can see but not edit.
+  ATTRIBUTE_PERMISSION_USER_READ_ONLY = 2;
+  // Users can see and edit.
+  ATTRIBUTE_PERMISSION_USER_READ_WRITE = 3;
+}

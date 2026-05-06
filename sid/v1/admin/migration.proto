@@ -1,0 +1,257 @@
+// StructuredID Migration Service
+// Blueprint export/import, migration wizard, lazy password migration.
+// Admin access required.
+syntax = "proto3";
+
+package sid.v1.admin;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+service MigrationService {
+  // ── Blueprints ──
+
+  rpc ExportBlueprint(ExportBlueprintRequest) returns (ExportBlueprintResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/admin/migration/blueprints/export" body: "*" };
+  }
+
+  rpc ImportBlueprint(ImportBlueprintRequest) returns (ImportBlueprintResponse) {
+    option (google.api.http) = { post: "/v1/admin/migration/blueprints/import" body: "*" };
+  }
+
+  rpc ExportEntity(ExportEntityRequest) returns (ExportEntityResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/admin/migration/blueprints/export-entity" body: "*" };
+  }
+
+  // ── Migration Wizard ──
+
+  rpc ParseMigrationFile(ParseMigrationFileRequest) returns (ParseMigrationFileResponse) {
+    option (google.api.http) = { post: "/v1/admin/migration/parse" body: "*" };
+  }
+
+  rpc ExecuteMigration(ExecuteMigrationRequest) returns (ExecuteMigrationResponse) {
+    option (google.api.http) = { post: "/v1/admin/migration/execute" body: "*" };
+  }
+
+  rpc GetMigrationStatus(GetMigrationStatusRequest) returns (MigrationStatus) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/migration/{migration_id}/status" };
+  }
+
+  // ── Password Migration ──
+
+  rpc GetPasswordMigrationProgress(google.protobuf.Empty) returns (PasswordMigrationProgress) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/migration/password-progress" };
+  }
+}
+
+// ── Enums ──
+
+enum BlueprintCategory {
+  BLUEPRINT_CATEGORY_UNSPECIFIED = 0;
+  BLUEPRINT_CATEGORY_SITES = 1;
+  BLUEPRINT_CATEGORY_AUTH_FLOWS = 2;
+  BLUEPRINT_CATEGORY_APPLICATIONS = 3;
+  BLUEPRINT_CATEGORY_ROLES = 4;
+  BLUEPRINT_CATEGORY_IDENTITY_PROVIDERS = 5;
+  BLUEPRINT_CATEGORY_PASSWORD_POLICY = 6;
+  BLUEPRINT_CATEGORY_BRANDING = 7;
+  BLUEPRINT_CATEGORY_FEATURE_FLAGS = 8;
+  BLUEPRINT_CATEGORY_NOTIFICATION_TEMPLATES = 9;
+}
+
+enum BlueprintScope {
+  BLUEPRINT_SCOPE_UNSPECIFIED = 0;
+  BLUEPRINT_SCOPE_INSTANCE = 1;
+  BLUEPRINT_SCOPE_SITE = 2;
+  BLUEPRINT_SCOPE_ORGANIZATION = 3;
+}
+
+enum MigrationSource {
+  MIGRATION_SOURCE_UNSPECIFIED = 0;
+  MIGRATION_SOURCE_KEYCLOAK = 1;
+  MIGRATION_SOURCE_AUTH0 = 2;
+  MIGRATION_SOURCE_OKTA = 3;
+  MIGRATION_SOURCE_ZITADEL = 4;
+  MIGRATION_SOURCE_AUTHENTIK = 5;
+  MIGRATION_SOURCE_LDAP = 6;
+  MIGRATION_SOURCE_SCIM = 7;
+  MIGRATION_SOURCE_CSV = 8;
+}
+
+enum ConflictResolution {
+  CONFLICT_RESOLUTION_UNSPECIFIED = 0;
+  CONFLICT_RESOLUTION_SKIP = 1;
+  CONFLICT_RESOLUTION_OVERWRITE = 2;
+  CONFLICT_RESOLUTION_RENAME = 3;
+}
+
+enum MigrationState {
+  MIGRATION_STATE_UNSPECIFIED = 0;
+  MIGRATION_STATE_PENDING = 1;
+  MIGRATION_STATE_RUNNING = 2;
+  MIGRATION_STATE_COMPLETED = 3;
+  MIGRATION_STATE_FAILED = 4;
+}
+
+enum ImportAction {
+  IMPORT_ACTION_UNSPECIFIED = 0;
+  IMPORT_ACTION_CREATE = 1;
+  IMPORT_ACTION_UPDATE = 2;
+  IMPORT_ACTION_CONFLICT = 3;
+  IMPORT_ACTION_SKIP = 4;
+}
+
+enum LegacyHashAlgorithm {
+  LEGACY_HASH_ALGORITHM_UNSPECIFIED = 0;
+  LEGACY_HASH_ALGORITHM_BCRYPT = 1;
+  LEGACY_HASH_ALGORITHM_PBKDF2_SHA256 = 2;
+  LEGACY_HASH_ALGORITHM_ARGON2ID = 3;
+  LEGACY_HASH_ALGORITHM_SCRYPT = 4;
+}
+
+// ── Blueprint Messages ──
+
+message ExportBlueprintRequest {
+  repeated BlueprintCategory categories = 1;
+  BlueprintScope scope = 2;
+  // Scope target: site ID or org ID.
+  string scope_target_id = 3;
+}
+
+message ExportBlueprintResponse {
+  string yaml_content = 1;
+  string filename = 2;
+  string schema_version = 3;
+}
+
+message ImportBlueprintRequest {
+  string yaml_content = 1;
+  bool dry_run = 2;
+  ConflictResolution default_conflict_resolution = 3;
+  // Per-entity conflict overrides.
+  repeated ConflictOverride conflict_overrides = 4;
+}
+
+message ConflictOverride {
+  string entity_type = 1;
+  string entity_name = 2;
+  ConflictResolution resolution = 3;
+}
+
+message ImportPreviewItem {
+  string entity_type = 1;
+  string entity_name = 2;
+  ImportAction action = 3;
+  // Diff for updates (unified diff format).
+  string diff = 4;
+}
+
+message ImportBlueprintResponse {
+  bool dry_run = 1;
+  repeated ImportPreviewItem items = 2;
+  uint32 created = 3;
+  uint32 updated = 4;
+  uint32 skipped = 5;
+  uint32 errors = 6;
+  repeated string error_messages = 7;
+}
+
+message ExportEntityRequest {
+  string entity_type = 1;
+  string entity_id = 2;
+}
+
+message ExportEntityResponse {
+  string yaml_content = 1;
+}
+
+// ── Migration Wizard Messages ──
+
+message ParseMigrationFileRequest {
+  MigrationSource source = 1;
+  // File content (base64-encoded for binary formats).
+  string file_content = 2;
+  string filename = 3;
+}
+
+message DetectedEntity {
+  string entity_type = 1;
+  uint32 count = 2;
+  string sid_entity = 3;
+  string notes = 4;
+}
+
+message ParseMigrationFileResponse {
+  MigrationSource detected_source = 1;
+  string source_version = 2;
+  repeated DetectedEntity entities = 3;
+  LegacyHashAlgorithm password_algorithm = 4;
+  uint32 user_count = 5;
+}
+
+message EntityMapping {
+  string source_entity = 1;
+  string sid_entity = 2;
+  // Field-level mapping.
+  repeated FieldMapping fields = 3;
+}
+
+message FieldMapping {
+  string source_field = 1;
+  string sid_field = 2;
+}
+
+message ExecuteMigrationRequest {
+  MigrationSource source = 1;
+  string file_content = 2;
+  repeated EntityMapping mappings = 3;
+  bool dry_run = 4;
+  // Password migration deadline (null = no deadline).
+  google.protobuf.Timestamp password_deadline = 5;
+}
+
+message ExecuteMigrationResponse {
+  string migration_id = 1;
+  bool dry_run = 2;
+  MigrationState state = 3;
+  uint32 total_entities = 4;
+  uint32 processed = 5;
+  uint32 succeeded = 6;
+  uint32 failed = 7;
+  repeated string error_messages = 8;
+}
+
+message GetMigrationStatusRequest {
+  string migration_id = 1;
+}
+
+message MigrationStatus {
+  string migration_id = 1;
+  MigrationState state = 2;
+  MigrationSource source = 3;
+  uint32 total_entities = 4;
+  uint32 processed = 5;
+  uint32 succeeded = 6;
+  uint32 failed = 7;
+  google.protobuf.Timestamp started_at = 8;
+  google.protobuf.Timestamp completed_at = 9;
+  repeated string error_messages = 10;
+}
+
+// ── Password Migration Progress ──
+
+message PasswordMigrationProgress {
+  uint32 total_users = 1;
+  uint32 migrated = 2;
+  uint32 pending = 3;
+  uint32 failed = 4;
+  LegacyHashAlgorithm algorithm = 5;
+  google.protobuf.Timestamp deadline = 6;
+  // Progress as percentage (0.0 – 100.0).
+  double progress_percent = 7;
+}

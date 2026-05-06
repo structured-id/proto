@@ -1,0 +1,27 @@
+# Code generation configuration for StructuredID CE
+#
+# Rust code is generated via build.rs (tonic-prost-build) at cargo build time.
+# This file generates TypeScript clients for CE UI applications.
+#
+# Per-app configs:
+#   buf.gen.admin-ui.yaml   — Admin UI (protobuf-ts)
+#   buf.gen.ts.yaml         — Frontend apps (protobuf-ts)
+#
+# Usage:
+#   buf generate                        # default (this file)
+#   buf generate --template buf.gen.admin-ui.yaml
+#
+# See: sid/crates/sid-proto/build.rs (Rust generation)
+version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/structured-id/proto/gen/go
+plugins:
+  # protobuf-ts — CE UI applications
+  - local: protoc-gen-ts
+    out: gen/ts
+    opt:
+      - client_generic
+      - generate_dependencies

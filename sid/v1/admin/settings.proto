@@ -1,0 +1,384 @@
+// StructuredID Settings Service
+// Instance-level configuration: realm settings, login config, session/token
+// policies, and feature toggles. All RPCs require admin role.
+syntax = "proto3";
+
+package sid.v1.admin;
+
+import "google/protobuf/empty.proto";
+import "google/api/annotations.proto";
+
+// ────────────────────────────────────────────────────────────────────────────
+// RealmService — General instance settings, login config, session & token config
+// ────────────────────────────────────────────────────────────────────────────
+
+service RealmService {
+  // ── General Settings (Page 10.1) ──
+
+  rpc GetRealm(GetRealmRequest) returns (RealmSettings) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/realm" };
+  }
+  rpc UpdateRealm(UpdateRealmRequest) returns (RealmSettings) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/admin/realm" body: "*" };
+  }
+
+  // ── Login Configuration (Page 10.2) ──
+
+  rpc GetLoginSettings(GetLoginSettingsRequest) returns (LoginSettings) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/realm/login" };
+  }
+  rpc UpdateLoginSettings(UpdateLoginSettingsRequest) returns (LoginSettings) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/admin/realm/login" body: "*" };
+  }
+
+  // ── Email Configuration (Page 10.3) ──
+
+  rpc GetEmailSettings(google.protobuf.Empty) returns (EmailSettings) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/realm/email" };
+  }
+  rpc UpdateEmailSettings(EmailSettings) returns (EmailSettings) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/admin/realm/email" body: "*" };
+  }
+  rpc TestEmailConnection(google.protobuf.Empty) returns (TestEmailResponse) {
+    option (google.api.http) = { post: "/v1/admin/realm/email/test" body: "*" };
+  }
+
+  // ── Localization (Page 10.5) ──
+
+  rpc GetLocalizationSettings(google.protobuf.Empty) returns (LocalizationSettings) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/realm/localization" };
+  }
+  rpc UpdateLocalizationSettings(LocalizationSettings) returns (LocalizationSettings) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/admin/realm/localization" body: "*" };
+  }
+  rpc ListTranslationOverrides(ListTranslationOverridesRequest) returns (ListTranslationOverridesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/realm/localization/overrides" };
+  }
+  rpc SetTranslationOverride(SetTranslationOverrideRequest) returns (TranslationOverride) {
+    option (google.api.http) = { put: "/v1/admin/realm/localization/overrides/{locale}/{key}" body: "*" };
+  }
+  rpc DeleteTranslationOverride(DeleteTranslationOverrideRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = { delete: "/v1/admin/realm/localization/overrides/{locale}/{key}" };
+  }
+
+  // ── Import / Export (Page 10.10) ──
+
+  rpc ExportRealm(ExportRealmRequest) returns (ExportRealmResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/realm/export" };
+  }
+  rpc ImportRealm(ImportRealmRequest) returns (ImportRealmResponse) {
+    option (google.api.http) = { post: "/v1/admin/realm/import" body: "*" };
+  }
+  rpc PreviewImport(ImportRealmRequest) returns (ImportPreviewResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/admin/realm/import/preview" body: "*" };
+  }
+
+  // ── Session Configuration (Page 10.8) ──
+
+  rpc GetSessionConfig(google.protobuf.Empty) returns (SessionConfig) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/realm/sessions" };
+  }
+  rpc UpdateSessionConfig(SessionConfig) returns (SessionConfig) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/admin/realm/sessions" body: "*" };
+  }
+
+  // ── Token Configuration (Page 10.8) ──
+
+  rpc GetTokenConfig(google.protobuf.Empty) returns (TokenConfig) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/realm/tokens" };
+  }
+  rpc UpdateTokenConfig(TokenConfig) returns (TokenConfig) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/admin/realm/tokens" body: "*" };
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// FeatureService — optional feature toggles
+// ────────────────────────────────────────────────────────────────────────────
+
+service FeatureService {
+  rpc ListFeatures(google.protobuf.Empty) returns (ListFeaturesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/features" };
+  }
+  rpc SetFeature(SetFeatureRequest) returns (Feature) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { put: "/v1/admin/features/{key}" body: "*" };
+  }
+}
+
+// ── General Settings messages ──
+
+message GetRealmRequest {}
+
+message RealmSettings {
+  string realm_name = 1;        // URL-safe, readonly after creation
+  string display_name = 2;      // Shown in UI
+  string frontend_url = 3;      // Base URL for login pages
+  bool enabled = 4;             // false = all logins rejected
+  bool user_managed_access = 5; // Allow users to manage own resources
+}
+
+message UpdateRealmRequest {
+  optional string display_name = 1;
+  optional string frontend_url = 2;
+  optional bool enabled = 3;
+  optional bool user_managed_access = 4;
+}
+
+// ── Login Settings messages ──
+
+message GetLoginSettingsRequest {}
+
+message LoginSettings {
+  bool self_registration = 1;
+  bool forgot_password = 2;
+  bool remember_me = 3;
+  bool verify_email = 4;
+  bool login_with_email = 5;
+  bool identity_first_login = 6;
+  repeated string default_roles = 7;
+  repeated string default_groups = 8;
+  repeated RequiredAction required_actions = 9;
+}
+
+message UpdateLoginSettingsRequest {
+  optional bool self_registration = 1;
+  optional bool forgot_password = 2;
+  optional bool remember_me = 3;
+  optional bool verify_email = 4;
+  optional bool login_with_email = 5;
+  optional bool identity_first_login = 6;
+  repeated string default_roles = 7;
+  repeated string default_groups = 8;
+  repeated RequiredAction required_actions = 9;
+}
+
+enum RequiredAction {
+  REQUIRED_ACTION_UNSPECIFIED = 0;
+  REQUIRED_ACTION_UPDATE_PROFILE = 1;
+  REQUIRED_ACTION_VERIFY_EMAIL = 2;
+  REQUIRED_ACTION_CONFIGURE_OTP = 3;
+}
+
+// ── Session Config messages ──
+
+message SessionConfig {
+  int32 sso_session_idle_seconds = 1;      // Idle timeout
+  int32 sso_session_max_seconds = 2;       // Absolute max
+  int32 client_session_idle_seconds = 3;   // Per-client idle
+  int32 client_session_max_seconds = 4;    // Per-client max
+  bool offline_session_enabled = 5;
+  int32 offline_session_idle_seconds = 6;
+  int32 offline_session_max_seconds = 7;
+  bool offline_session_max_limited = 8;    // false = never expire
+}
+
+// ── Token Config messages ──
+
+message TokenConfig {
+  string default_signing_algorithm = 1;    // RS256, ES256, PS256, EdDSA
+  int32 access_token_lifespan_seconds = 2;
+  int32 access_token_lifespan_implicit_seconds = 3;
+  int32 client_login_timeout_seconds = 4;
+  bool revoke_refresh_token_on_use = 5;
+  int32 refresh_token_max_reuse = 6;
+  int32 refresh_token_lifespan_seconds = 7;
+  int32 id_token_lifespan_seconds = 8;
+}
+
+// ── Feature messages ──
+
+message Feature {
+  string key = 1;
+  string display_name = 2;
+  string description = 3;
+  bool enabled = 4;
+  string tier = 5;             // "ce", "ee", "saas"
+}
+
+message ListFeaturesResponse {
+  repeated Feature features = 1;
+}
+
+message SetFeatureRequest {
+  string key = 1;
+  bool enabled = 2;
+}
+
+// ── Email Settings messages ──
+
+message EmailSettings {
+  // SMTP server hostname (e.g. "smtp.office365.com").
+  string smtp_host = 1;
+  // SMTP port. Canonical defaults: 587 (STARTTLS), 465 (SSL/TLS), 25 (none).
+  uint32 smtp_port = 2;
+  // Envelope From / From header address (e.g. "noreply@example.com").
+  string from_address = 3;
+  // Display name in From header (e.g. "Example IdP").
+  string from_display_name = 4;
+  // Optional Reply-To address. Empty = none.
+  string reply_to = 5;
+  // TLS/encryption mode for the SMTP connection.
+  SmtpEncryptionType encryption = 6;
+  // Authentication method.
+  SmtpAuthType auth_type = 7;
+  // SMTP username for PLAIN/LOGIN or the email address for XOAUTH2.
+  // Only set on update; never returned in GetEmailSettings.
+  string username = 8;
+  // SMTP password for PLAIN/LOGIN. Write-only — never returned in GetEmailSettings.
+  string password = 9;
+
+  // ── XOAUTH2 fields (auth_type == SMTP_AUTH_TYPE_XOAUTH2 only) ──────────
+
+  // OAuth2 provider: "m365" (Microsoft 365) or "google" (Google Workspace).
+  XOAuth2ProviderType xoauth2_provider = 10;
+  // Microsoft 365: Azure AD tenant ID (GUID or domain name).
+  // Required when xoauth2_provider == M365.
+  string xoauth2_tenant_id = 11;
+  // OAuth2 client ID (app registration). Required for both M365 and Google.
+  string xoauth2_client_id = 12;
+  // OAuth2 client secret. Write-only — never returned in GetEmailSettings.
+  // M365: Azure AD client secret. Google: not used (service account key instead).
+  string xoauth2_client_secret = 13;
+  // Google Workspace: service account key JSON. Write-only.
+  // Contains private key used to sign JWT assertions for the token exchange.
+  string xoauth2_service_account_key = 14;
+  // Optional override for the OAuth2 token endpoint URL.
+  // Defaults: M365 = https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token
+  //           Google = https://oauth2.googleapis.com/token
+  string xoauth2_token_endpoint = 15;
+}
+
+message TestEmailResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+enum SmtpEncryptionType {
+  SMTP_ENCRYPTION_TYPE_UNSPECIFIED = 0;
+  SMTP_ENCRYPTION_TYPE_NONE = 1;
+  SMTP_ENCRYPTION_TYPE_SSL_TLS = 2;
+  SMTP_ENCRYPTION_TYPE_STARTTLS = 3;
+}
+
+enum SmtpAuthType {
+  SMTP_AUTH_TYPE_UNSPECIFIED = 0;
+  SMTP_AUTH_TYPE_NONE = 1;
+  SMTP_AUTH_TYPE_USERNAME_PASSWORD = 2;
+  // OAuth2 bearer token via XOAUTH2 SASL mechanism.
+  // Required for Microsoft 365 (App Password deprecated Oct 2022) and
+  // Google Workspace SMTP relay. Credentials: OAuth2 client credentials flow
+  // (M365) or service account JWT exchange (Google).
+  SMTP_AUTH_TYPE_XOAUTH2 = 3;
+}
+
+// OAuth2 provider for XOAUTH2 SMTP authentication.
+enum XOAuth2ProviderType {
+  XOAUTH2_PROVIDER_TYPE_UNSPECIFIED = 0;
+  // Microsoft 365 via Azure AD OAuth2 client credentials flow.
+  // Required config: xoauth2_tenant_id, xoauth2_client_id, xoauth2_client_secret.
+  XOAUTH2_PROVIDER_TYPE_M365 = 1;
+  // Google Workspace via service account JWT bearer token exchange.
+  // Required config: xoauth2_client_id (service account email),
+  //                  xoauth2_service_account_key (JSON key file content).
+  XOAUTH2_PROVIDER_TYPE_GOOGLE = 2;
+}
+
+// ── Localization messages ──
+
+message LocalizationSettings {
+  bool enabled = 1;
+  repeated string supported_locales = 2;
+  string default_locale = 3;
+}
+
+message TranslationOverride {
+  string locale = 1;
+  string key = 2;
+  string default_value = 3;
+  string override_value = 4;
+}
+
+message ListTranslationOverridesRequest {
+  string locale = 1;
+  string search = 2;
+}
+
+message ListTranslationOverridesResponse {
+  repeated TranslationOverride overrides = 1;
+}
+
+message SetTranslationOverrideRequest {
+  string locale = 1;
+  string key = 2;
+  string override_value = 3;
+}
+
+message DeleteTranslationOverrideRequest {
+  string locale = 1;
+  string key = 2;
+}
+
+// ── Import / Export messages ──
+
+message ExportRealmRequest {
+  bool include_users = 1;
+  bool include_clients = 2;
+  bool include_roles = 3;
+  bool include_groups = 4;
+}
+
+message ExportRealmResponse {
+  // JSON realm configuration.
+  string data = 1;
+}
+
+message ImportRealmRequest {
+  // JSON realm configuration.
+  string data = 1;
+  ImportConflictStrategy conflict_strategy = 2;
+  bool include_users = 3;
+  bool include_clients = 4;
+  bool include_roles = 5;
+  bool include_groups = 6;
+}
+
+message ImportRealmResponse {
+  bool success = 1;
+  uint32 users_imported = 2;
+  uint32 clients_imported = 3;
+  uint32 roles_imported = 4;
+  uint32 groups_imported = 5;
+  repeated string warnings = 6;
+}
+
+message ImportPreviewResponse {
+  uint32 users_count = 1;
+  uint32 clients_count = 2;
+  uint32 roles_count = 3;
+  uint32 groups_count = 4;
+  repeated string conflicts = 5;
+}
+
+enum ImportConflictStrategy {
+  IMPORT_CONFLICT_STRATEGY_UNSPECIFIED = 0;
+  IMPORT_CONFLICT_STRATEGY_SKIP = 1;
+  IMPORT_CONFLICT_STRATEGY_OVERWRITE = 2;
+  IMPORT_CONFLICT_STRATEGY_FAIL = 3;
+}

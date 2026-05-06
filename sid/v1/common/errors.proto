@@ -1,0 +1,103 @@
+// StructuredID gRPC Error Model.
+//
+// Machine-readable error reason codes for programmatic handling.
+// Used with google.rpc.ErrorInfo as status detail.
+//
+// Domain: "sid" for all CE/EE services, "sid.ee" for EE-specific errors.
+// See: arch/infra/api-architecture.md §gRPC Error Model
+
+syntax = "proto3";
+
+package sid.v1.common;
+
+// Machine-readable error reason codes.
+//
+// Each code maps to a specific gRPC status code (see comments).
+// Clients switch on `reason` field of google.rpc.ErrorInfo for
+// programmatic error handling.
+enum ErrorReason {
+  ERROR_REASON_UNSPECIFIED = 0;
+
+  // ── NOT_FOUND ──────────────────────────────────────────────
+
+  // Profile does not exist.
+  PROFILE_NOT_FOUND = 1;
+  // OAuth2 application/client not found.
+  APPLICATION_NOT_FOUND = 2;
+  // Session not found or expired.
+  SESSION_NOT_FOUND = 3;
+  // Credential not found.
+  CREDENTIAL_NOT_FOUND = 4;
+  // Role not found.
+  ROLE_NOT_FOUND = 5;
+  // Project not found.
+  PROJECT_NOT_FOUND = 6;
+
+  // ── UNAUTHENTICATED ────────────────────────────────────────
+
+  // Invalid credentials (password, WebAuthn assertion, etc.).
+  // Security: status.message MUST be generic ("authentication failed").
+  AUTHENTICATION_FAILED = 10;
+  // Access token expired.
+  TOKEN_EXPIRED = 11;
+  // Token malformed, invalid signature, or wrong issuer.
+  TOKEN_INVALID = 12;
+
+  // ── PERMISSION_DENIED ──────────────────────────────────────
+
+  // Caller lacks required permissions (RBAC/ReBAC/Cedar denied).
+  INSUFFICIENT_PERMISSIONS = 20;
+  // OAuth2 scope not granted for this operation.
+  SCOPE_NOT_GRANTED = 21;
+
+  // ── ALREADY_EXISTS ─────────────────────────────────────────
+
+  // Profile with this identifier already exists.
+  PROFILE_ALREADY_EXISTS = 30;
+  // Email address already registered.
+  EMAIL_ALREADY_REGISTERED = 31;
+  // Username already taken.
+  USERNAME_ALREADY_TAKEN = 32;
+
+  // ── INVALID_ARGUMENT ───────────────────────────────────────
+
+  // Field value does not pass validation.
+  INVALID_FIELD_VALUE = 40;
+  // Required field is missing.
+  REQUIRED_FIELD_MISSING = 41;
+
+  // ── FAILED_PRECONDITION ────────────────────────────────────
+
+  // MFA enrollment required before proceeding.
+  MFA_REQUIRED = 50;
+  // Account suspended by administrator.
+  ACCOUNT_SUSPENDED = 51;
+  // Account locked due to brute-force protection.
+  ACCOUNT_LOCKED = 52;
+  // User consent required before granting access.
+  CONSENT_REQUIRED = 53;
+  // Credential has been revoked.
+  CREDENTIAL_REVOKED = 54;
+  // Account is in closure/quarantine state.
+  ACCOUNT_CLOSED = 55;
+
+  // ── RESOURCE_EXHAUSTED ─────────────────────────────────────
+
+  // Rate limit exceeded (login attempts, API calls, etc.).
+  RATE_LIMIT_EXCEEDED = 60;
+
+  // ── ABORTED ────────────────────────────────────────────────
+
+  // Concurrent modification detected (optimistic locking).
+  CONCURRENT_MODIFICATION = 70;
+
+  // ── UNIMPLEMENTED ──────────────────────────────────────────
+
+  // Feature requires EE license.
+  EE_FEATURE_REQUIRED = 80;
+
+  // ── INTERNAL ───────────────────────────────────────────────
+
+  // Unrecoverable internal error.
+  INTERNAL_ERROR = 90;
+}

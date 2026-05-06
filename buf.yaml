@@ -1,0 +1,26 @@
+# buf configuration for StructuredID CE proto definitions
+version: v2
+deps:
+  - buf.build/googleapis/googleapis
+modules:
+  - path: .
+    name: buf.build/structured-id/proto
+    excludes:
+      - google
+lint:
+  use:
+    - STANDARD
+  except:
+    - PACKAGE_VERSION_SUFFIX         # We use sid/v1, not sid.v1
+    - RPC_RESPONSE_STANDARD_NAME     # We reuse domain messages (Project, Application, Empty) across RPCs
+    - RPC_REQUEST_STANDARD_NAME      # We reuse request messages where appropriate
+    - RPC_REQUEST_RESPONSE_UNIQUE    # Same message can serve multiple RPCs (domain-level reuse)
+    - ENUM_VALUE_PREFIX              # ErrorReason values are wire-format names (google.rpc.ErrorInfo.reason)
+  enum_zero_value_suffix: _UNSPECIFIED
+  rpc_allow_same_request_response: true
+  rpc_allow_google_protobuf_empty_requests: false
+  rpc_allow_google_protobuf_empty_responses: true
+breaking:
+  use:
+    - FILE
+  ignore_unstable_packages: true

@@ -1,0 +1,239 @@
+// StructuredID Admin Role Service
+// Admin role catalog, assignment, session security.
+// Admin role required for all RPCs.
+syntax = "proto3";
+
+package sid.v1.admin;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+// AdminRoleService manages admin roles, assignments, and session security.
+service AdminRoleService {
+  // ── Role Catalog ──
+
+  rpc ListAdminRoles(ListAdminRolesRequest) returns (ListAdminRolesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/admin-roles" };
+  }
+
+  rpc GetAdminRole(GetAdminRoleRequest) returns (AdminRole) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/admin-roles/{role_id}" };
+  }
+
+  // ── Assignments ──
+
+  rpc ListAssignments(ListAssignmentsRequest) returns (ListAssignmentsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/admin-roles/assignments" };
+  }
+
+  rpc AssignRole(AssignRoleRequest) returns (AdminAssignment) {
+    option (google.api.http) = { post: "/v1/admin/admin-roles/assignments" body: "*" };
+  }
+
+  rpc RevokeAssignment(RevokeAssignmentRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/admin/admin-roles/assignments/{assignment_id}" };
+  }
+
+  // View effective permissions for a given principal.
+  rpc GetEffectivePermissions(GetEffectivePermissionsRequest) returns (EffectivePermissionsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/admin-roles/effective-permissions" };
+  }
+
+  // ── Admin Session Security ──
+
+  rpc GetAdminSessionPolicy(google.protobuf.Empty) returns (AdminSessionPolicy) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/admin-roles/session-policy" };
+  }
+
+  rpc UpdateAdminSessionPolicy(AdminSessionPolicy) returns (AdminSessionPolicy) {
+    option (google.api.http) = { put: "/v1/admin/admin-roles/session-policy" body: "*" };
+  }
+
+  rpc ListActiveAdminSessions(google.protobuf.Empty) returns (ListActiveAdminSessionsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/admin-roles/active-sessions" };
+  }
+
+  rpc RevokeAdminSession(RevokeAdminSessionRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/admin/admin-roles/active-sessions/{session_id}/revoke" body: "*" };
+  }
+
+  rpc RevokeAllAdminSessions(google.protobuf.Empty) returns (RevokeAllAdminSessionsResponse) {
+    option (google.api.http) = { post: "/v1/admin/admin-roles/active-sessions/revoke-all" body: "*" };
+  }
+}
+
+// ── Enums ──
+
+enum AdminRoleScope {
+  ADMIN_ROLE_SCOPE_UNSPECIFIED = 0;
+  ADMIN_ROLE_SCOPE_INSTANCE = 1;
+  ADMIN_ROLE_SCOPE_SITE = 2;
+  ADMIN_ROLE_SCOPE_ORGANIZATION = 3;
+  ADMIN_ROLE_SCOPE_PROFILE = 4;
+}
+
+enum AssignmentType {
+  ASSIGNMENT_TYPE_UNSPECIFIED = 0;
+  ASSIGNMENT_TYPE_PERMANENT = 1;
+  ASSIGNMENT_TYPE_TIME_LIMITED = 2;
+}
+
+enum AdminPrincipalType {
+  ADMIN_PRINCIPAL_TYPE_UNSPECIFIED = 0;
+  ADMIN_PRINCIPAL_TYPE_USER = 1;
+  ADMIN_PRINCIPAL_TYPE_GROUP = 2;
+  ADMIN_PRINCIPAL_TYPE_MACHINE_USER = 3;
+}
+
+enum AssuranceLevel {
+  ASSURANCE_LEVEL_UNSPECIFIED = 0;
+  ASSURANCE_LEVEL_BASIC = 1;
+  ASSURANCE_LEVEL_STANDARD = 2;
+  ASSURANCE_LEVEL_ELEVATED = 3;
+  ASSURANCE_LEVEL_CRITICAL = 4;
+}
+
+enum RequiredMfaMethod {
+  REQUIRED_MFA_METHOD_UNSPECIFIED = 0;
+  REQUIRED_MFA_METHOD_ANY_MFA = 1;
+  REQUIRED_MFA_METHOD_WEBAUTHN = 2;
+  REQUIRED_MFA_METHOD_HARDWARE_KEY_ONLY = 3;
+}
+
+// ── Messages ──
+
+message AdminRole {
+  string role_id = 1;
+  string name = 2;
+  string description = 3;
+  AdminRoleScope scope = 4;
+  bool built_in = 5;
+  // Permissions granted by this role.
+  repeated string permissions = 6;
+  // Number of principals currently assigned this role.
+  uint32 assigned_count = 7;
+}
+
+message AdminAssignment {
+  string assignment_id = 1;
+  // Principal info.
+  string principal_id = 2;
+  string principal_name = 3;
+  AdminPrincipalType principal_type = 4;
+  // Role info.
+  string role_id = 5;
+  string role_name = 6;
+  AdminRoleScope role_scope = 7;
+  // Scope target (e.g., site ID or org ID).
+  string scope_target_id = 8;
+  string scope_target_name = 9;
+  // Assignment metadata.
+  AssignmentType assignment_type = 10;
+  google.protobuf.Timestamp expires_at = 11;
+  string assigned_by = 12;
+  google.protobuf.Timestamp assigned_at = 13;
+}
+
+message EffectivePermission {
+  string permission = 1;
+  // How this permission was acquired.
+  string source = 2;
+  // Role that grants it.
+  string role_name = 3;
+  // Scope where it applies.
+  string scope_name = 4;
+}
+
+message AdminSessionPolicy {
+  // Maximum admin session duration in minutes.
+  uint32 session_max_minutes = 1;
+  // Idle timeout in minutes.
+  uint32 idle_timeout_minutes = 2;
+  // Step-up elevation TTL in minutes.
+  uint32 elevation_ttl_minutes = 3;
+  // Required MFA method for admin elevation.
+  RequiredMfaMethod required_mfa_method = 4;
+  // Bind admin session to IP address.
+  bool ip_binding = 5;
+}
+
+message ActiveAdminSession {
+  string session_id = 1;
+  string admin_name = 2;
+  string admin_id = 3;
+  string role_name = 4;
+  AssuranceLevel assurance = 5;
+  string ip_address = 6;
+  google.protobuf.Timestamp started_at = 7;
+  google.protobuf.Timestamp last_activity = 8;
+  // When elevation expires (null if not elevated).
+  google.protobuf.Timestamp elevated_until = 9;
+}
+
+// ── Requests / Responses ──
+
+message ListAdminRolesRequest {
+  AdminRoleScope scope = 1;
+}
+
+message ListAdminRolesResponse {
+  repeated AdminRole roles = 1;
+}
+
+message GetAdminRoleRequest {
+  string role_id = 1;
+}
+
+message ListAssignmentsRequest {
+  string role_id = 1;
+  AdminPrincipalType principal_type = 2;
+  string search = 3;
+}
+
+message ListAssignmentsResponse {
+  repeated AdminAssignment assignments = 1;
+}
+
+message AssignRoleRequest {
+  string principal_id = 1;
+  AdminPrincipalType principal_type = 2;
+  string role_id = 3;
+  // Scope target: site ID, org ID, or empty for instance-wide.
+  string scope_target_id = 4;
+  AssignmentType assignment_type = 5;
+  // Required if time-limited.
+  google.protobuf.Timestamp expires_at = 6;
+}
+
+message RevokeAssignmentRequest {
+  string assignment_id = 1;
+}
+
+message GetEffectivePermissionsRequest {
+  string principal_id = 1;
+}
+
+message EffectivePermissionsResponse {
+  repeated EffectivePermission permissions = 1;
+}
+
+message ListActiveAdminSessionsResponse {
+  repeated ActiveAdminSession sessions = 1;
+}
+
+message RevokeAdminSessionRequest {
+  string session_id = 1;
+}
+
+message RevokeAllAdminSessionsResponse {
+  uint32 revoked_count = 1;
+}

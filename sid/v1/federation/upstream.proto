@@ -1,0 +1,204 @@
+// StructuredID Upstream Identity Brokering Service
+// Manages upstream identity providers (Google, GitHub, etc.) where SID acts as
+// a Relying Party. Handles provider CRUD and OAuth2/OIDC callback flows.
+syntax = "proto3";
+
+package sid.v1.federation;
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+// UpstreamService manages upstream identity providers and auth flows.
+service UpstreamService {
+  // Provider CRUD (admin).
+  rpc CreateUpstreamProvider(CreateUpstreamProviderRequest) returns (UpstreamProviderResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/upstream/providers" body: "*" };
+  }
+  rpc GetUpstreamProvider(GetUpstreamProviderRequest) returns (UpstreamProviderResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/upstream/providers/{provider_id}" };
+  }
+  rpc UpdateUpstreamProvider(UpdateUpstreamProviderRequest) returns (UpstreamProviderResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/upstream/providers/{provider_id}" body: "*" };
+  }
+  rpc DeleteUpstreamProvider(DeleteUpstreamProviderRequest) returns (DeleteUpstreamProviderResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/upstream/providers/{provider_id}" };
+  }
+  rpc ListUpstreamProviders(ListUpstreamProvidersRequest) returns (ListUpstreamProvidersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/upstream/providers" };
+  }
+
+  // List enabled providers (public, for login screen).
+  rpc ListEnabledProviders(ListEnabledProvidersRequest) returns (ListEnabledProvidersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/upstream/providers/enabled" };
+  }
+
+  // Upstream auth flow.
+  rpc InitiateUpstreamAuth(InitiateUpstreamAuthRequest) returns (InitiateUpstreamAuthResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/upstream/auth/initiate" body: "*" };
+  }
+  rpc HandleUpstreamCallback(HandleUpstreamCallbackRequest) returns (HandleUpstreamCallbackResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/upstream/auth/callback" body: "*" };
+  }
+}
+
+// Protocol used by the upstream identity provider.
+enum UpstreamProtocol {
+  UPSTREAM_PROTOCOL_UNSPECIFIED = 0;
+  UPSTREAM_PROTOCOL_OIDC = 1;
+  UPSTREAM_PROTOCOL_OAUTH2 = 2;
+}
+
+// Trust category for the upstream provider.
+enum TrustCategory {
+  TRUST_CATEGORY_UNSPECIFIED = 0;
+  TRUST_CATEGORY_SOCIAL = 1;       // Google, GitHub, Apple, etc.
+  TRUST_CATEGORY_CORPORATE = 2;    // Azure AD, Okta, etc.
+  TRUST_CATEGORY_GOVERNMENT = 3;   // eID, DigiD, etc.
+  TRUST_CATEGORY_FINANCIAL = 4;    // Bank-issued identity.
+}
+
+// UpstreamProvider represents a configured upstream identity provider.
+// NOTE: client_secret is write-only and NEVER included in responses.
+message UpstreamProvider {
+  string id = 1;
+  string name = 2;
+  UpstreamProtocol protocol = 3;
+  TrustCategory trust_category = 4;
+  bool enabled = 5;
+  string client_id = 6;
+  // Field 7 reserved: client_secret is write-only (in create/update requests only).
+
+  // OIDC discovery or manual endpoint configuration.
+  string discovery_url = 8;
+  string authorization_endpoint = 9;
+  string token_endpoint = 10;
+  string userinfo_endpoint = 11;
+  repeated string scopes = 12;
+
+  // Login screen display settings.
+  bool show_on_login = 13;
+  int32 display_order = 14;
+  string logo_url = 15;
+
+  // Timestamps.
+  google.protobuf.Timestamp created_at = 16;
+  google.protobuf.Timestamp updated_at = 17;
+}
+
+// Minimal provider info for the login screen (public, no admin details).
+message EnabledProviderInfo {
+  string id = 1;
+  string name = 2;
+  UpstreamProtocol protocol = 3;
+  TrustCategory trust_category = 4;
+  string logo_url = 5;
+  int32 display_order = 6;
+}
+
+// ── Provider CRUD messages ──
+
+message CreateUpstreamProviderRequest {
+  string name = 1;
+  UpstreamProtocol protocol = 2;
+  TrustCategory trust_category = 3;
+  string client_id = 4;
+  string client_secret = 5;  // Plaintext; encrypted by server before storage.
+  string discovery_url = 6;
+  string authorization_endpoint = 7;
+  string token_endpoint = 8;
+  string userinfo_endpoint = 9;
+  repeated string scopes = 10;
+  bool show_on_login = 11;
+  int32 display_order = 12;
+  string logo_url = 13;
+}
+
+message UpstreamProviderResponse {
+  UpstreamProvider provider = 1;
+}
+
+message GetUpstreamProviderRequest {
+  string provider_id = 1;
+}
+
+message UpdateUpstreamProviderRequest {
+  string provider_id = 1;
+  optional string name = 2;
+  optional UpstreamProtocol protocol = 3;
+  optional TrustCategory trust_category = 4;
+  optional bool enabled = 5;
+  optional string client_id = 6;
+  optional string client_secret = 7;  // Write-only; encrypted by server.
+  optional string discovery_url = 8;
+  optional string authorization_endpoint = 9;
+  optional string token_endpoint = 10;
+  optional string userinfo_endpoint = 11;
+  repeated string scopes = 12;
+  optional bool show_on_login = 13;
+  optional int32 display_order = 14;
+  optional string logo_url = 15;
+}
+
+message DeleteUpstreamProviderRequest {
+  string provider_id = 1;
+}
+
+message DeleteUpstreamProviderResponse {}
+
+message ListUpstreamProvidersRequest {}
+
+message ListUpstreamProvidersResponse {
+  repeated UpstreamProvider providers = 1;
+}
+
+message ListEnabledProvidersRequest {}
+
+message ListEnabledProvidersResponse {
+  repeated EnabledProviderInfo providers = 1;
+}
+
+// ── Upstream auth flow messages ──
+
+message InitiateUpstreamAuthRequest {
+  string provider_id = 1;
+  string redirect_uri = 2;
+}
+
+message InitiateUpstreamAuthResponse {
+  string authorization_url = 1;
+  string state_token = 2;
+}
+
+message HandleUpstreamCallbackRequest {
+  string provider_id = 1;
+  string code = 2;
+  string state = 3;
+  string redirect_uri = 4;
+}
+
+message HandleUpstreamCallbackResponse {
+  oneof result {
+    UpstreamAuthSuccess success = 1;
+    UpstreamLinkingRequired linking_required = 2;
+  }
+}
+
+message UpstreamAuthSuccess {
+  string session_id = 1;
+  string access_token = 2;
+  int64 expires_in = 3;
+  bool new_profile_created = 4;
+}
+
+message UpstreamLinkingRequired {
+  string linking_token = 1;
+  string upstream_email = 2;
+}

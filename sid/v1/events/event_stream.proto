@@ -1,0 +1,79 @@
+// StructuredID Event Stream — real-time CloudEvents over gRPC
+// Subscribe to live events, replay from a point in time.
+// Admin event log (ListEvents, GetEvent) is in admin/events.proto.
+syntax = "proto3";
+
+package sid.v1.events;
+
+import "google/protobuf/timestamp.proto";
+
+// ────────────────────────────────────────────────────────────────────────────
+// EventStreamService — real-time event streaming (CE)
+// ────────────────────────────────────────────────────────────────────────────
+
+service EventStreamService {
+  // Subscribe to real-time event stream.
+  // Client specifies event types + optional filters.
+  rpc Subscribe(SubscribeRequest) returns (stream CloudEvent) {}
+
+  // Replay events from a point in time (catch-up after disconnect).
+  rpc Replay(ReplayRequest) returns (stream CloudEvent) {}
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// CloudEvents 1.0 envelope (CNCF standard)
+// Follows official CE proto format with spec_version as explicit field.
+// ══════════════════════════════════════════════════════════════════════════
+
+message CloudEvent {
+  // REQUIRED: Unique event ID (UUIDv7 or ULID).
+  string id = 1;
+
+  // REQUIRED: Event source identifier (e.g., "sid-identity.acme.com").
+  string source = 2;
+
+  // REQUIRED: CloudEvents spec version (always "1.0").
+  string spec_version = 3;
+
+  // REQUIRED: Event type in reverse-DNS convention (e.g., "sid.user.created.v1").
+  string type = 4;
+
+  // OPTIONAL: Resource identifier that the event relates to.
+  string subject = 5;
+
+  // OPTIONAL: When the event occurred.
+  google.protobuf.Timestamp time = 6;
+
+  // OPTIONAL: Content type of the data payload (default: "application/json").
+  string datacontenttype = 7;
+
+  // Event-specific payload (JSON or protobuf bytes).
+  bytes data = 8;
+
+  // SID extension: monotonic sequence number for ordering within a stream.
+  uint64 sequence = 9;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Subscribe / Replay requests
+// ══════════════════════════════════════════════════════════════════════════
+
+message SubscribeRequest {
+  // Event type patterns to subscribe to (e.g., "sid.user.*", "sid.security.>").
+  // Empty = all events.
+  repeated string event_types = 1;
+
+  // Attribute filters (key=value). All must match.
+  map<string, string> filters = 2;
+}
+
+message ReplayRequest {
+  // Replay events starting from this timestamp.
+  google.protobuf.Timestamp from = 1;
+
+  // Optional: replay up to this timestamp (default: now).
+  optional google.protobuf.Timestamp to = 2;
+
+  // Event type patterns to filter (same as SubscribeRequest).
+  repeated string event_types = 3;
+}

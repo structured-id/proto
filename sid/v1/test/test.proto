@@ -1,0 +1,184 @@
+// Performance testing service (dev-only).
+//
+// Provides endpoints for end-to-end performance benchmarking
+// without database writes. All state is ephemeral (in-memory, 5min TTL).
+syntax = "proto3";
+
+package sid.v1.test;
+
+import "google/api/annotations.proto";
+
+// TestService provides performance and functional testing endpoints.
+// Gated behind `dev-perf-test` feature flag in sid-server.
+service TestService {
+  // ── Performance benchmarks ──
+
+  // Simulates OPAQUE registration start (server-side state creation).
+  rpc PerfRegistrationStart(PerfTestRequest) returns (PerfTestResponse) {
+    option (google.api.http) = { post: "/v1/test/perf/registration/start" body: "*" };
+  }
+
+  // Simulates OPAQUE registration finish (consume ephemeral state).
+  rpc PerfRegistrationFinish(PerfTestFinishRequest) returns (PerfTestResponse) {
+    option (google.api.http) = { post: "/v1/test/perf/registration/finish" body: "*" };
+  }
+
+  // Simulates OPAQUE login start (credential lookup + state creation).
+  rpc PerfLoginStart(PerfTestRequest) returns (PerfTestResponse) {
+    option (google.api.http) = { post: "/v1/test/perf/login/start" body: "*" };
+  }
+
+  // Simulates OPAQUE login finish (consume ephemeral state, session creation).
+  rpc PerfLoginFinish(PerfTestFinishRequest) returns (PerfTestResponse) {
+    option (google.api.http) = { post: "/v1/test/perf/login/finish" body: "*" };
+  }
+
+  // Simulates envelope verification (CPU-bound crypto check).
+  rpc PerfVerifyEnvelope(PerfTestRequest) returns (PerfTestResponse) {
+    option (google.api.http) = { post: "/v1/test/perf/verify-envelope" body: "*" };
+  }
+
+  // ── Functional auth tests ──
+
+  // Register a test user with username + password. Enforces password policy.
+  rpc AuthTestRegister(AuthTestRequest) returns (AuthTestResponse) {
+    option (google.api.http) = { post: "/v1/test/auth/register" body: "*" };
+  }
+
+  // Login with username + password. Returns error if wrong password or user not found.
+  rpc AuthTestLogin(AuthTestRequest) returns (AuthTestResponse) {
+    option (google.api.http) = { post: "/v1/test/auth/login" body: "*" };
+  }
+
+  // Change password for an existing user. Verifies old password, enforces policy on new.
+  rpc AuthTestChangePassword(AuthTestChangePasswordRequest) returns (AuthTestResponse) {
+    option (google.api.http) = { post: "/v1/test/auth/change-password" body: "*" };
+  }
+
+  // Check if a password satisfies the policy without registration.
+  rpc AuthTestCheckPolicy(AuthTestCheckPolicyRequest) returns (AuthTestCheckPolicyResponse) {
+    option (google.api.http) = { post: "/v1/test/auth/check-policy" body: "*" };
+  }
+
+  // Reset all test user state (clean slate for new test run).
+  rpc AuthTestReset(AuthTestResetRequest) returns (AuthTestResetResponse) {
+    option (google.api.http) = { post: "/v1/test/auth/reset" body: "*" };
+  }
+
+  // Set the active password policy. Affects all subsequent register/change operations.
+  rpc AuthTestSetPolicy(AuthTestSetPolicyRequest) returns (AuthTestSetPolicyResponse) {
+    option (google.api.http) = { put: "/v1/test/auth/policy" body: "*" };
+  }
+
+  // Get the current active password policy.
+  rpc AuthTestGetPolicy(AuthTestGetPolicyRequest) returns (AuthTestGetPolicyResponse) {
+    option (google.api.http) = { get: "/v1/test/auth/policy" };
+  }
+}
+
+message PerfTestRequest {
+  // Cipher suite identifier: "ristretto255", "p256", "p384", "p521", "proprietary".
+  string suite = 1;
+
+  // Optional payload for realistic message sizing.
+  bytes payload = 2;
+}
+
+message PerfTestFinishRequest {
+  // Cipher suite identifier.
+  string suite = 1;
+
+  // Cache key returned by the corresponding Start RPC.
+  string cache_key = 2;
+
+  // Optional payload.
+  bytes payload = 3;
+}
+
+message PerfTestResponse {
+  // Cipher suite used.
+  string suite = 1;
+
+  // Mock result data (randomized to simulate real response sizes).
+  bytes result = 2;
+
+  // Server-side processing time in milliseconds.
+  double server_time_ms = 3;
+
+  // Ephemeral cache key (only set by Start RPCs, consumed by Finish RPCs).
+  string cache_key = 4;
+}
+
+// ── Functional auth test messages ──
+
+message AuthTestRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message AuthTestChangePasswordRequest {
+  string username = 1;
+  string old_password = 2;
+  string new_password = 3;
+}
+
+message AuthTestCheckPolicyRequest {
+  string password = 1;
+}
+
+message AuthTestResponse {
+  bool success = 1;
+  // Error description if success=false.
+  string error = 2;
+  double server_time_ms = 3;
+}
+
+message AuthTestCheckPolicyResponse {
+  bool valid = 1;
+  // List of policy violations (empty if valid).
+  repeated string violations = 2;
+  double server_time_ms = 3;
+}
+
+message AuthTestResetRequest {}
+
+message AuthTestResetResponse {
+  // Number of test users cleared.
+  uint32 cleared_count = 1;
+  double server_time_ms = 2;
+  // Policy after reset (base defaults).
+  AuthTestPasswordPolicy policy = 3;
+}
+
+// ── Dynamic password policy ──
+
+// Configurable password policy for auth testing.
+message AuthTestPasswordPolicy {
+  // Minimum password length (server enforces floor of 8).
+  uint32 min_length = 1;
+  // Require at least one uppercase letter.
+  bool require_uppercase = 2;
+  // Require at least one digit.
+  bool require_digit = 3;
+  // Require at least one special character (!@#$%^&* etc).
+  bool require_special = 4;
+  // Number of previous password hashes to remember (0 = no history check).
+  uint32 history_size = 5;
+}
+
+message AuthTestSetPolicyRequest {
+  AuthTestPasswordPolicy policy = 1;
+}
+
+message AuthTestSetPolicyResponse {
+  // The policy as applied (server may enforce minimums).
+  AuthTestPasswordPolicy policy = 1;
+  double server_time_ms = 2;
+}
+
+message AuthTestGetPolicyRequest {}
+
+message AuthTestGetPolicyResponse {
+  AuthTestPasswordPolicy policy = 1;
+  double server_time_ms = 2;
+}
