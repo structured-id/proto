@@ -258,6 +258,10 @@ message Session {
 
   // Client info.
   string client_id = 3;
+  // Device the session was issued on (`Device.id`, UUIDv7); unset when the
+  // session is not associated with a registered device. A revocation
+  // association (removing the device ends the session), not proof of key
+  // possession.
   optional string device_id = 4;
 
   // Session metadata.
@@ -734,46 +738,92 @@ enum DeviceAssurance {
   DEVICE_ASSURANCE_MANAGED = 4;
 }
 
-// Known device associated with a profile.
+// Known device associated with a profile. A descriptive record (DTO), not an
+// identifier type and not evidence of device authority.
 message Device {
+  // Device identifier: UUIDv7 in canonical lowercase hyphenated form. Issued by
+  // SID when the device is registered in the owning Profile's scope; the same
+  // value is carried as `device_id` in session and attestation messages.
+  // Knowing it grants no authority and does not prove key possession.
   string id = 1;
+
+  // Owning Profile identifier (UUIDv7). Internal identity; never exposed to
+  // external or federated services.
   string profile_id = 2;
+
+  // User-given label for the device (e.g. "Work laptop"). Set by the Profile
+  // owner via UpdateDevice; unset until the user names the device.
   optional string display_name = 3;
+
+  // Device form factor, derived by SID from registration context.
   DeviceType device_type = 4;
+
+  // Operating system name and version as reported by the client at
+  // registration/login. Self-asserted, informational only.
   optional string os_info = 5;
+
+  // Assurance level computed by SID from trust decision, attestation and
+  // policy; the input to device-based access policy.
   DeviceAssurance assurance = 6;
+
+  // Explicit trust decision by the Profile owner (TrustDevice /
+  // RevokeDeviceTrust). A user label, not attestation of hardware or of any
+  // verification performed on the device.
   bool trusted = 7;
+
+  // Whether a hardware-backed device key with verified platform attestation is
+  // registered in sid-attestation. A protected software key does not set this.
   bool hardware_attested = 8;
+
+  // Country/region of the most recent access, derived by SID from the source
+  // IP. The exact IP address is never stored here.
   optional string last_ip_geo = 9;
+
+  // When SID first registered the device.
   google.protobuf.Timestamp first_seen_at = 10;
+
+  // Most recent authentication from the device; updated by SID on each auth.
   google.protobuf.Timestamp last_seen_at = 11;
 }
 
 message ListDevicesRequest {
+  // Profile whose devices to list (UUIDv7). Must match the caller's
+  // authorized Profile scope.
   string profile_id = 1;
 }
 
 message ListDevicesResponse {
+  // Devices registered to the requested Profile.
   repeated Device devices = 1;
 }
 
 message GetDeviceRequest {
+  // Device to fetch (`Device.id`, UUIDv7). Must belong to the caller's
+  // authorized Profile scope.
   string device_id = 1;
 }
 
 message UpdateDeviceRequest {
+  // Device to update (`Device.id`, UUIDv7). Must belong to the caller's
+  // authorized Profile scope.
   string device_id = 1;
+
+  // New user-given label; unset leaves the current label unchanged.
   optional string display_name = 2;
 }
 
 message RemoveDeviceRequest {
+  // Device to remove (`Device.id`, UUIDv7). Removal kills the device's
+  // sessions and revokes its keys in sid-attestation.
   string device_id = 1;
 }
 
 message TrustDeviceRequest {
+  // Device the Profile owner marks as trusted (`Device.id`, UUIDv7).
   string device_id = 1;
 }
 
 message RevokeDeviceTrustRequest {
+  // Device whose explicit trust is withdrawn (`Device.id`, UUIDv7).
   string device_id = 1;
 }

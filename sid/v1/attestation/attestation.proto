@@ -45,7 +45,7 @@ enum AttestationStatus {
 // Device attestation record — cryptographic identity of a device.
 message DeviceAttestation {
   string id = 1;                                    // Attestation record ID (UUIDv7)
-  string device_id = 2;                             // References Device in sid-identity
+  string device_id = 2;                             // Attested device (`Device.id` in sid-identity, UUIDv7)
   string profile_id = 3;                            // Owner profile
   AttestationFormat format = 4;                     // Attestation format
   KeyStorageType key_storage = 5;                   // Hardware key type
@@ -94,7 +94,7 @@ service AttestationService {
 // ── Request/Response Messages ──
 
 message RegisterDeviceKeyRequest {
-  string device_id = 1;                     // Device to register key for
+  string device_id = 1;                     // Device to register key for (`Device.id`, UUIDv7)
   AttestationFormat format = 2;             // Attestation format
   KeyStorageType key_storage = 3;           // Hardware key type
   bytes device_public_key = 4;              // Device public key (DER-encoded)
@@ -105,18 +105,18 @@ message RegisterDeviceKeyRequest {
 }
 
 message GetDeviceAttestationRequest {
-  string device_id = 1;
+  string device_id = 1;                     // Device to fetch attestation for (`Device.id`, UUIDv7)
 }
 
 message RotateDeviceKeyRequest {
-  string device_id = 1;
+  string device_id = 1;                             // Device whose key is rotated (`Device.id`, UUIDv7)
   bytes new_device_public_key = 2;                  // New public key
   optional bytes new_attestation_object = 3;        // New attestation blob
   optional bytes new_attestation_certificate = 4;   // New leaf certificate
 }
 
 message RevokeDeviceKeyRequest {
-  string device_id = 1;
+  string device_id = 1;                     // Device whose key is revoked (`Device.id`, UUIDv7)
 }
 
 message ListDeviceAttestationsRequest {
