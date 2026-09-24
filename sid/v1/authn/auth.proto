@@ -1128,6 +1128,15 @@ message VerifyOtpRequest {
 message VerifyOtpResponse {
   bool verified = 1;
   optional string redirect_to = 2;
+  // Provisional session the verified code opened (set only when verified).
+  // Mailbox possession grants provisional scopes only: it cannot add or
+  // change a credential of an existing account.
+  optional string session_id = 3;
+  // Access token of that provisional session (same semantics as
+  // OpaqueLoginFinishResponse.access_token, restricted scopes).
+  optional string access_token = 4;
+  // Access token lifetime in seconds.
+  optional int64 expires_in = 5;
 }
 
 message ResendOtpRequest {
@@ -1260,8 +1269,10 @@ message VerifyCaptchaRequest {
 message VerifyCaptchaResponse {
   bool verified = 1;
   optional string redirect_to = 2;
-  // Short-lived HMAC token. Include as `captcha_token` metadata on login retry
-  // to bypass RequireCaptcha for 60 seconds.
+  // Single-use pass for the sign-in the challenge was asked of: the same
+  // profile from the same client address, within 60 seconds. Sent back as
+  // `captcha-pass` metadata on the retry; it answers the CAPTCHA requirement
+  // only, never a lockout or a block.
   string bypass_token = 3;
 }
 

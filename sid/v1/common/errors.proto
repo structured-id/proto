@@ -58,6 +58,9 @@ enum ErrorReason {
   EMAIL_ALREADY_REGISTERED = 31;
   // Username already taken.
   USERNAME_ALREADY_TAKEN = 32;
+  // The operation key already names a command with a different method or
+  // inputs; a new command needs a new key.
+  OPERATION_KEY_CONFLICT = 33;
 
   // ── INVALID_ARGUMENT ───────────────────────────────────────
 
@@ -80,6 +83,11 @@ enum ErrorReason {
   CREDENTIAL_REVOKED = 54;
   // Account is in closure/quarantine state.
   ACCOUNT_CLOSED = 55;
+  // The operation completed, but its result is no longer kept; it is not
+  // executed again.
+  OPERATION_RESULT_UNAVAILABLE = 56;
+  // The operation is outside the window in which a retry is admitted.
+  OPERATION_EXPIRED = 57;
 
   // ── RESOURCE_EXHAUSTED ─────────────────────────────────────
 
@@ -90,6 +98,15 @@ enum ErrorReason {
 
   // Concurrent modification detected (optimistic locking).
   CONCURRENT_MODIFICATION = 70;
+  // The same logical operation is still executing; retry it later with the
+  // same key.
+  OPERATION_IN_PROGRESS = 71;
+
+  // ── UNKNOWN ────────────────────────────────────────────────
+
+  // The operation's outcome cannot be established yet; retry it with the
+  // same key, never with a new one.
+  OPERATION_OUTCOME_UNKNOWN = 95;
 
   // ── UNIMPLEMENTED ──────────────────────────────────────────
 
