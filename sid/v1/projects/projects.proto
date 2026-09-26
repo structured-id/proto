@@ -55,9 +55,8 @@ message Application {
   // canonical URL `https://<host>/i/<handle>`. Part of the connection details
   // a relying party configures verbatim: it discovers endpoints at
   // `<issuer>/.well-known/openid-configuration` and keys accounts by
-  // (issuer, sub). Assigned by the server at registration, never changed by an
-  // ordinary update. Empty for the installation's first-party clients, which
-  // use the root endpoints.
+  // (issuer, sub). Assigned by the server at registration and never changed
+  // by an ordinary update; every client has one.
   string issuer = 19;
 }
 
