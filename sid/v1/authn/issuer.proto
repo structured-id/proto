@@ -1,0 +1,52 @@
+// StructuredID OIDC Issuer Registry
+// Resolves a logical OIDC issuer from the handle in its canonical URL.
+syntax = "proto3";
+
+package sid.v1.authn;
+
+// OidcIssuerService lets the protocol edge serve a logical issuer's
+// discovery documents and key set, and verify tokens it signed.
+//
+// Internal only, no HTTP annotation: the public surface is the issuer's own
+// discovery (`<issuer>/.well-known/openid-configuration`, RFC 8414
+// `/.well-known/oauth-authorization-server/i/<handle>`) and JWKS
+// (`<issuer>/jwks`, RFC 7517), which the edge builds from this answer.
+service OidcIssuerService {
+  // Look up an issuer by handle. An unknown handle is NOT_FOUND with
+  // ErrorInfo reason OIDC_ISSUER_NOT_FOUND and a ResourceInfo naming the
+  // handle; the caller refuses the request and never falls back to another
+  // issuer.
+  rpc GetOidcIssuer(GetOidcIssuerRequest) returns (OidcIssuer);
+}
+
+message GetOidcIssuerRequest {
+  // The opaque issuer handle: the `<handle>` path segment of the issuer URL
+  // `https://<host>/i/<handle>` that received the request. 32 lowercase hex
+  // characters, allocated by the server at issuer creation and never reused.
+  string handle = 1;
+}
+
+// A logical OIDC issuer as its relying parties see it.
+message OidcIssuer {
+  // Exact issuer identifier (the stored canonical URL, `https://<host>/i/<handle>`).
+  // Discovery `issuer`, token `iss` and relying-party configuration must equal
+  // it byte for byte (OpenID Connect Discovery 1.0 §4.3). Never derived from
+  // request Host or Forwarded headers.
+  string issuer = 1;
+  // Public signing keys of this issuer, newest generation first: the current
+  // key and every earlier generation still needed to verify artifacts it
+  // issued. Keys of any other issuer never appear here, even under an equal
+  // key identifier.
+  repeated IssuerPublicKey keys = 2;
+}
+
+// One generation of an issuer's server signing key.
+message IssuerPublicKey {
+  // Key identifier, published as the JWK `kid` and carried in the JWS header
+  // of every token signed with this key (RFC 7515 §4.1.4). Unique within the
+  // issuer only; a verifier matches it together with the exact issuer.
+  string key_id = 1;
+  // Ed25519 public key, the 32-byte encoding of RFC 8032 §5.1.5. Published as
+  // an OKP JWK with crv "Ed25519" and alg "EdDSA" (RFC 8037 §2).
+  bytes public_key = 2;
+}

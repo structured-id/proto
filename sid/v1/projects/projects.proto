@@ -45,13 +45,20 @@ message Application {
   optional google.protobuf.Timestamp client_secret_expires_at = 16;
   bool dynamically_registered = 17;
 
-  // Organization this client belongs to. Used as the binding grouping
-  // key for pairwise sub derivation (org-model.md §Binding Grouping):
-  //   sub = HMAC(salt, profile_id || org_id || "sid-pairwise-sub-v1")
-  // All clients within the same org produce the same BindingId for a
-  // given profile — domain changes don't affect sub stability.
-  // Empty = no org association (legacy CE clients before org model).
+  // Recipient organization of this client (UUIDv7). A pairwise recipient's
+  // subject is the stored BindingId of the (Profile, organization) pair, so
+  // every client of one organization sees the same subject for a user and
+  // redirect domains do not change it. Assigned at registration.
   optional string org_id = 18;
+
+  // Exact OIDC issuer identifier this client is registered under, the
+  // canonical URL `https://<host>/i/<handle>`. Part of the connection details
+  // a relying party configures verbatim: it discovers endpoints at
+  // `<issuer>/.well-known/openid-configuration` and keys accounts by
+  // (issuer, sub). Assigned by the server at registration, never changed by an
+  // ordinary update. Empty for the installation's first-party clients, which
+  // use the root endpoints.
+  string issuer = 19;
 }
 
 enum TokenEndpointAuthMethod {
@@ -222,8 +229,8 @@ message CreateApplicationRequest {
   repeated string redirect_uris = 4;
   repeated string allowed_scopes = 5;
   repeated string grant_types = 6;
-  // Organization to associate this client with (for pairwise sub derivation).
-  // Empty = inherit from project's org (if any).
+  // Recipient organization for this client (UUIDv7). Empty means the
+  // installation's organization; naming any other organization is refused.
   optional string org_id = 7;
 }
 
@@ -255,8 +262,13 @@ message UpdateApplicationRequest {
   repeated string allowed_scopes = 4;
   repeated string grant_types = 5;
   optional bool active = 6;
-  // "public" or "pairwise". Changing from public→pairwise triggers
-  // 90-day dual-sub transition (sid_legacy_sub in tokens).
+  // OIDC subject type metadata. Only "public" is accepted: each issuer
+  // advertises `subject_types_supported: ["public"]` and SID's pairwise
+  // privacy comes from the recipient's BindingId, not from this value. Any
+  // other value is INVALID_ARGUMENT (ErrorInfo metadata `oauth_error` =
+  // `invalid_client_metadata`) and nothing is changed. Moving an application's
+  // users to another identifier is an explicit account migration, never an
+  // update.
   optional string subject_type = 7;
 }
 

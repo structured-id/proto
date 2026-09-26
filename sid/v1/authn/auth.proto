@@ -68,31 +68,52 @@ service AuthService {
   }
 
   // OAuth2 / OIDC flows.
+  //
+  // The `/v1/oauth2/*` routes serve the installation's first-party clients.
+  // The `/i/{issuer_handle}/oauth2/*` routes are the endpoints a logical OIDC
+  // issuer advertises in its discovery document; the handle binds the request
+  // to that issuer. The browser authorization endpoint of an issuer is served
+  // by the protocol edge, which sets `issuer_handle` from its path.
   rpc OAuth2Authorize(OAuth2AuthorizeRequest) returns (OAuth2AuthorizeResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/oauth2/authorize" body: "*" };
   }
   rpc OAuth2Token(OAuth2TokenRequest) returns (OAuth2TokenResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
-    option (google.api.http) = { post: "/v1/oauth2/token" body: "*" };
+    option (google.api.http) = {
+      post: "/v1/oauth2/token" body: "*"
+      additional_bindings { post: "/i/{issuer_handle}/oauth2/token" body: "*" }
+    };
   }
   rpc OAuth2Introspect(OAuth2IntrospectRequest) returns (OAuth2IntrospectResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { post: "/v1/oauth2/introspect" body: "*" };
+    option (google.api.http) = {
+      post: "/v1/oauth2/introspect" body: "*"
+      additional_bindings { post: "/i/{issuer_handle}/oauth2/introspect" body: "*" }
+    };
   }
   rpc OAuth2Revoke(OAuth2RevokeRequest) returns (OAuth2RevokeResponse) {
     option idempotency_level = IDEMPOTENT;
-    option (google.api.http) = { post: "/v1/oauth2/revoke" body: "*" };
+    option (google.api.http) = {
+      post: "/v1/oauth2/revoke" body: "*"
+      additional_bindings { post: "/i/{issuer_handle}/oauth2/revoke" body: "*" }
+    };
   }
 
   // Device Authorization Grant (RFC 8628).
   rpc StartDeviceAuthorization(DeviceAuthorizationRequest) returns (DeviceAuthorizationResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
-    option (google.api.http) = { post: "/v1/oauth2/device" body: "*" };
+    option (google.api.http) = {
+      post: "/v1/oauth2/device" body: "*"
+      additional_bindings { post: "/i/{issuer_handle}/oauth2/device" body: "*" }
+    };
   }
   rpc PollDeviceToken(PollDeviceTokenRequest) returns (OAuth2TokenResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { post: "/v1/oauth2/device/token" body: "*" };
+    option (google.api.http) = {
+      post: "/v1/oauth2/device/token" body: "*"
+      additional_bindings { post: "/i/{issuer_handle}/oauth2/device/token" body: "*" }
+    };
   }
   rpc SubmitDeviceUserCode(SubmitDeviceUserCodeRequest) returns (SubmitDeviceUserCodeResponse) {
     option idempotency_level = IDEMPOTENT;
@@ -622,8 +643,9 @@ message WebAuthnAuthenticationFinishResponse {
 // ══════════════════════════════════════════════════════════════════════════
 
 message OAuth2AuthorizeRequest {
-  // OAuth2 client identifier. Registered via admin API (CreateApplication).
-  // Determines ServiceSector for pairwise sub computation.
+  // OAuth2 client identifier, registered by CreateApplication or Dynamic
+  // Client Registration. Names the relying party; the issuer it belongs to is
+  // fixed by its registration, never chosen by this request.
   string client_id = 1;
   // Redirect URI. Must match one of the client's registered redirect_uris.
   // Server validates exact match (RFC 6749 §3.1.2.3).
@@ -648,6 +670,13 @@ message OAuth2AuthorizeRequest {
   // If session doesn't meet the requested level, step-up is triggered.
   // Values: "urn:sid:acr:basic", "urn:sid:acr:standard", "urn:sid:acr:elevated".
   optional string acr_values = 9;
+  // Handle of the OIDC issuer whose authorization endpoint received the
+  // request: the `<handle>` in `https://<host>/i/<handle>/oauth2/authorize`,
+  // set by the protocol edge from the path. Absent on the installation's
+  // first-party endpoint. The server refuses an unknown handle and a client
+  // registered under another issuer (or under none) as an unknown client,
+  // without falling back to another issuer.
+  optional string issuer_handle = 10;
 }
 
 message OAuth2AuthorizeResponse {
@@ -709,6 +738,12 @@ message OAuth2TokenRequest {
   // Subject token type URN. "urn:ietf:params:oauth:token-type:access_token" or
   // "urn:ietf:params:oauth:token-type:id_token". RFC 8693 §2.1.
   optional string subject_token_type = 13;
+  // Handle of the OIDC issuer whose token endpoint received the request,
+  // bound from the path `/i/{issuer_handle}/oauth2/token`. Absent on the
+  // first-party endpoint. The client, and every code or refresh token
+  // redeemed, must belong to this issuer; anything issued in another context
+  // is refused as unknown before any side effect.
+  optional string issuer_handle = 14;
 }
 
 message OAuth2TokenResponse {
@@ -734,6 +769,11 @@ message OAuth2TokenResponse {
 message OAuth2IntrospectRequest {
   // Token to introspect (access_token or refresh_token). RFC 7662 §2.1.
   string token = 1;
+  // Handle of the OIDC issuer whose introspection endpoint received the
+  // request, bound from the path `/i/{issuer_handle}/oauth2/introspect`.
+  // Absent on the first-party endpoint. A token issued by another issuer is
+  // reported inactive (RFC 7662 §2.2).
+  optional string issuer_handle = 2;
 }
 
 message OAuth2IntrospectResponse {
@@ -749,8 +789,9 @@ message OAuth2IntrospectResponse {
   optional int64 exp = 5;
   // Token issue time (Unix timestamp, seconds).
   optional int64 iat = 6;
-  // Subject identifier (polymorphic: ProfileId UUID for public, pairwise hash
-  // for pairwise clients). See CLAUDE.md Identity Terminology for sub semantics.
+  // Subject identifier exactly as the token carries it. Polymorphic: the
+  // ProfileId for an installation's own users, the opaque BindingId (UUIDv7,
+  // no prefix) for a pairwise recipient. Never parse it as a ProfileId.
   optional string sub = 7;
 }
 
@@ -761,6 +802,11 @@ message OAuth2RevokeRequest {
   // Hint to server about token type. "access_token" or "refresh_token".
   // Server validates independently — hint is optimization, not trusted. RFC 7009 §2.1.
   optional string token_type_hint = 2;
+  // Handle of the OIDC issuer whose revocation endpoint received the request,
+  // bound from the path `/i/{issuer_handle}/oauth2/revoke`. Absent on the
+  // first-party endpoint. A token issued by another issuer is left untouched
+  // and the answer is still success (RFC 7009 §2.2).
+  optional string issuer_handle = 3;
 }
 
 message OAuth2RevokeResponse {}
@@ -798,6 +844,11 @@ message DeviceAuthorizationRequest {
   string client_id = 1;
   // Requested scopes (space-separated). RFC 8628 §3.1.
   optional string scope = 2;
+  // Handle of the OIDC issuer whose device authorization endpoint received
+  // the request, bound from the path `/i/{issuer_handle}/oauth2/device`.
+  // Absent on the first-party endpoint. The client must belong to this
+  // issuer; the device transaction stays bound to it.
+  optional string issuer_handle = 3;
 }
 
 message DeviceAuthorizationResponse {
@@ -824,6 +875,11 @@ message PollDeviceTokenRequest {
   string client_id = 1;
   // Device code from DeviceAuthorizationResponse. RFC 8628 §3.4.
   string device_code = 2;
+  // Handle of the OIDC issuer whose endpoint received the poll, bound from
+  // the path `/i/{issuer_handle}/oauth2/device/token`. Absent on the
+  // first-party endpoint. A device code started under another issuer is
+  // refused as unknown.
+  optional string issuer_handle = 3;
 }
 
 message SubmitDeviceUserCodeRequest {
