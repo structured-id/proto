@@ -61,10 +61,20 @@ enum AccessRequestStatus {
 // ══════════════════════════════════════════════════════════════════════════
 
 message AccessRequestMessage {
+  // Profile asking for the role (UUID). The caller itself, or anyone when an
+  // administrator files the request on its behalf.
   string requester_profile_id = 1;
+  // Key of the requested role within `project_id`. A role the project does
+  // not define is NOT_FOUND; nothing is stored.
   string requested_role = 2;
+  // Why the requester needs the role, shown to the approver.
   string justification = 3;
-  optional google.protobuf.Duration requested_duration = 4;  // null = permanent
+  // How long the role is wanted; absent = permanent. On approval the
+  // assignment expires after it.
+  optional google.protobuf.Duration requested_duration = 4;
+  // Project (UUID) whose role is requested: roles are defined per project.
+  // An unknown project is NOT_FOUND.
+  string project_id = 5;
 }
 
 message AccessRequestResponse {
@@ -95,9 +105,15 @@ message AccessRequestDetail {
 }
 
 message DecideRequestRequest {
+  // Access request (UUID) being decided.
   string request_id = 1;
+  // Approve (grant the role) or deny. An approval and the role assignment it
+  // makes are recorded together: when the role can no longer be assigned
+  // (it was deleted) the call fails FAILED_PRECONDITION and the request
+  // stays pending.
   bool approved = 2;
-  string reason = 3;                          // Required for deny, optional for approve
+  // Reviewer's comment, recorded on the request.
+  string reason = 3;
 }
 
 message DecideRequestResponse {
@@ -110,10 +126,16 @@ message DecideRequestResponse {
 // ══════════════════════════════════════════════════════════════════════════
 
 message GrantTemporaryRoleRequest {
+  // Profile receiving the role (UUID); an unknown profile is NOT_FOUND.
   string profile_id = 1;
+  // Key of the role within `project_id`; an unknown role is NOT_FOUND.
   string role = 2;
+  // When the assignment is revoked automatically; must be in the future.
   google.protobuf.Timestamp expires_at = 3;
+  // Why the role is granted, recorded in the audit trail.
   string justification = 4;
+  // Project (UUID) whose role is granted: roles are defined per project.
+  string project_id = 5;
 }
 
 message GrantTemporaryRoleResponse {
