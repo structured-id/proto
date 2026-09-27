@@ -28,6 +28,54 @@ service OidcProviderService {
   rpc GetJwks(IssuerHandleRequest) returns (JsonWebKeySet) {
     option (google.api.http) = {get: "/i/{issuer_handle}/jwks"};
   }
+
+  // UserInfo (OIDC Core 1.0 §5.3) over GET. The access token travels in the
+  // `authorization` metadata, `Bearer` (RFC 6750 §2.1) or `DPoP` with a proof
+  // in the `dpop` metadata (RFC 9449 §7.1); only tokens this issuer signed are
+  // accepted. A refused token is UNAUTHENTICATED with a `www-authenticate`
+  // response metadata challenge (RFC 6750 §3, RFC 9449 §7.1). GET and POST
+  // are separate RPCs because a DPoP proof names the request method.
+  rpc GetUserInfo(IssuerHandleRequest) returns (UserInfo) {
+    option (google.api.http) = {get: "/i/{issuer_handle}/userinfo"};
+  }
+
+  // UserInfo over POST (OIDC Core 1.0 §5.3.1); the same answer as GetUserInfo.
+  rpc PostUserInfo(IssuerHandleRequest) returns (UserInfo) {
+    option (google.api.http) = {
+      post: "/i/{issuer_handle}/userinfo"
+      body: "*"
+    };
+  }
+}
+
+// Claims about the authenticated user (OIDC Core 1.0 §5.3.2). A claim the
+// token's scopes do not grant, or the user does not have, is absent rather
+// than empty (OIDC Core 1.0 §5.3.2).
+message UserInfo {
+  // The subject, identical to the `sub` of the ID token this issuer gave the
+  // same client (OIDC Core 1.0 §5.3.2).
+  string sub = 1 [json_name = "sub"];
+  // Full display name (`profile` scope).
+  optional string name = 2 [json_name = "name"];
+  // Given name(s) (`profile` scope).
+  optional string given_name = 3 [json_name = "given_name"];
+  // Surname(s) (`profile` scope).
+  optional string family_name = 4 [json_name = "family_name"];
+  // Middle name(s) (`profile` scope).
+  optional string middle_name = 5 [json_name = "middle_name"];
+  // Shorthand name the user chose (`profile` scope).
+  optional string preferred_username = 6 [json_name = "preferred_username"];
+  // When the profile information last changed, seconds since the Unix epoch
+  // (`profile` scope). A JSON number (OIDC Core 1.0 §5.1).
+  optional uint32 updated_at = 7 [json_name = "updated_at"];
+  // Primary email address (`email` scope).
+  optional string email = 8 [json_name = "email"];
+  // Whether the primary email address was verified (`email` scope).
+  optional bool email_verified = 9 [json_name = "email_verified"];
+  // Primary phone number in E.164 (`phone` scope).
+  optional string phone_number = 10 [json_name = "phone_number"];
+  // Whether the primary phone number was verified (`phone` scope).
+  optional bool phone_number_verified = 11 [json_name = "phone_number_verified"];
 }
 
 // Names the issuer a request is for.
