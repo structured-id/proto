@@ -37,6 +37,10 @@ enum ErrorReason {
   OIDC_ISSUER_NOT_FOUND = 7;
   // Protected resource not found.
   RESOURCE_NOT_FOUND = 8;
+  // The forward-auth route configuration has no protected application of
+  // this name; the reverse proxy's address names an application it does not
+  // protect.
+  FORWARD_AUTH_APPLICATION_NOT_FOUND = 9;
 
   // ── UNAUTHENTICATED ────────────────────────────────────────
 

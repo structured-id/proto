@@ -1,0 +1,53 @@
+// StructuredID forward auth: the decision a reverse proxy asks for before it
+// forwards a request to a protected application (nginx `auth_request`,
+// Traefik `forwardAuth`, Caddy `forward_auth`). Envoy asks the same decision
+// through ext_authz (envoy.service.auth.v3.Authorization).
+syntax = "proto3";
+
+package sid.v1.authz;
+
+import "google/api/annotations.proto";
+import "google/api/httpbody.proto";
+
+service ForwardAuthService {
+  // Decide whether the original request may reach `application`.
+  //
+  // The reverse proxy sub-requests `/auth/verify/{application}` with the
+  // original request's method, so the rule binds every method. The
+  // application comes from the address the proxy is configured with, never
+  // from anything the client sends; it names a protected application of the
+  // route configuration, which pins the registered resource (exact issuer
+  // and resource indicator) its access tokens must be issued for.
+  //
+  // Request metadata, as the proxy forwards the original request:
+  // `authorization` (`Bearer`, RFC 6750 §2.1, or `DPoP`, RFC 9449 §7.1),
+  // `dpop` (the proof, RFC 9449 §4), `x-original-uri` or `x-forwarded-uri`
+  // (path and query), `x-original-method` or `x-forwarded-method`.
+  //
+  // The decision is the HTTP answer the proxy acts on, carried in the
+  // `x-http-code` response metadata with an empty body:
+  // - 200: allowed; response metadata carries the identity headers of the
+  //   route (`x-forwarded-user` = the token's recipient-scoped `sub`,
+  //   `x-auth-request-*` for disclosed claims), which the proxy copies to
+  //   the upstream request after removing any client-supplied copies;
+  // - 401: no acceptable access token for this application, with
+  //   `www-authenticate` (a DPoP challenge when a sender constraint failed,
+  //   RFC 9449 §7.1) and, when a login URL is configured, `location`;
+  // - 403: authenticated but not allowed, or the application's resource is
+  //   not registered or not active.
+  // An application not in the route configuration is NOT_FOUND (ErrorInfo
+  // reason FORWARD_AUTH_APPLICATION_NOT_FOUND, ResourceInfo naming it); a
+  // registry or revocation check that cannot be answered is UNAVAILABLE. The
+  // proxy denies on both.
+  rpc Verify(VerifyRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      custom: {kind: "*", path: "/auth/verify/{application}"}
+    };
+  }
+}
+
+message VerifyRequest {
+  // Name of the protected application in the route configuration: letters,
+  // digits, '-' and '_'. Set by the reverse proxy's configured address.
+  string application = 1;
+}
