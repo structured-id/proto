@@ -764,12 +764,23 @@ message OAuth2TokenResponse {
 }
 
 message OAuth2IntrospectRequest {
-  // Token to introspect (access_token or refresh_token). RFC 7662 §2.1.
+  // Token to introspect. RFC 7662 §2.1.
   string token = 1;
   // Handle of the OIDC issuer whose introspection endpoint received the
-  // request, bound from the path `/i/{issuer_handle}/oauth2/introspect`. A
-  // token issued by another issuer is reported inactive (RFC 7662 §2.2).
+  // request, bound from the path `/i/{issuer_handle}/oauth2/introspect`. The
+  // caller must be a client of this issuer; a token issued by another issuer
+  // is reported inactive (RFC 7662 §2.2).
   string issuer_handle = 2;
+  // Identifier of the calling client (RFC 6749 §2.2). The caller is a
+  // confidential client and authenticates by its registered method, as at the
+  // token endpoint (RFC 7662 §2.1): HTTP Basic in the `authorization`
+  // metadata, or this field with `client_secret`. A token is reported active
+  // only to a client it was issued to (its `aud`); to any other caller it is
+  // inactive (RFC 7662 §4).
+  optional string client_id = 3;
+  // Client secret of a client registered for `client_secret_post`
+  // (RFC 6749 §2.3.1). At most one authentication method per request.
+  optional string client_secret = 4;
 }
 
 message OAuth2IntrospectResponse {
@@ -777,7 +788,7 @@ message OAuth2IntrospectResponse {
   bool active = 1;
   // Scopes associated with the token (space-separated).
   optional string scope = 2;
-  // Client that the token was issued to.
+  // Client the token was issued to (RFC 7662 §2.2, RFC 9068 §2.2).
   optional string client_id = 3;
   // Human-readable identifier for the resource owner (may be email or username).
   optional string username = 4;
@@ -792,17 +803,26 @@ message OAuth2IntrospectResponse {
 }
 
 message OAuth2RevokeRequest {
-  // Token to revoke (access or refresh). RFC 7009 §2.1.
-  // Server always returns success (even if token unknown — anti-enumeration).
+  // Token to revoke (access or refresh). RFC 7009 §2.1. An unknown or
+  // already invalid token is not an error (RFC 7009 §2.2).
   string token = 1;
   // Hint to server about token type. "access_token" or "refresh_token".
   // Server validates independently — hint is optimization, not trusted. RFC 7009 §2.1.
   optional string token_type_hint = 2;
   // Handle of the OIDC issuer whose revocation endpoint received the request,
-  // bound from the path `/i/{issuer_handle}/oauth2/revoke`. A token issued by
-  // another issuer is left untouched and the answer is still success
-  // (RFC 7009 §2.2).
+  // bound from the path `/i/{issuer_handle}/oauth2/revoke`. The caller must
+  // be a client of this issuer; a token issued by another issuer is left
+  // untouched and the answer is still success (RFC 7009 §2.2).
   string issuer_handle = 3;
+  // Identifier of the calling client (RFC 6749 §2.2). A confidential client
+  // authenticates by its registered method, as at the token endpoint: HTTP
+  // Basic in the `authorization` metadata, or this field with
+  // `client_secret`; a public client only names itself (RFC 7009 §2.1). A
+  // token issued to another client is refused with `unauthorized_client`.
+  optional string client_id = 4;
+  // Client secret of a client registered for `client_secret_post`
+  // (RFC 6749 §2.3.1). At most one authentication method per request.
+  optional string client_secret = 5;
 }
 
 message OAuth2RevokeResponse {}
