@@ -1,16 +1,120 @@
-// StructuredID OIDC Issuer Registry
-// Resolves a logical OIDC issuer from the handle in its canonical URL.
+// StructuredID OIDC Issuers
+// A logical OIDC issuer (`https://<host>/i/<handle>`): its public metadata and
+// key set, and the internal lookup verifiers use.
 syntax = "proto3";
 
 package sid.v1.authn;
 
-// OidcIssuerService lets the protocol edge serve a logical issuer's
-// discovery documents and key set, and verify tokens it signed.
+import "google/api/annotations.proto";
+
+// OidcProviderService publishes one issuer's metadata and signing keys to its
+// relying parties. Every document belongs to the issuer the handle names; an
+// unknown handle is NOT_FOUND with ErrorInfo reason OIDC_ISSUER_NOT_FOUND and
+// never falls back to another issuer. There is no issuer-less document.
+service OidcProviderService {
+  // The issuer's metadata (OpenID Connect Discovery 1.0 §3–4, RFC 8414 §2–3).
+  // One document answers both discovery algorithms: the OIDC location under
+  // the issuer path and the RFC 8414 well-known location with the issuer path
+  // appended.
+  rpc GetProviderMetadata(IssuerHandleRequest) returns (ProviderMetadata) {
+    option (google.api.http) = {
+      get: "/i/{issuer_handle}/.well-known/openid-configuration"
+      additional_bindings {get: "/.well-known/oauth-authorization-server/i/{issuer_handle}"}
+    };
+  }
+
+  // The issuer's JSON Web Key Set (RFC 7517 §5): the public keys that verify
+  // its tokens. The response metadata carries `cache-control` for HTTP caches.
+  rpc GetJwks(IssuerHandleRequest) returns (JsonWebKeySet) {
+    option (google.api.http) = {get: "/i/{issuer_handle}/jwks"};
+  }
+}
+
+// Names the issuer a request is for.
+message IssuerHandleRequest {
+  // The opaque issuer handle: the `<handle>` path segment of the issuer URL
+  // `https://<host>/i/<handle>`. 32 lowercase hex characters, allocated by
+  // the server at issuer creation and never reused.
+  string issuer_handle = 1;
+}
+
+// OpenID Provider / Authorization Server metadata of one issuer. JSON member
+// names are the registered metadata names (OIDC Discovery 1.0 §3, RFC 8414 §2);
+// every endpoint is under the issuer URL.
+message ProviderMetadata {
+  // The issuer identifier, the stored canonical URL byte for byte: the `iss`
+  // of every token this issuer signs (OIDC Discovery 1.0 §4.3, RFC 8414 §3.3).
+  string issuer = 1 [json_name = "issuer"];
+  // Authorization endpoint (RFC 6749 §3.1).
+  string authorization_endpoint = 2 [json_name = "authorization_endpoint"];
+  // Token endpoint (RFC 6749 §3.2).
+  string token_endpoint = 3 [json_name = "token_endpoint"];
+  // UserInfo endpoint (OIDC Core 1.0 §5.3).
+  string userinfo_endpoint = 4 [json_name = "userinfo_endpoint"];
+  // The issuer's JSON Web Key Set (RFC 7517 §5).
+  string jwks_uri = 5 [json_name = "jwks_uri"];
+  // RP-Initiated Logout endpoint (OIDC RP-Initiated Logout 1.0 §2.1).
+  string end_session_endpoint = 6 [json_name = "end_session_endpoint"];
+  // Token introspection endpoint (RFC 7662 §2, RFC 8414 §2).
+  string introspection_endpoint = 7 [json_name = "introspection_endpoint"];
+  // Token revocation endpoint (RFC 7009 §2, RFC 8414 §2).
+  string revocation_endpoint = 8 [json_name = "revocation_endpoint"];
+  // Device authorization endpoint (RFC 8628 §4).
+  string device_authorization_endpoint = 9 [json_name = "device_authorization_endpoint"];
+  // Supported `response_type` values; only the authorization code flow.
+  repeated string response_types_supported = 10 [json_name = "response_types_supported"];
+  // Supported grant types (RFC 8414 §2).
+  repeated string grant_types_supported = 11 [json_name = "grant_types_supported"];
+  // Subject identifier types (OIDC Core 1.0 §8): `public` within this
+  // issuer. Which identifier a user's `sub` is follows the issuer, the
+  // selected Profile and the recipient, never a per-client switch.
+  repeated string subject_types_supported = 12 [json_name = "subject_types_supported"];
+  // JWS algorithms of ID tokens: the issuer's Ed25519 key signs them (EdDSA).
+  repeated string id_token_signing_alg_values_supported = 13 [json_name = "id_token_signing_alg_values_supported"];
+  // Scopes a client may request (RFC 8414 §2).
+  repeated string scopes_supported = 14 [json_name = "scopes_supported"];
+  // Client authentication methods at the token endpoint (RFC 8414 §2).
+  repeated string token_endpoint_auth_methods_supported = 15 [json_name = "token_endpoint_auth_methods_supported"];
+  // PKCE code challenge methods (RFC 7636 §4.3, RFC 8414 §2); only S256.
+  repeated string code_challenge_methods_supported = 16 [json_name = "code_challenge_methods_supported"];
+  // JWS algorithms accepted in DPoP proofs (RFC 9449 §5.1).
+  repeated string dpop_signing_alg_values_supported = 17 [json_name = "dpop_signing_alg_values_supported"];
+  // Back-channel logout is delivered to registered clients (OIDC Back-Channel
+  // Logout 1.0 §2.1).
+  bool backchannel_logout_supported = 18 [json_name = "backchannel_logout_supported"];
+  // Logout tokens carry the `sid` claim (OIDC Back-Channel Logout 1.0 §2.1).
+  bool backchannel_logout_session_supported = 19 [json_name = "backchannel_logout_session_supported"];
+  // Every authorization response names its issuer in `iss` (RFC 9207 §3).
+  bool authorization_response_iss_parameter_supported = 20 [json_name = "authorization_response_iss_parameter_supported"];
+}
+
+// A JSON Web Key Set (RFC 7517 §5).
+message JsonWebKeySet {
+  // The issuer's public signing keys, newest generation first.
+  repeated JsonWebKey keys = 1 [json_name = "keys"];
+}
+
+// A public Ed25519 signing key as an OKP JWK (RFC 7517 §4, RFC 8037 §2).
+message JsonWebKey {
+  // Key type (RFC 7517 §4.1): always `OKP`.
+  string kty = 1 [json_name = "kty"];
+  // Intended use (RFC 7517 §4.2): always `sig`.
+  string use = 2 [json_name = "use"];
+  // Algorithm (RFC 7517 §4.4): always `EdDSA`.
+  string alg = 3 [json_name = "alg"];
+  // Key identifier (RFC 7517 §4.5), the JWS `kid` of every token this key
+  // signs. Unique within the issuer only.
+  string kid = 4 [json_name = "kid"];
+  // Curve (RFC 8037 §2): always `Ed25519`.
+  string crv = 5 [json_name = "crv"];
+  // The 32-byte public key, base64url without padding (RFC 8037 §2).
+  string x = 6 [json_name = "x"];
+}
+
+// OidcIssuerService lets services that verify an issuer's tokens resolve the
+// issuer and its keys by handle.
 //
-// Internal only, no HTTP annotation: the public surface is the issuer's own
-// discovery (`<issuer>/.well-known/openid-configuration`, RFC 8414
-// `/.well-known/oauth-authorization-server/i/<handle>`) and JWKS
-// (`<issuer>/jwks`, RFC 7517), which the edge builds from this answer.
+// Internal only, no HTTP annotation: relying parties use OidcProviderService.
 service OidcIssuerService {
   // Look up an issuer by handle. An unknown handle is NOT_FOUND with
   // ErrorInfo reason OIDC_ISSUER_NOT_FOUND and a ResourceInfo naming the
