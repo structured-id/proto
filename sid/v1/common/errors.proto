@@ -35,6 +35,8 @@ enum ErrorReason {
   // No OIDC issuer has this handle. The request is refused before any
   // authentication or key lookup; it never falls back to another issuer.
   OIDC_ISSUER_NOT_FOUND = 7;
+  // Protected resource not found.
+  RESOURCE_NOT_FOUND = 8;
 
   // ── UNAUTHENTICATED ────────────────────────────────────────
 
@@ -64,6 +66,12 @@ enum ErrorReason {
   // The operation key already names a command with a different method or
   // inputs; a new command needs a new key.
   OPERATION_KEY_CONFLICT = 33;
+  // The application already has a role of this kind (one client role and one
+  // resource role per application).
+  APPLICATION_ROLE_EXISTS = 34;
+  // The issuer already has, or had, a protected resource with this resource
+  // indicator; an indicator is never given to another resource.
+  RESOURCE_INDICATOR_TAKEN = 35;
 
   // ── INVALID_ARGUMENT ───────────────────────────────────────
 
@@ -91,6 +99,12 @@ enum ErrorReason {
   OPERATION_RESULT_UNAVAILABLE = 56;
   // The operation is outside the window in which a retry is admitted.
   OPERATION_EXPIRED = 57;
+  // The protected resource is retired with its application: it takes no
+  // changes and no access.
+  RESOURCE_RETIRED = 58;
+  // The client and the resource belong to different issuers; access is
+  // granted only within one issuer.
+  ISSUER_MISMATCH = 59;
 
   // ── RESOURCE_EXHAUSTED ─────────────────────────────────────
 
