@@ -73,12 +73,11 @@ service AuthService {
   // are that issuer's endpoints: `/i/{issuer_handle}/oauth2/*`, as advertised
   // in its discovery document. There is no issuer-less OAuth surface; SID's
   // own sign-in sessions are issued by the authentication RPCs above, not
-  // here. The issuer's browser authorization endpoint is served by the
-  // protocol edge, which calls OAuth2Authorize with the handle from its path;
-  // the sign-in UI calls it the same way after consent.
+  // here. The sign-in UI calls OAuth2Authorize with the signed-in user's
+  // token after consent and redirects the browser itself; the issuer's
+  // browser authorization endpoint (OidcProviderService) runs the same logic.
   rpc OAuth2Authorize(OAuth2AuthorizeRequest) returns (OAuth2AuthorizeResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
-    option (google.api.http) = { post: "/v1/oauth2/authorize" body: "*" };
   }
   //
   // The token, introspection, revocation and device authorization RPCs have

@@ -7,6 +7,7 @@ package sid.v1.authn;
 
 import "google/api/annotations.proto";
 import "google/api/httpbody.proto";
+import "sid/v1/authn/auth.proto";
 
 // OidcProviderService publishes one issuer's metadata and signing keys to its
 // relying parties. Every document belongs to the issuer the handle names; an
@@ -45,6 +46,44 @@ service OidcProviderService {
     option (google.api.http) = {
       post: "/i/{issuer_handle}/userinfo"
       body: "*"
+    };
+  }
+
+  // The browser authorization endpoint (RFC 6749 §3.1) over GET, the query
+  // parameters bound to the request fields. The answer is an HTTP redirect
+  // (`x-http-code` 303 and `location` response metadata, RFC 9700 §4.11): to
+  // the client's registered redirect URI with `code` or `error`, `state` and
+  // `iss` (RFC 9207 §2), or, when the user must sign in first, to the sign-in
+  // page with this request to return to. A request whose client or exact
+  // redirect URI is not established is answered with a page and never
+  // redirected (RFC 6749 §4.1.2.1). The signed-in user's token, when a
+  // gateway holds one, travels in the `authorization` metadata.
+  rpc GetAuthorize(OAuth2AuthorizeRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {get: "/i/{issuer_handle}/oauth2/authorize"};
+  }
+
+  // The authorization endpoint over POST with a form body (OIDC Core 1.0
+  // §3.1.2.1); the same answer as GetAuthorize. Parameters it does not know
+  // are ignored (RFC 6749 §3.1).
+  rpc PostAuthorize(ProtocolRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      post: "/i/{issuer_handle}/oauth2/authorize"
+      body: "body"
+    };
+  }
+
+  // RP-Initiated Logout (OIDC RP-Initiated Logout 1.0 §2), GET or POST. The
+  // session of the sign-in token in the `authorization` metadata ends; an
+  // `id_token_hint` names a session but carries no authority to end it. No
+  // post_logout_redirect_uri is followed: none can be registered, and only a
+  // registered one may be (§3). The answer is a page confirming the logout.
+  rpc EndSession(ProtocolRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      get: "/i/{issuer_handle}/oauth2/end-session"
+      additional_bindings {
+        post: "/i/{issuer_handle}/oauth2/end-session"
+        body: "body"
+      }
     };
   }
 
@@ -102,9 +141,10 @@ message ProtocolRequest {
   // The opaque issuer handle: the `<handle>` path segment of the issuer URL
   // `https://<host>/i/<handle>`. 32 lowercase hex characters.
   string issuer_handle = 1;
-  // The HTTP request body as the client sent it, with its `Content-Type`. The
-  // endpoints read `application/x-www-form-urlencoded` (RFC 6749 §3.2) and
-  // refuse any other type as `invalid_request`.
+  // The HTTP request body as the client sent it, with its `Content-Type`;
+  // absent for a request without one (a GET). The endpoints read
+  // `application/x-www-form-urlencoded` (RFC 6749 §3.2) and refuse any other
+  // type as `invalid_request`.
   google.api.HttpBody body = 2;
 }
 
