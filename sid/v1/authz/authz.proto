@@ -57,7 +57,8 @@ message Group {
   google.protobuf.Timestamp updated_at = 6;
 }
 
-// RoleAssignment assigns a role to a profile, group, or machine user.
+// RoleAssignment assigns a role to a profile, group, machine user, or an
+// independent OAuth client acting as a service.
 message RoleAssignment {
   string id = 1;
 
@@ -65,12 +66,19 @@ message RoleAssignment {
     string profile_id = 2;
     string group_id = 3;
     string machine_user_id = 8;
+    // `client_id` of an independent confidential OAuth client. A machine
+    // user's OAuth credentials resolve to the machine user, never to this
+    // principal.
+    string oauth_client_id = 9;
   }
 
   string role_id = 4;
 
-  // Optional scope (resource constraint).
-  optional string scope = 5;  // e.g., "project:abc123"
+  // Optional scope (resource constraint): e.g. "project:<uuid>", or
+  // "oauth_resource:<resource_id>" for one registered protected resource
+  // (its issuer is the resource's). The token inspector role is assigned
+  // only with a protected-resource scope.
+  optional string scope = 5;
 
   // Optional expiry (temporary role).
   optional google.protobuf.Timestamp expires_at = 6;
@@ -352,8 +360,15 @@ message AssignRoleRequest {
     string profile_id = 1;
     string group_id = 2;
     string machine_user_id = 6;
+    // `client_id` of an existing confidential OAuth client; a public or
+    // unknown client is refused (INVALID_ARGUMENT / NOT_FOUND).
+    string oauth_client_id = 7;
   }
   string role_id = 3;
+  // Scope of the assignment, as in RoleAssignment.scope. For the token
+  // inspector role it must name an existing, not retired protected resource
+  // ("oauth_resource:<resource_id>"), else INVALID_ARGUMENT / NOT_FOUND /
+  // FAILED_PRECONDITION (RESOURCE_RETIRED).
   optional string scope = 4;
   optional google.protobuf.Timestamp expires_at = 5;
 }
@@ -374,6 +389,8 @@ message ListRoleAssignmentsRequest {
     string group_id = 2;
     string role_id = 3;
     string machine_user_id = 4;
+    // Assignments held by this OAuth client (`client_id`).
+    string oauth_client_id = 5;
   }
 }
 

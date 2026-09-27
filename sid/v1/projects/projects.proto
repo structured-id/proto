@@ -140,7 +140,8 @@ enum ResourceState {
 // resource, limited to `scopes`. Project membership, a shared issuer or an
 // equal subject grant no access by themselves.
 message ResourceAccess {
-  // The client (`client_id`) given access.
+  // Identifier (RFC 6749 §2.2) of the client given access: an OAuth client
+  // of an application, or a machine user requesting tokens for itself.
   string client_id = 1;
   // The resource (ProtectedResource.id, UUIDv7) it may obtain tokens for.
   string resource_id = 2;
@@ -470,7 +471,11 @@ message UpdateResourceRoleRequest {
 }
 
 message SetResourceAccessRequest {
+  // Identifier of the client to give access: an OAuth client, or a machine
+  // user (served by the installation organization's issuer). Unknown to both
+  // is NOT_FOUND.
   string client_id = 1;
+  // The resource (ProtectedResource.id, UUIDv7).
   string resource_id = 2;
   // Replaces the scopes of this access. Each must be a scope of the resource
   // (INVALID_ARGUMENT otherwise). The client and the resource must belong to
@@ -480,7 +485,9 @@ message SetResourceAccessRequest {
 }
 
 message RemoveResourceAccessRequest {
+  // Identifier of the OAuth client or machine user losing access.
   string client_id = 1;
+  // The resource (ProtectedResource.id, UUIDv7).
   string resource_id = 2;
 }
 

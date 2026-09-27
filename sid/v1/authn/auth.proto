@@ -665,6 +665,14 @@ message OAuth2AuthorizeRequest {
   // client registered under another issuer, are refused as an unknown client
   // (never redirected), without falling back to another issuer.
   string issuer_handle = 10;
+  // Resource indicators (RFC 8707 §2): absolute URIs without a fragment
+  // naming the registered protected resource the access token is for. At most
+  // one distinct value; repeating the same value names the same resource.
+  // Empty selects the client's configured default resource. An unknown,
+  // inactive or not permitted resource, several distinct values, or none with
+  // no default are refused with `invalid_target`. The code is bound to the
+  // selected resource.
+  repeated string resource = 11;
 }
 
 message OAuth2AuthorizeResponse {
@@ -741,6 +749,13 @@ message OAuth2TokenRequest {
   // (RFC 8628 §3.4). Opaque; a code started under another issuer or client is
   // refused as `invalid_grant`.
   optional string device_code = 15;
+  // Resource indicators (RFC 8707 §2), at most one distinct value. For
+  // client_credentials it selects the resource as at OAuth2Authorize (empty =
+  // the client's configured default). For a code, refresh token or device
+  // code it may only repeat the resource the grant is bound to: another
+  // resource is refused with `invalid_target`, never substituted (RFC 8707
+  // §2.2). Refresh keeps the grant's resource.
+  repeated string resource = 16;
 }
 
 message OAuth2TokenResponse {
@@ -768,15 +783,19 @@ message OAuth2IntrospectRequest {
   string token = 1;
   // Handle of the OIDC issuer whose introspection endpoint received the
   // request, bound from the path `/i/{issuer_handle}/oauth2/introspect`. The
-  // caller must be a client of this issuer; a token issued by another issuer
-  // is reported inactive (RFC 7662 §2.2).
+  // caller must be a service identity this issuer serves; a token issued by
+  // another issuer is reported inactive (RFC 7662 §2.2).
   string issuer_handle = 2;
-  // Identifier of the calling client (RFC 6749 §2.2). The caller is a
-  // confidential client and authenticates by its registered method, as at the
-  // token endpoint (RFC 7662 §2.1): HTTP Basic in the `authorization`
-  // metadata, or this field with `client_secret`. A token is reported active
-  // only to a client it was issued to (its `aud`); to any other caller it is
-  // inactive (RFC 7662 §4).
+  // Identifier of the calling service (RFC 6749 §2.2): a confidential OAuth
+  // client, or a machine user, which authenticates with its own credentials
+  // as at the token endpoint (RFC 7662 §2.1): HTTP Basic in the
+  // `authorization` metadata, or this field with `client_secret`. A token is
+  // reported active only to a caller holding the `oauth.token.introspect`
+  // permission (the built-in token inspector role) on the registered
+  // protected resource the token is for; the caller need not be the token's
+  // client nor in its `aud`. To any other caller it is inactive (RFC 7662
+  // §4). When the permission cannot be decided the call fails UNAVAILABLE
+  // and discloses nothing.
   optional string client_id = 3;
   // Client secret of a client registered for `client_secret_post`
   // (RFC 6749 §2.3.1). At most one authentication method per request.
@@ -871,6 +890,10 @@ message DeviceAuthorizationRequest {
   // `client_secret_post`, which authenticates here as at the token endpoint
   // (RFC 8628 §3.1, RFC 6749 §2.3.1).
   optional string client_secret = 4;
+  // Resource indicators (RFC 8707 §2), selected as at OAuth2Authorize. The
+  // device transaction is bound to the selected resource; the device code
+  // grant cannot change it.
+  repeated string resource = 5;
 }
 
 message DeviceAuthorizationResponse {
