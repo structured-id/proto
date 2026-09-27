@@ -6,6 +6,7 @@ syntax = "proto3";
 package sid.v1.authn;
 
 import "google/api/annotations.proto";
+import "google/api/httpbody.proto";
 
 // OidcProviderService publishes one issuer's metadata and signing keys to its
 // relying parties. Every document belongs to the issuer the handle names; an
@@ -46,6 +47,65 @@ service OidcProviderService {
       body: "*"
     };
   }
+
+  // The endpoints below are the HTTP form of AuthService's OAuth RPCs, with
+  // the same logic: the request body is the `application/x-www-form-urlencoded`
+  // form the RFC defines, the answer is the RFC's JSON with its HTTP status in
+  // the `x-http-code` response metadata and its headers (`cache-control`,
+  // `pragma`, `www-authenticate`) as response metadata. A refusal is an OK
+  // gRPC call carrying the RFC error body; typed gRPC clients use AuthService.
+  // HTTP Basic client authentication travels in the `authorization` metadata,
+  // a DPoP proof in `dpop`.
+
+  // Token endpoint (RFC 6749 §3.2): every grant, including the device_code
+  // grant (RFC 8628 §3.4). Success is RFC 6749 §5.1 JSON with
+  // `cache-control: no-store`; a refusal is RFC 6749 §5.2 or RFC 8628 §3.5
+  // JSON, 401 with a `www-authenticate` challenge for `invalid_client` when
+  // the client used HTTP Basic, 400 otherwise.
+  rpc Token(ProtocolRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      post: "/i/{issuer_handle}/oauth2/token"
+      body: "body"
+    };
+  }
+
+  // Token introspection (RFC 7662 §2): RFC 7662 §2.2 JSON, `{"active":false}`
+  // for any token this issuer does not vouch for.
+  rpc Introspect(ProtocolRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      post: "/i/{issuer_handle}/oauth2/introspect"
+      body: "body"
+    };
+  }
+
+  // Token revocation (RFC 7009 §2): 200 with an empty body, also for a token
+  // that is unknown or already revoked (RFC 7009 §2.2).
+  rpc Revoke(ProtocolRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      post: "/i/{issuer_handle}/oauth2/revoke"
+      body: "body"
+    };
+  }
+
+  // Device authorization (RFC 8628 §3.1): RFC 8628 §3.2 JSON; a refusal is
+  // RFC 6749 §5.2 JSON as at the token endpoint.
+  rpc DeviceAuthorization(ProtocolRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      post: "/i/{issuer_handle}/oauth2/device"
+      body: "body"
+    };
+  }
+}
+
+// An OAuth request to one issuer's endpoint in its HTTP form.
+message ProtocolRequest {
+  // The opaque issuer handle: the `<handle>` path segment of the issuer URL
+  // `https://<host>/i/<handle>`. 32 lowercase hex characters.
+  string issuer_handle = 1;
+  // The HTTP request body as the client sent it, with its `Content-Type`. The
+  // endpoints read `application/x-www-form-urlencoded` (RFC 6749 §3.2) and
+  // refuse any other type as `invalid_request`.
+  google.api.HttpBody body = 2;
 }
 
 // Claims about the authenticated user (OIDC Core 1.0 §5.3.2). A claim the

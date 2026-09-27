@@ -80,27 +80,29 @@ service AuthService {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/oauth2/authorize" body: "*" };
   }
+  //
+  // The token, introspection, revocation and device authorization RPCs have
+  // no HTTP binding: their HTTP form is fixed by the RFCs (form-encoded
+  // request, RFC error body and status), which OidcProviderService serves on
+  // the issuer's paths with the same logic. A refusal here is a canonical
+  // status whose ErrorInfo metadata `oauth_error` is the RFC 6749 §5.2 or
+  // RFC 8628 §3.5 error code. A confidential client authenticates with the
+  // secret in the body, or with HTTP Basic in the `authorization` metadata
+  // (RFC 6749 §2.3.1), never both.
   rpc OAuth2Token(OAuth2TokenRequest) returns (OAuth2TokenResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
-    option (google.api.http) = { post: "/i/{issuer_handle}/oauth2/token" body: "*" };
   }
   rpc OAuth2Introspect(OAuth2IntrospectRequest) returns (OAuth2IntrospectResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { post: "/i/{issuer_handle}/oauth2/introspect" body: "*" };
   }
   rpc OAuth2Revoke(OAuth2RevokeRequest) returns (OAuth2RevokeResponse) {
     option idempotency_level = IDEMPOTENT;
-    option (google.api.http) = { post: "/i/{issuer_handle}/oauth2/revoke" body: "*" };
   }
 
-  // Device Authorization Grant (RFC 8628).
+  // Device Authorization Grant (RFC 8628): the device starts here and polls
+  // OAuth2Token with the device_code grant (RFC 8628 §3.4).
   rpc StartDeviceAuthorization(DeviceAuthorizationRequest) returns (DeviceAuthorizationResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
-    option (google.api.http) = { post: "/i/{issuer_handle}/oauth2/device" body: "*" };
-  }
-  rpc PollDeviceToken(PollDeviceTokenRequest) returns (OAuth2TokenResponse) {
-    option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { post: "/i/{issuer_handle}/oauth2/device/token" body: "*" };
   }
   rpc SubmitDeviceUserCode(SubmitDeviceUserCodeRequest) returns (SubmitDeviceUserCodeResponse) {
     option idempotency_level = IDEMPOTENT;
@@ -682,10 +684,13 @@ message OAuth2AuthorizeResponse {
 
 message OAuth2TokenRequest {
   // Grant type. Determines which other fields are required. RFC 6749 §4.
-  // "authorization_code": requires code, redirect_uri, client_id, code_verifier.
-  // "refresh_token": requires refresh_token, client_id.
-  // "client_credentials": requires client_id, client_secret (or client_assertion).
+  // "authorization_code": requires code, redirect_uri, code_verifier.
+  // "refresh_token": requires refresh_token.
+  // "client_credentials": a confidential client acting for itself.
   // "urn:ietf:params:oauth:grant-type:token-exchange": RFC 8693 token exchange.
+  // "urn:ietf:params:oauth:grant-type:device_code": RFC 8628 §3.4 device poll,
+  // requires device_code.
+  // Every grant names or authenticates the client (RFC 6749 §2.3).
   string grant_type = 1;
   // Authorization code from OAuth2Authorize response. Single-use, short-lived (10 min).
   // Required for authorization_code grant. RFC 6749 §4.1.3.
@@ -693,11 +698,14 @@ message OAuth2TokenRequest {
   // Must match the redirect_uri from the original authorize request.
   // Required for authorization_code grant. RFC 6749 §4.1.3.
   optional string redirect_uri = 3;
-  // Client identifier. Required for public clients, optional for confidential
-  // (when using client_secret or client_assertion). RFC 6749 §2.2.
+  // Client identifier (RFC 6749 §2.2). Required unless HTTP Basic in the
+  // `authorization` metadata names the client; when both are present they
+  // must be equal.
   optional string client_id = 4;
-  // Client secret for confidential clients. Sent in body (not Basic auth).
-  // Mutually exclusive with client_assertion. RFC 6749 §2.3.1.
+  // Client secret of a confidential client registered for
+  // `client_secret_post` (RFC 6749 §2.3.1). A client registered for
+  // `client_secret_basic` sends it in the `authorization` metadata instead.
+  // At most one authentication method per request (RFC 6749 §2.3).
   optional string client_secret = 5;
   // Refresh token for token renewal. Required for refresh_token grant.
   // Long-lived, rotated on use (N-family with theft detection). RFC 6749 §6.
@@ -730,6 +738,10 @@ message OAuth2TokenRequest {
   // every code or refresh token redeemed, must belong to this issuer; anything
   // issued in another context is refused as unknown before any side effect.
   string issuer_handle = 14;
+  // Device code from StartDeviceAuthorization, for the device_code grant
+  // (RFC 8628 §3.4). Opaque; a code started under another issuer or client is
+  // refused as `invalid_grant`.
+  optional string device_code = 15;
 }
 
 message OAuth2TokenResponse {
@@ -825,8 +837,10 @@ message ValidateSessionResponse {
 // ══════════════════════════════════════════════════════════════════════════
 
 message DeviceAuthorizationRequest {
-  // OAuth2 client identifier of the device application. RFC 8628 §3.1.
-  string client_id = 1;
+  // OAuth2 client identifier of the device application (RFC 8628 §3.1).
+  // Required unless HTTP Basic in the `authorization` metadata names the
+  // client.
+  optional string client_id = 1;
   // Requested scopes (space-separated). RFC 8628 §3.1.
   optional string scope = 2;
   // Handle of the OIDC issuer whose device authorization endpoint received
@@ -834,6 +848,10 @@ message DeviceAuthorizationRequest {
   // client must belong to this issuer; the device transaction stays bound to
   // it.
   string issuer_handle = 3;
+  // Client secret of a confidential client registered for
+  // `client_secret_post`, which authenticates here as at the token endpoint
+  // (RFC 8628 §3.1, RFC 6749 §2.3.1).
+  optional string client_secret = 4;
 }
 
 message DeviceAuthorizationResponse {
@@ -853,17 +871,6 @@ message DeviceAuthorizationResponse {
   int32 expires_in = 5;
   // Minimum polling interval in seconds. Device must not poll faster. RFC 8628 §3.2.
   int32 interval = 6;
-}
-
-message PollDeviceTokenRequest {
-  // OAuth2 client identifier (same as in DeviceAuthorizationRequest).
-  string client_id = 1;
-  // Device code from DeviceAuthorizationResponse. RFC 8628 §3.4.
-  string device_code = 2;
-  // Handle of the OIDC issuer whose endpoint received the poll, bound from
-  // the path `/i/{issuer_handle}/oauth2/device/token`. A device code started
-  // under another issuer is refused as unknown.
-  string issuer_handle = 3;
 }
 
 message SubmitDeviceUserCodeRequest {
