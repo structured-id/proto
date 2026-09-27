@@ -154,22 +154,20 @@ service ProjectService {
   }
   // ListRoles is already defined in AuthzService; reuse authz.proto messages.
 
-  // Dynamic Client Registration (RFC 7591).
-  rpc RegisterClient(RegisterClientRequest) returns (RegisterClientResponse) {
-    option idempotency_level = IDEMPOTENT;
-    option (google.api.http) = { post: "/v1/projects/dcr/register" body: "*" };
-  }
+  // Dynamic Client Registration (RFC 7591) and client management (RFC 7592)
+  // under one issuer. No HTTP binding here: the RFC form of these RPCs is
+  // OidcProviderService's registration endpoints under the issuer path.
+  // RegisterClient creates a new client on every call; it is not advertised
+  // as safely retryable.
+  rpc RegisterClient(RegisterClientRequest) returns (RegisterClientResponse);
   rpc GetRegisteredClient(GetRegisteredClientRequest) returns (Application) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { get: "/v1/projects/dcr/clients/{client_id}" };
   }
   rpc UpdateRegisteredClient(UpdateRegisteredClientRequest) returns (Application) {
     option idempotency_level = IDEMPOTENT;
-    option (google.api.http) = { put: "/v1/projects/dcr/clients/{client_id}" body: "*" };
   }
   rpc DeleteRegisteredClient(DeleteRegisteredClientRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
-    option (google.api.http) = { delete: "/v1/projects/dcr/clients/{client_id}" };
   }
 
   // Initial Access Token management (admin operations).
@@ -305,6 +303,11 @@ message RegisterClientRequest {
   optional string sector_identifier_uri = 8;
   repeated string contacts = 9;
   repeated string scope = 10;
+  // Handle of the OIDC issuer the client registers under, the `<handle>` of
+  // `https://<host>/i/<handle>`. The client belongs to the organization this
+  // issuer serves, and its registration access token manages it only under
+  // this issuer. An unknown handle is NOT_FOUND (OIDC_ISSUER_NOT_FOUND).
+  string issuer_handle = 11;
 }
 
 message RegisterClientResponse {
@@ -318,9 +321,17 @@ message RegisterClientResponse {
 // RFC 7592: client reads own registration. RAT in authorization header.
 message GetRegisteredClientRequest {
   string client_id = 1;
+  // Handle of the issuer the client is registered under. A client of another
+  // issuer, or none, is refused exactly like an invalid registration access
+  // token (RFC 7592 §2.1).
+  string issuer_handle = 2;
 }
 
 // RFC 7592: client updates own registration. RAT in authorization header.
+// The request is the client's whole metadata and replaces its registration
+// (RFC 7592 §2.2): a field left out is removed, an absent authentication
+// method is `client_secret_basic` (RFC 7591 §2), and the result is validated
+// as a registration; a refused update changes nothing.
 message UpdateRegisteredClientRequest {
   string client_id = 1;
   optional string client_name = 2;
@@ -332,11 +343,21 @@ message UpdateRegisteredClientRequest {
   optional string sector_identifier_uri = 8;
   repeated string contacts = 9;
   repeated string scope = 10;
+  // Handle of the issuer the client is registered under (see
+  // GetRegisteredClientRequest).
+  string issuer_handle = 11;
+  // The client's current secret, when the client sends it back with its
+  // metadata. It must equal the issued secret (RFC 7592 §2.2); it never sets
+  // a new one.
+  optional string client_secret = 12;
 }
 
 // RFC 7592: client deletes own registration. RAT in authorization header.
 message DeleteRegisteredClientRequest {
   string client_id = 1;
+  // Handle of the issuer the client is registered under (see
+  // GetRegisteredClientRequest).
+  string issuer_handle = 2;
 }
 
 // ── Initial Access Token messages ──

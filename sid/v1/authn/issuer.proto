@@ -134,6 +134,61 @@ service OidcProviderService {
       body: "body"
     };
   }
+
+  // The registration endpoints below are the HTTP form of ProjectService's
+  // dynamic registration RPCs, with the same logic. Bodies are
+  // `application/json` client metadata (RFC 7591 §2); the initial access
+  // token or registration access token travels as a bearer token in the
+  // `authorization` metadata. A refusal is an OK gRPC call carrying the RFC
+  // error body with its HTTP status in `x-http-code`.
+
+  // Client registration (RFC 7591 §3.1). Success is 201 with every
+  // registered metadata value, the credentials and the management location
+  // (RFC 7591 §3.2.1, RFC 7592 §3); invalid metadata is 400 with
+  // `invalid_client_metadata` or `invalid_redirect_uri` (RFC 7591 §3.2.2); a
+  // missing or invalid initial access token is 401 (RFC 6750 §3.1).
+  rpc Register(ProtocolRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      post: "/i/{issuer_handle}/oauth2/register"
+      body: "body"
+    };
+  }
+
+  // Read a registration (RFC 7592 §2.1): the client's current metadata as at
+  // registration, without its secret. An invalid registration access token,
+  // or a client this issuer does not have, is 401 (RFC 7592 §2.1).
+  rpc ReadRegistration(RegistrationRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {get: "/i/{issuer_handle}/oauth2/register/{client_id}"};
+  }
+
+  // Update a registration (RFC 7592 §2.2): the body replaces the client's
+  // metadata and is validated as a registration; a refused update changes
+  // nothing.
+  rpc UpdateRegistration(RegistrationRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      put: "/i/{issuer_handle}/oauth2/register/{client_id}"
+      body: "body"
+    };
+  }
+
+  // Delete a registration (RFC 7592 §2.3): 204 with no body.
+  rpc DeleteRegistration(RegistrationRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {delete: "/i/{issuer_handle}/oauth2/register/{client_id}"};
+  }
+}
+
+// A request to one registered client's management endpoint (RFC 7592) in its
+// HTTP form.
+message RegistrationRequest {
+  // The opaque issuer handle: the `<handle>` path segment of the issuer URL
+  // `https://<host>/i/<handle>`. 32 lowercase hex characters.
+  string issuer_handle = 1;
+  // The client being managed, the last segment of its
+  // `registration_client_uri` (RFC 7592 §3).
+  string client_id = 2;
+  // The HTTP request body with its `Content-Type`: `application/json` client
+  // metadata for an update (RFC 7592 §2.2); absent for read and delete.
+  google.api.HttpBody body = 3;
 }
 
 // An OAuth request to one issuer's endpoint in its HTTP form.
@@ -234,6 +289,9 @@ message ProviderMetadata {
   bool backchannel_logout_session_supported = 19 [json_name = "backchannel_logout_session_supported"];
   // Every authorization response names its issuer in `iss` (RFC 9207 §3).
   bool authorization_response_iss_parameter_supported = 20 [json_name = "authorization_response_iss_parameter_supported"];
+  // Dynamic client registration endpoint (RFC 7591 §3, OIDC Discovery 1.0 §3,
+  // RFC 8414 §2).
+  string registration_endpoint = 21 [json_name = "registration_endpoint"];
 }
 
 // A JSON Web Key Set (RFC 7517 §5).
