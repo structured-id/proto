@@ -318,7 +318,8 @@ message JsonWebKey {
 }
 
 // OidcIssuerService lets services that verify an issuer's tokens resolve the
-// issuer and its keys by handle.
+// issuer and its keys by handle, and the registered resource a token must be
+// issued for.
 //
 // Internal only, no HTTP annotation: relying parties use OidcProviderService.
 service OidcIssuerService {
@@ -327,6 +328,13 @@ service OidcIssuerService {
   // handle; the caller refuses the request and never falls back to another
   // issuer.
   rpc GetOidcIssuer(GetOidcIssuerRequest) returns (OidcIssuer);
+
+  // Resolve the protected resource a route of the ingress configuration names
+  // before a token is accepted for it. The resource must be registered under
+  // this issuer: an unknown issuer or indicator is NOT_FOUND with ErrorInfo
+  // reason RESOURCE_NOT_FOUND and a ResourceInfo naming the indicator. The
+  // caller refuses the route and never falls back to another target.
+  rpc GetProtectedResource(GetProtectedResourceRequest) returns (ProtectedResourceTarget);
 }
 
 message GetOidcIssuerRequest {
@@ -348,6 +356,29 @@ message OidcIssuer {
   // issued. Keys of any other issuer never appear here, even under an equal
   // key identifier.
   repeated IssuerPublicKey keys = 2;
+}
+
+message GetProtectedResourceRequest {
+  // Handle of the issuer the resource is registered under: the `<handle>`
+  // path segment of the issuer URL `https://<host>/i/<handle>`.
+  string issuer_handle = 1;
+  // The resource indicator (RFC 8707 §2) as the ingress configuration names
+  // it: an absolute URI without a fragment, in canonical form. Compared
+  // exactly; another spelling of the same URI names no resource.
+  string resource = 2;
+}
+
+// A registered protected resource as a token verifier needs it.
+message ProtectedResourceTarget {
+  // Exact identifier of the issuer whose tokens the resource accepts; a
+  // token naming another `iss` is refused there.
+  string issuer = 1;
+  // The resource indicator, which is the `aud` an access token for this
+  // resource carries (RFC 9068 §4).
+  string resource = 2;
+  // Whether the resource accepts tokens now. An inactive or retired resource
+  // opens nothing: every token presented for it is refused.
+  bool active = 3;
 }
 
 // One generation of an issuer's server signing key.
