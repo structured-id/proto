@@ -681,6 +681,25 @@ message OAuth2AuthorizeRequest {
   // no default are refused with `invalid_target`. The code is bound to the
   // selected resource.
   repeated string resource = 11;
+  // Space-separated OIDC `prompt` values (OpenID Connect Core §3.1.2.1):
+  // `none` (no interaction; refused with `login_required`,
+  // `account_selection_required`, `consent_required` or
+  // `interaction_required` when one is needed), `login` (fresh
+  // authentication), `consent`, `select_account`. `none` with any other
+  // value is refused with `invalid_request`; an unknown value too.
+  optional string prompt = 12;
+  // OIDC `max_age` (OpenID Connect Core §3.1.2.1): the longest time in
+  // seconds since the user last actively authenticated that the request
+  // accepts; older authentication requires a new one. 0 behaves like
+  // `prompt=login`.
+  optional uint32 max_age = 13;
+  // Reference to an authorization request the server stored and continues
+  // (form of RFC 9126 §2.2), e.g. a cross-site POST resumed through a
+  // top-level GET on the issuer host. Opaque, single-issuer, short-lived;
+  // when present, every other parameter except `client_id` and
+  // `issuer_handle` comes from the stored request, and a `client_id` that
+  // differs from the stored one is refused.
+  optional string request_uri = 14;
 }
 
 message OAuth2AuthorizeResponse {
