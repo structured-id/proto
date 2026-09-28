@@ -756,6 +756,15 @@ message OAuth2TokenRequest {
   // resource is refused with `invalid_target`, never substituted (RFC 8707
   // §2.2). Refresh keeps the grant's resource.
   repeated string resource = 16;
+  // Token exchange only: logical names of the target service (RFC 8693
+  // §2.1), at most one distinct value. The name is a registered resource
+  // indicator; with `resource` present both must name the same resource,
+  // otherwise the request is refused with `invalid_target`.
+  repeated string audience = 17;
+  // Token exchange only: the type of token wanted (RFC 8693 §2.1). Absent or
+  // "urn:ietf:params:oauth:token-type:access_token"; any other type is
+  // refused with `invalid_request` (§2.2.2).
+  optional string requested_token_type = 18;
 }
 
 message OAuth2TokenResponse {
@@ -776,6 +785,10 @@ message OAuth2TokenResponse {
   // Granted scopes (space-separated). May differ from requested if server
   // reduced scope. RFC 6749 §5.1.
   optional string scope = 6;
+  // Token exchange only: the type of the issued token (RFC 8693 §2.2.1,
+  // required there), "urn:ietf:params:oauth:token-type:access_token".
+  // Absent for every other grant.
+  optional string issued_token_type = 7;
 }
 
 message OAuth2IntrospectRequest {
