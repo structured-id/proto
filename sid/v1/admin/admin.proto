@@ -1,6 +1,7 @@
 // StructuredID Admin Service
-// Administrative operations: bootstrap, profile metadata, bulk session revocation.
-// These RPCs require admin role in Bearer token (except Bootstrap).
+// Administrative operations: instance claim, profile metadata, bulk session revocation.
+// These RPCs require admin role in Bearer token (except ClaimInstance, which
+// requires a signed-in caller and the instance claim token).
 syntax = "proto3";
 
 package sid.v1.admin;
@@ -13,10 +14,12 @@ import "sid/v1/identity/identity.proto";
 
 // AdminService provides privileged operations for instance administrators.
 service AdminService {
-  // Create the first admin profile. Only works when no admin profiles exist.
-  // No authentication required — returns ALREADY_EXISTS if admin exists.
-  rpc Bootstrap(BootstrapRequest) returns (BootstrapResponse) {
-    option (google.api.http) = { post: "/v1/admin/bootstrap" body: "*" };
+  // Make the signed-in caller the first administrator of an unclaimed
+  // installation, with the claim token from the service log. The token is
+  // consumed in the same transaction. FAILED_PRECONDITION once the installation
+  // is claimed; PERMISSION_DENIED for a token that does not match.
+  rpc ClaimInstance(ClaimInstanceRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = { post: "/v1/admin/claim" body: "*" };
   }
 
   // Update a profile with admin-only fields (status, roles, email verification).
@@ -53,15 +56,12 @@ service AdminService {
   }
 }
 
-// ── Bootstrap ──
+// ── Instance claim ──
 
-message BootstrapRequest {
-  string username = 1;
-}
-
-message BootstrapResponse {
-  string profile_id = 1;
-  string message = 2;
+message ClaimInstanceRequest {
+  // Instance claim token (`sidclaim_...`) the operator read from the service log
+  // of an installation that has no administrator. Bearer secret: never logged.
+  string claim_token = 1;
 }
 
 // ── Admin Update Profile ──

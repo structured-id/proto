@@ -1,7 +1,8 @@
 // StructuredID Enrollment Policy Service
 // Registration gating (enrollment modes), invite management, and registration
 // source analytics. Controls who can register and how registration is tracked.
-// Admin role required for all RPCs.
+// Admin role required for every RPC except GetEnrollmentPolicy and
+// GetInstanceStatus, which the registration page reads before anyone signs in.
 //
 // Arch doc: auth/enrollment-policy.md
 syntax = "proto3";
@@ -24,6 +25,13 @@ service EnrollmentService {
   rpc GetEnrollmentPolicy(google.protobuf.Empty) returns (EnrollmentPolicy) {
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { get: "/v1/admin/enrollment/policy" };
+  }
+
+  // Whether the installation has been claimed by its first administrator.
+  // Public: while unclaimed, the registration page asks for the claim token.
+  rpc GetInstanceStatus(google.protobuf.Empty) returns (InstanceStatus) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/enrollment/instance-status" };
   }
 
   // Update the enrollment policy (mode, domains, tracking).
@@ -63,6 +71,14 @@ service EnrollmentService {
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { get: "/v1/admin/enrollment/stats" };
   }
+}
+
+// Whether the installation has its first administrator.
+message InstanceStatus {
+  // False while no administrator exists: self-registration then accepts only a
+  // registration carrying the claim token from the service log, whatever the
+  // enrollment mode. The token itself is never returned.
+  bool claimed = 1;
 }
 
 // ══════════════════════════════════════════════════════════════════════════

@@ -315,6 +315,12 @@ message OpaqueRegistrationStartRequest {
   // OpaqueClient.registrationStart(password). Contains no recoverable password
   // material — safe to transmit. RFC 9807 §5.2.
   bytes registration_request = 2;
+  // Instance claim token (`sidclaim_...`) the operator read from the service log.
+  // Required while the installation has no administrator: it is then the only
+  // registration accepted, and the new profile becomes the first administrator
+  // (the token is consumed with the registration). Ignored once the installation
+  // is claimed. Bearer secret: never logged or echoed.
+  optional string claim_token = 3;
 }
 
 message OpaqueRegistrationStartResponse {
@@ -442,6 +448,8 @@ message OpaqueZkppRegistrationStartRequest {
   // its current version — if mismatch, returns error (client must re-fetch policy
   // via GetZkppPolicy and regenerate proof). Version negotiation, not derivable.
   uint32 policy_version = 5;
+  // Instance claim token; same semantics as OpaqueRegistrationStartRequest.claim_token.
+  optional string claim_token = 6;
 }
 
 message OpaqueZkppRegistrationStartResponse {
