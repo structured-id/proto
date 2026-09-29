@@ -380,6 +380,12 @@ message ClientRoleSettings {
   repeated string allowed_scopes = 3;
   // Grant types; empty is `authorization_code refresh_token`.
   repeated string grant_types = 4;
+  // The client's public signing keys, the JSON text of a JWK Set (RFC 7591 §2
+  // `jwks`; see RegisterClientRequest.jwks for the accepted keys). Given, a
+  // web or API client authenticates with `private_key_jwt` (RFC 7523 §2.2)
+  // and gets no secret: its private key never reaches SID. Refused for a
+  // native or single-page client, which is public.
+  optional string jwks = 5;
 }
 
 // Settings of a new protected-resource role.
