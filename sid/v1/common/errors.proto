@@ -109,6 +109,13 @@ enum ErrorReason {
   // The client and the resource belong to different issuers; access is
   // granted only within one issuer.
   ISSUER_MISMATCH = 59;
+  // The installation's own integration is not provisioned or an
+  // administrator disabled it; its backend cannot serve until it is enabled.
+  SYSTEM_INTEGRATION_UNAVAILABLE = 61;
+  // The application is the installation's own integration, which SID
+  // provisions and keeps: it is disabled, not deleted, and its settings are
+  // not edited by hand.
+  SYSTEM_MANAGED = 62;
 
   // ── RESOURCE_EXHAUSTED ─────────────────────────────────────
 

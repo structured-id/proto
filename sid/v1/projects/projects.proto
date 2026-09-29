@@ -44,6 +44,19 @@ message Application {
   uint64 revision = 6;
   google.protobuf.Timestamp created_at = 7;
   google.protobuf.Timestamp updated_at = 8;
+  // Set when the application is one of the installation's own integrations,
+  // which SID provisions and keeps; unset for an administrator's application.
+  // Its roles and access are shown like any other application's.
+  SystemIntegration system_integration = 9;
+}
+
+// An integration of the installation with itself, provisioned by SID.
+enum SystemIntegration {
+  // An administrator's application.
+  SYSTEM_INTEGRATION_UNSPECIFIED = 0;
+  // SID's own account UI: its confidential web client, the account API it
+  // calls and the client's explicit access to that API.
+  SYSTEM_INTEGRATION_ACCOUNT = 1;
 }
 
 // The OAuth client role of an application: software that obtains tokens.
