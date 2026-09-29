@@ -95,6 +95,9 @@ message OAuthClient {
   optional string default_resource_id = 21;
   // Stored revision of the client role.
   uint64 revision = 22;
+  // The client's registered public signing keys (RFC 7591 §2 `jwks`), the
+  // JSON text of a JWK Set, when it has any. Public material only.
+  optional string jwks = 23;
 }
 
 // The protected-resource role of an application: an API or application at
@@ -538,6 +541,11 @@ message RegisterClientRequest {
   // issuer serves, and its registration access token manages it only under
   // this issuer. An unknown handle is NOT_FOUND (OIDC_ISSUER_NOT_FOUND).
   string issuer_handle = 11;
+  // The client's public signing keys (RFC 7591 §2 `jwks`), the JSON text of a
+  // JWK Set (RFC 7517 §5): Ed25519, P-256/P-384 or RSA (at least 2048 bits)
+  // public keys, each with a distinct `kid`, no private members. Required for
+  // `private_key_jwt`, whose token endpoint assertions they verify.
+  optional string jwks = 12;
 }
 
 message RegisterClientResponse {
@@ -581,6 +589,10 @@ message UpdateRegisteredClientRequest {
   // metadata. It must equal the issued secret (RFC 7592 §2.2); it never sets
   // a new one.
   optional string client_secret = 12;
+  // The client's public signing keys (see RegisterClientRequest.jwks); left
+  // out, the client registers none. A rotation sends the next key beside the
+  // current one, then the next key alone.
+  optional string jwks = 13;
 }
 
 // RFC 7592: client deletes own registration. RAT in authorization header.
