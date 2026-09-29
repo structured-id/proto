@@ -840,6 +840,14 @@ message OAuth2IntrospectRequest {
   // Client secret of a client registered for `client_secret_post`
   // (RFC 6749 §2.3.1). At most one authentication method per request.
   optional string client_secret = 4;
+  // Signed JWT assertion of a client registered for `private_key_jwt`
+  // (RFC 7523 §2.2), as at the token endpoint: `iss` and `sub` the client,
+  // `aud` the issuer's token endpoint, a single-use `jti`. Signed with the
+  // client's private key, which never leaves it; carries no secret.
+  optional string client_assertion = 5;
+  // Assertion type URN, "urn:ietf:params:oauth:client-assertion-type:jwt-bearer";
+  // required with `client_assertion` (RFC 7523 §2.2).
+  optional string client_assertion_type = 6;
 }
 
 message OAuth2IntrospectResponse {
@@ -882,6 +890,14 @@ message OAuth2RevokeRequest {
   // Client secret of a client registered for `client_secret_post`
   // (RFC 6749 §2.3.1). At most one authentication method per request.
   optional string client_secret = 5;
+  // Signed JWT assertion of a client registered for `private_key_jwt`
+  // (RFC 7523 §2.2), as at the token endpoint: `iss` and `sub` the client,
+  // `aud` the issuer's token endpoint, a single-use `jti`. Signed with the
+  // client's private key, which never leaves it; carries no secret.
+  optional string client_assertion = 6;
+  // Assertion type URN, "urn:ietf:params:oauth:client-assertion-type:jwt-bearer";
+  // required with `client_assertion` (RFC 7523 §2.2).
+  optional string client_assertion_type = 7;
 }
 
 message OAuth2RevokeResponse {}
@@ -934,6 +950,14 @@ message DeviceAuthorizationRequest {
   // device transaction is bound to the selected resource; the device code
   // grant cannot change it.
   repeated string resource = 5;
+  // Signed JWT assertion of a client registered for `private_key_jwt`
+  // (RFC 7523 §2.2), which authenticates here as at the token endpoint
+  // (RFC 8628 §3.1): `iss` and `sub` the client, `aud` the issuer's token
+  // endpoint, a single-use `jti`. Carries no secret.
+  optional string client_assertion = 6;
+  // Assertion type URN, "urn:ietf:params:oauth:client-assertion-type:jwt-bearer";
+  // required with `client_assertion` (RFC 7523 §2.2).
+  optional string client_assertion_type = 7;
 }
 
 message DeviceAuthorizationResponse {

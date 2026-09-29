@@ -320,6 +320,19 @@ message ProviderMetadata {
   // assertion with (RFC 8414 §2: present whenever that method is listed in
   // `token_endpoint_auth_methods_supported`). Asymmetric only; never `none`.
   repeated string token_endpoint_auth_signing_alg_values_supported = 22 [json_name = "token_endpoint_auth_signing_alg_values_supported"];
+  // Client authentication methods at the revocation endpoint (RFC 8414 §2;
+  // absent would mean `client_secret_basic` only): the token endpoint's.
+  repeated string revocation_endpoint_auth_methods_supported = 23 [json_name = "revocation_endpoint_auth_methods_supported"];
+  // JWS algorithms of `private_key_jwt` assertions at the revocation
+  // endpoint (RFC 8414 §2): the token endpoint's.
+  repeated string revocation_endpoint_auth_signing_alg_values_supported = 24 [json_name = "revocation_endpoint_auth_signing_alg_values_supported"];
+  // Client authentication methods at the introspection endpoint (RFC 8414
+  // §2), for the confidential clients and machine users that may introspect;
+  // `none` is not among them (RFC 7662 §2.1).
+  repeated string introspection_endpoint_auth_methods_supported = 25 [json_name = "introspection_endpoint_auth_methods_supported"];
+  // JWS algorithms of `private_key_jwt` assertions at the introspection
+  // endpoint (RFC 8414 §2): the token endpoint's.
+  repeated string introspection_endpoint_auth_signing_alg_values_supported = 26 [json_name = "introspection_endpoint_auth_signing_alg_values_supported"];
 }
 
 // A JSON Web Key Set (RFC 7517 §5).
