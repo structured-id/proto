@@ -83,6 +83,10 @@ enum ErrorReason {
   INVALID_FIELD_VALUE = 40;
   // Required field is missing.
   REQUIRED_FIELD_MISSING = 41;
+  // The password installation's proof does not verify for its operation and
+  // request. A new operation with a fresh proof is needed; retrying the same
+  // proof cannot succeed.
+  PASSWORD_PROOF_INVALID = 42;
 
   // ── FAILED_PRECONDITION ────────────────────────────────────
 
@@ -116,6 +120,9 @@ enum ErrorReason {
   // provisions and keeps: it is disabled, not deleted, and its settings are
   // not edited by hand.
   SYSTEM_MANAGED = 62;
+  // The new password matches one the owner's retained history holds. Which
+  // entry matched is never disclosed.
+  PASSWORD_REUSED = 63;
 
   // ── RESOURCE_EXHAUSTED ─────────────────────────────────────
 
@@ -129,6 +136,13 @@ enum ErrorReason {
   // The same logical operation is still executing; retry it later with the
   // same key.
   OPERATION_IN_PROGRESS = 71;
+
+  // ── UNAVAILABLE ────────────────────────────────────────────
+
+  // Password history cannot be checked now (evaluator, history keys or
+  // checker capacity). Nothing was installed; retry after the RetryInfo delay.
+  // Ordinary sign-in is not affected.
+  PASSWORD_HISTORY_UNAVAILABLE = 100;
 
   // ── UNKNOWN ────────────────────────────────────────────────
 
