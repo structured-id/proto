@@ -111,6 +111,10 @@ message OAuthClient {
   // The client's registered public signing keys (RFC 7591 §2 `jwks`), the
   // JSON text of a JWK Set, when it has any. Public material only.
   optional string jwks = 23;
+  // Where the end-session endpoint may send the browser after logout (OIDC
+  // RP-Initiated Logout 1.0 §3.1): absolute URIs without a fragment, compared
+  // exactly. Empty means the endpoint never redirects for this client.
+  repeated string post_logout_redirect_uris = 24;
 }
 
 // The protected-resource role of an application: an API or application at
@@ -386,6 +390,16 @@ message ClientRoleSettings {
   // and gets no secret: its private key never reaches SID. Refused for a
   // native or single-page client, which is public.
   optional string jwks = 5;
+  // Post-logout redirect URIs (see OAuthClient.post_logout_redirect_uris),
+  // validated like redirect URIs for the client's type; an invalid one is
+  // INVALID_ARGUMENT, field `post_logout_redirect_uris`.
+  repeated string post_logout_redirect_uris = 6;
+}
+
+// A list of URIs, set as a whole by an update.
+message UriList {
+  // The URIs; empty clears the list.
+  repeated string uris = 1;
 }
 
 // Settings of a new protected-resource role.
@@ -468,6 +482,9 @@ message UpdateClientRoleRequest {
   // field `default_resource_id`, otherwise). An empty value removes the
   // default.
   optional string default_resource_id = 8;
+  // Replaces the post-logout redirect URIs (see ClientRoleSettings); left out,
+  // they are unchanged.
+  optional UriList post_logout_redirect_uris = 9;
 }
 
 message AddResourceRoleRequest {
@@ -565,6 +582,10 @@ message RegisterClientRequest {
   // public keys, each with a distinct `kid`, no private members. Required for
   // `private_key_jwt`, whose token endpoint assertions they verify.
   optional string jwks = 12;
+  // Post-logout redirect URIs (OIDC RP-Initiated Logout 1.0 §3.1), validated
+  // like `redirect_uris` and against the initial access token's redirect
+  // patterns; refused as `invalid_client_metadata`.
+  repeated string post_logout_redirect_uris = 13;
 }
 
 message RegisterClientResponse {
@@ -612,6 +633,9 @@ message UpdateRegisteredClientRequest {
   // out, the client registers none. A rotation sends the next key beside the
   // current one, then the next key alone.
   optional string jwks = 13;
+  // Post-logout redirect URIs (see RegisterClientRequest); left out, the
+  // client registers none.
+  repeated string post_logout_redirect_uris = 14;
 }
 
 // RFC 7592: client deletes own registration. RAT in authorization header.

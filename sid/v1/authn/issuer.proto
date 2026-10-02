@@ -78,9 +78,12 @@ service OidcProviderService {
   // application session it names; when that session reuses the browser's
   // IdP session, single sign-on ends too and the answer clears the cookie.
   // Otherwise ending the browser's IdP session needs the user's confirmation
-  // (§2): the answer is a page with a form that confirms it by POST. No
-  // post_logout_redirect_uri is followed: none can be registered yet, and
-  // only a registered one may be (§3). The answer is a page.
+  // (§2): the answer is a page with a form that confirms it by POST. A
+  // `post_logout_redirect_uri` is followed only for a valid `id_token_hint`
+  // whose client registered exactly that URI (§3): the answer is then a 303
+  // to it with `state`, or, while the browser's IdP session remains, the
+  // confirmation page, which returns there after either choice. Otherwise the
+  // answer is a page.
   rpc GetEndSession(EndSessionRequest) returns (google.api.HttpBody) {
     option (google.api.http) = {get: "/i/{issuer_handle}/oauth2/end-session"};
   }
@@ -88,7 +91,8 @@ service OidcProviderService {
   // RP-Initiated Logout over POST with a form body: the same parameters as
   // GetEndSession, plus `confirmation`, the one-time value of the
   // confirmation page's form, which ends the browser's IdP session it was
-  // issued for.
+  // issued for and returns to the post-logout redirect URI that page was
+  // shown for, if any.
   rpc PostEndSession(ProtocolRequest) returns (google.api.HttpBody) {
     option (google.api.http) = {
       post: "/i/{issuer_handle}/oauth2/end-session"
@@ -213,6 +217,13 @@ message EndSessionRequest {
   // The relying party's client identifier. With `id_token_hint`, it must be
   // the hint's audience or the hint is ignored.
   optional string client_id = 3;
+  // Where to send the browser after logout (§3). Followed only when a valid
+  // `id_token_hint` names the client and the URI exactly matches one the
+  // client registered; otherwise the answer is a page.
+  optional string post_logout_redirect_uri = 4;
+  // Opaque value of the relying party, added to the post-logout redirect as
+  // `state` (§3).
+  optional string state = 5;
 }
 
 // An OAuth request to one issuer's endpoint in its HTTP form.
