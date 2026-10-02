@@ -1,8 +1,6 @@
 // StructuredID CE Governance — Access Requests & Temporary Roles
 // 1-step access requests with admin approval, temporary roles with auto-expiry.
 // ListRoleAssignments + CheckSodConflicts are in AuthzService (authz.proto).
-// EE extends with full IGA: PIM/JIT, review campaigns, entitlement catalog,
-// workflow engine, operation gating, key custody (proto-ee governance.proto).
 syntax = "proto3";
 
 package sid.v1.authz;

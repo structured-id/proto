@@ -288,7 +288,6 @@ service AuthService {
   }
 
   // Password reset flow (magic link → new OPAQUE credential).
-  // SaaS extends this with key recovery (Shamir shards, DownloadRecoveryShard) in proto-ee.
   rpc RequestPasswordReset(RequestPasswordResetRequest) returns (RequestPasswordResetResponse) {
     option (google.api.http) = { post: "/v1/auth/password/reset/request" body: "*" };
   }
@@ -1565,8 +1564,7 @@ message ConfirmAccountDeletionResponse {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// Password reset (CE: simple credential replacement)
-// SaaS extends with: recovery shard RPCs, key recovery — in proto-ee.
+// Password reset (credential replacement)
 // ══════════════════════════════════════════════════════════════════════════
 
 message RequestPasswordResetRequest {
@@ -1592,7 +1590,6 @@ message VerifyPasswordResetResponse {
   // owner's history domain and the comparison domains it is checked in. The
   // reset needs no old password: the retained history is the owner's, not the client's.
   PasswordHistoryContext history = 3;
-  // SaaS extends with: account_id, server_pepper, RecoverySourcesInfo (in proto-ee)
 }
 
 message ExecutePasswordResetRequest {
@@ -1623,7 +1620,6 @@ message CompletePasswordResetRequest {
   // History lives server-side; the proof is PasswordRegistrationProof.
   reserved 3, 4, 5, 6;
   reserved "zkpp_proof", "zkpp_instances", "history_commitment", "commitment_salt";
-  // SaaS extends with: wrapped_data_key, encrypted_shard_a/b/c (in proto-ee)
 }
 
 message CompletePasswordResetResponse {

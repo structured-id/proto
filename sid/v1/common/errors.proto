@@ -4,7 +4,6 @@
 // Used with google.rpc.ErrorInfo as status detail.
 //
 // Domain: "sid" for all CE/EE services, "sid.ee" for EE-specific errors.
-// See: arch/infra/api-architecture.md §gRPC Error Model
 
 syntax = "proto3";
 
