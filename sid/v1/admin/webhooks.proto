@@ -1,0 +1,345 @@
+// StructuredID Webhook Service
+// Webhook endpoint management, delivery monitoring, event catalog.
+// Admin role required for all RPCs.
+syntax = "proto3";
+
+package sid.v1.admin;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+// WebhookService manages webhook endpoint lifecycle and delivery.
+service WebhookService {
+  // ── Endpoint CRUD ──
+
+  rpc ListEndpoints(ListEndpointsRequest) returns (ListEndpointsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/webhooks" };
+  }
+
+  rpc GetEndpoint(GetEndpointRequest) returns (WebhookEndpoint) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/webhooks/{endpoint_id}" };
+  }
+
+  // Returns the created endpoint with HMAC secret (shown only once).
+  rpc CreateEndpoint(CreateEndpointRequest) returns (CreateEndpointResponse) {
+    option (google.api.http) = { post: "/v1/admin/webhooks" body: "*" };
+  }
+
+  rpc UpdateEndpoint(UpdateEndpointRequest) returns (WebhookEndpoint) {
+    option (google.api.http) = { patch: "/v1/admin/webhooks/{endpoint_id}" body: "*" };
+  }
+
+  rpc DeleteEndpoint(DeleteEndpointRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/admin/webhooks/{endpoint_id}" };
+  }
+
+  // ── Endpoint lifecycle ──
+
+  rpc PauseEndpoint(EndpointIdRequest) returns (WebhookEndpoint) {
+    option (google.api.http) = { post: "/v1/admin/webhooks/{endpoint_id}/pause" body: "*" };
+  }
+
+  rpc ResumeEndpoint(EndpointIdRequest) returns (WebhookEndpoint) {
+    option (google.api.http) = { post: "/v1/admin/webhooks/{endpoint_id}/resume" body: "*" };
+  }
+
+  rpc RegenerateSecret(EndpointIdRequest) returns (RegenerateSecretResponse) {
+    option (google.api.http) = { post: "/v1/admin/webhooks/{endpoint_id}/regenerate-secret" body: "*" };
+  }
+
+  rpc VerifyEndpoint(EndpointIdRequest) returns (VerifyEndpointResponse) {
+    option (google.api.http) = { post: "/v1/admin/webhooks/{endpoint_id}/verify" body: "*" };
+  }
+
+  // ── Delivery monitoring ──
+
+  rpc ListDeliveries(ListDeliveriesRequest) returns (ListDeliveriesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/webhooks/{endpoint_id}/deliveries" };
+  }
+
+  rpc GetDeliveryDetail(GetDeliveryDetailRequest) returns (DeliveryDetail) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/webhooks/{endpoint_id}/deliveries/{delivery_id}" };
+  }
+
+  rpc RedeliverEvent(RedeliverEventRequest) returns (DeliveryDetail) {
+    option (google.api.http) = { post: "/v1/admin/webhooks/{endpoint_id}/deliveries/{delivery_id}/redeliver" body: "*" };
+  }
+
+  // ── Analytics ──
+
+  rpc GetDeliveryAnalytics(GetDeliveryAnalyticsRequest) returns (DeliveryAnalytics) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/webhooks/analytics" };
+  }
+}
+
+// EventCatalogService provides browsable catalog of all CloudEvents types.
+service EventCatalogService {
+  rpc ListEventTypes(ListEventTypesRequest) returns (ListEventTypesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/events/catalog" };
+  }
+
+  rpc GetEventTypeDetail(GetEventTypeDetailRequest) returns (EventTypeDetail) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/events/catalog/{event_type}" };
+  }
+
+  rpc SendTestEvent(SendTestEventRequest) returns (SendTestEventResponse) {
+    option (google.api.http) = { post: "/v1/admin/events/catalog/test" body: "*" };
+  }
+}
+
+// ── Enums ──
+
+enum EndpointStatus {
+  ENDPOINT_STATUS_UNSPECIFIED = 0;
+  ENDPOINT_STATUS_ACTIVE = 1;
+  ENDPOINT_STATUS_PAUSED = 2;
+  ENDPOINT_STATUS_FAILING = 3;
+  ENDPOINT_STATUS_DISABLED = 4;
+}
+
+enum SubscriptionMode {
+  SUBSCRIPTION_MODE_UNSPECIFIED = 0;
+  SUBSCRIPTION_MODE_ALL = 1;
+  SUBSCRIPTION_MODE_SELECTED = 2;
+  SUBSCRIPTION_MODE_PATTERN = 3;
+}
+
+enum DeliveryStatus {
+  DELIVERY_STATUS_UNSPECIFIED = 0;
+  DELIVERY_STATUS_DELIVERED = 1;
+  DELIVERY_STATUS_FAILED = 2;
+  DELIVERY_STATUS_TIMEOUT = 3;
+  DELIVERY_STATUS_RETRYING = 4;
+  DELIVERY_STATUS_DLQ = 5;
+}
+
+// ── Messages ──
+
+message WebhookEndpoint {
+  string endpoint_id = 1;
+  string name = 2;
+  string url = 3;
+  string description = 4;
+  EndpointStatus status = 5;
+  // Event subscription config.
+  SubscriptionMode subscription_mode = 6;
+  repeated string subscribed_event_types = 7;
+  string event_pattern = 8;
+  // Delivery policy.
+  uint32 timeout_seconds = 9;
+  uint32 max_retries = 10;
+  // Custom headers (excluding HMAC — auto-generated).
+  map<string, string> custom_headers = 11;
+  // Auto-disable after N consecutive failures (0 = never).
+  uint32 auto_disable_threshold = 12;
+  // Stats.
+  double delivery_rate_24h = 13;
+  uint32 dlq_depth = 14;
+  uint32 subscribed_event_count = 15;
+  google.protobuf.Timestamp last_delivery_at = 16;
+  uint32 last_delivery_status_code = 17;
+  google.protobuf.Timestamp created_at = 18;
+  google.protobuf.Timestamp updated_at = 19;
+}
+
+message DeliverySummary {
+  string delivery_id = 1;
+  string event_id = 2;
+  string event_type = 3;
+  DeliveryStatus status = 4;
+  uint32 http_status_code = 5;
+  uint32 latency_ms = 6;
+  uint32 attempt = 7;
+  uint32 max_attempts = 8;
+  google.protobuf.Timestamp next_retry_at = 9;
+  google.protobuf.Timestamp timestamp = 10;
+}
+
+message DeliveryDetail {
+  DeliverySummary summary = 1;
+  // Request details.
+  map<string, string> request_headers = 2;
+  string request_body = 3;
+  // Response details.
+  map<string, string> response_headers = 4;
+  string response_body = 5;
+  // All attempts for this event.
+  repeated DeliveryAttempt attempts = 6;
+}
+
+message DeliveryAttempt {
+  uint32 attempt_number = 1;
+  DeliveryStatus status = 2;
+  uint32 http_status_code = 3;
+  uint32 latency_ms = 4;
+  google.protobuf.Timestamp timestamp = 5;
+  string error_message = 6;
+}
+
+message DeliveryAnalytics {
+  uint32 total_deliveries_24h = 1;
+  double success_rate = 2;
+  uint32 avg_latency_ms = 3;
+  uint32 dlq_depth = 4;
+  uint32 active_endpoints = 5;
+  uint32 total_endpoints = 6;
+}
+
+// ── Event Catalog ──
+
+message EventTypeInfo {
+  string event_type = 1;
+  string description = 2;
+  string domain = 3;
+  uint32 subscriber_count = 4;
+}
+
+message EventTypeDetail {
+  string event_type = 1;
+  string description = 2;
+  string domain = 3;
+  // JSON Schema for the event payload.
+  string payload_schema = 4;
+  // Example payload (JSON).
+  string example_payload = 5;
+  // What triggers this event.
+  repeated string trigger_conditions = 6;
+  // Related event types.
+  repeated string related_types = 7;
+  // Endpoints currently subscribed to this type.
+  repeated string subscribed_endpoints = 8;
+}
+
+// ── Requests / Responses ──
+
+message ListEndpointsRequest {
+  EndpointStatus status = 1;
+  string search = 2;
+}
+
+message ListEndpointsResponse {
+  repeated WebhookEndpoint endpoints = 1;
+}
+
+message GetEndpointRequest {
+  string endpoint_id = 1;
+}
+
+message CreateEndpointRequest {
+  string name = 1;
+  string url = 2;
+  string description = 3;
+  SubscriptionMode subscription_mode = 4;
+  repeated string subscribed_event_types = 5;
+  string event_pattern = 6;
+  uint32 timeout_seconds = 7;
+  uint32 max_retries = 8;
+  map<string, string> custom_headers = 9;
+  uint32 auto_disable_threshold = 10;
+}
+
+message CreateEndpointResponse {
+  WebhookEndpoint endpoint = 1;
+  // HMAC secret — shown only once.
+  string hmac_secret = 2;
+}
+
+message UpdateEndpointRequest {
+  string endpoint_id = 1;
+  optional string name = 2;
+  optional string url = 3;
+  optional string description = 4;
+  SubscriptionMode subscription_mode = 5;
+  repeated string subscribed_event_types = 6;
+  string event_pattern = 7;
+  optional uint32 timeout_seconds = 8;
+  optional uint32 max_retries = 9;
+  map<string, string> custom_headers = 10;
+  optional uint32 auto_disable_threshold = 11;
+}
+
+message DeleteEndpointRequest {
+  string endpoint_id = 1;
+}
+
+message EndpointIdRequest {
+  string endpoint_id = 1;
+}
+
+message RegenerateSecretResponse {
+  // New HMAC secret — shown only once.
+  string hmac_secret = 1;
+}
+
+message VerifyEndpointResponse {
+  bool verified = 1;
+  string error = 2;
+}
+
+message ListDeliveriesRequest {
+  string endpoint_id = 1;
+  DeliveryStatus status = 2;
+  string event_type = 3;
+  google.protobuf.Timestamp from = 4;
+  google.protobuf.Timestamp to = 5;
+  uint32 page_size = 6;
+  string page_token = 7;
+}
+
+message ListDeliveriesResponse {
+  repeated DeliverySummary deliveries = 1;
+  string next_page_token = 2;
+}
+
+message GetDeliveryDetailRequest {
+  string endpoint_id = 1;
+  string delivery_id = 2;
+}
+
+message RedeliverEventRequest {
+  string endpoint_id = 1;
+  string delivery_id = 2;
+}
+
+message GetDeliveryAnalyticsRequest {
+  // Optional: filter by endpoint.
+  string endpoint_id = 1;
+}
+
+// ── Event Catalog Requests ──
+
+message ListEventTypesRequest {
+  // Filter by domain (e.g. "sid.identity", "sid.auth").
+  string domain = 1;
+}
+
+message ListEventTypesResponse {
+  repeated EventTypeInfo event_types = 1;
+}
+
+message GetEventTypeDetailRequest {
+  string event_type = 1;
+}
+
+message SendTestEventRequest {
+  string event_type = 1;
+  string endpoint_id = 2;
+  // Optional payload override (JSON).
+  string payload = 3;
+}
+
+message SendTestEventResponse {
+  DeliveryStatus status = 1;
+  uint32 http_status_code = 2;
+  uint32 latency_ms = 3;
+  string response_body = 4;
+}

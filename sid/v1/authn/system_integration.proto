@@ -1,0 +1,59 @@
+// StructuredID system integrations
+// The installation's own integrations, which SID provisions itself: the
+// connection details their backends need, handed only to the holder of a
+// registered key.
+syntax = "proto3";
+
+package sid.v1.authn;
+
+// SystemIntegrationService gives a system integration's backend its
+// connection details, so an operator never copies issuer handles or client
+// identifiers by hand.
+//
+// Internal only, no HTTP annotation: the account BFF calls it over the
+// deployment's gRPC channel to SID.
+service SystemIntegrationService {
+  // The connection details of the account integration (SID's own account
+  // UI), for its BFF. The request proves possession of one of the account
+  // client's registered keys; the answer is public metadata only, no secret
+  // is distributed and the private key never leaves the BFF.
+  //
+  // An invalid, expired, replayed or unregistered proof is UNAUTHENTICATED
+  // (TOKEN_INVALID). An integration that is not provisioned, or whose client
+  // an administrator disabled, is FAILED_PRECONDITION
+  // (SYSTEM_INTEGRATION_UNAVAILABLE): the BFF is not ready and serves no
+  // sign-in until it is.
+  rpc GetAccountConnection(GetAccountConnectionRequest) returns (AccountConnection);
+}
+
+message GetAccountConnectionRequest {
+  // A JWT (RFC 7519) the BFF signs, per request, with the private key of one
+  // of the account client's registered keys, named by the JWS `kid` header.
+  // Claims: `iss` and `sub` both equal that `kid`; `aud` is the installation
+  // URL followed by `/account/connection`; `exp` at most five minutes ahead;
+  // a unique `jti`, accepted once. Carries no secret.
+  string proof = 1;
+}
+
+// What the account BFF needs to sign users in and call the account API.
+message AccountConnection {
+  // Exact issuer identifier the account client is registered under, the
+  // canonical URL `https://<host>/i/<handle>`. The BFF discovers its
+  // endpoints at `<issuer>/.well-known/openid-configuration` and accepts only
+  // authorization responses and tokens naming this issuer (RFC 9207 §2.4).
+  string issuer = 1;
+  // The account web client's `client_id`, assigned at provisioning and never
+  // changed; the `iss` and `sub` of its token endpoint assertions.
+  string client_id = 2;
+  // Resource indicator of the account API (RFC 8707 §2): the `resource` the
+  // BFF requests and the `aud` of the access tokens it obtains.
+  string resource = 3;
+  // Scopes the BFF requests: sign-in scopes and the account API's.
+  repeated string scopes = 4;
+  // The client's registered redirect URI, the BFF's callback on the account
+  // origin; an authorization request naming another is refused.
+  string redirect_uri = 5;
+  // How the client authenticates at the token endpoint (RFC 7591 §2):
+  // always `private_key_jwt`.
+  string token_endpoint_auth_method = 6;
+}

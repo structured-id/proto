@@ -1,0 +1,138 @@
+// StructuredID Personal Access Token Service
+// Manages PAT lifecycle (create, list, revoke) and token exchange. An opaque
+// access PAT is inspected through the issuer's common RFC 7662 introspection,
+// under the same inspector authentication and permission as any access token.
+// PATs use an opaque-JWT-swap model: opaque tokens are exchanged for short-lived
+// JWTs, keeping long-lived secrets off the wire after initial presentation.
+syntax = "proto3";
+
+package sid.v1.machine;
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+// PatService manages personal access tokens for programmatic API access.
+service PatService {
+  // User-facing CRUD.
+  rpc CreatePat(CreatePatRequest) returns (CreatePatResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/pats" body: "*" };
+  }
+  rpc ListPats(ListPatsRequest) returns (ListPatsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/pats" };
+  }
+  rpc GetPat(GetPatRequest) returns (PatResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/pats/{pat_id}" };
+  }
+  rpc RevokePat(RevokePatRequest) returns (RevokePatResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/pats/{pat_id}" };
+  }
+
+  // Token exchange (opaque-JWT-swap model).
+  rpc ExchangePat(ExchangePatRequest) returns (ExchangePatResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/pats/exchange" body: "*" };
+  }
+
+  // Admin.
+  rpc ListAllPats(ListAllPatsRequest) returns (ListAllPatsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/pats" };
+  }
+  rpc AdminRevokePat(AdminRevokePatRequest) returns (RevokePatResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/admin/pats/{pat_id}" };
+  }
+}
+
+// Status of a personal access token.
+enum PatStatus {
+  PAT_STATUS_UNSPECIFIED = 0;
+  PAT_STATUS_ACTIVE = 1;
+  PAT_STATUS_REVOKED = 2;
+  PAT_STATUS_EXPIRED = 3;
+}
+
+// PAT metadata (returned in responses — NEVER includes token plaintext).
+message Pat {
+  string id = 1;
+  string profile_id = 2;
+  string name = 3;
+  string description = 4;
+  string token_prefix = 5;           // "sid_pat_XXXXXXXX" for identification.
+  repeated string scopes = 6;
+  PatStatus status = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp expires_at = 9;
+  google.protobuf.Timestamp last_used_at = 10;
+  string last_used_ip = 11;
+  uint64 use_count = 12;
+  google.protobuf.Timestamp revoked_at = 13;
+  string revoked_by = 14;
+}
+
+// ── User-facing CRUD messages ──
+
+message CreatePatRequest {
+  string name = 1;
+  repeated string scopes = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  string description = 4;
+  repeated string ip_allowlist = 5;  // Client addresses the token is restricted to.
+}
+
+message CreatePatResponse {
+  string pat_id = 1;
+  string token = 2;                  // Plaintext — shown ONCE, never stored.
+  string token_prefix = 3;
+  Pat metadata = 4;
+}
+
+message ListPatsRequest {}
+
+message ListPatsResponse {
+  repeated Pat pats = 1;
+}
+
+message GetPatRequest {
+  string pat_id = 1;
+}
+
+message PatResponse {
+  Pat pat = 1;
+}
+
+message RevokePatRequest {
+  string pat_id = 1;
+}
+
+message RevokePatResponse {}
+
+// ── Token exchange messages ──
+
+message ExchangePatRequest {
+  string token = 1;                  // Opaque PAT value.
+  string scope = 2;                  // Optional: space-separated requested scopes (must be ⊆ PAT scopes).
+}
+
+message ExchangePatResponse {
+  string access_token = 1;          // Short-lived JWT (5 min).
+  string token_type = 2;            // "Bearer".
+  int32 expires_in = 3;             // 300.
+  string scope = 4;                 // Space-separated scopes.
+}
+
+// ── Admin messages ──
+
+message ListAllPatsRequest {}
+
+message ListAllPatsResponse {
+  repeated Pat pats = 1;
+}
+
+message AdminRevokePatRequest {
+  string pat_id = 1;
+}

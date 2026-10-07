@@ -1,0 +1,449 @@
+// StructuredID OIDC Issuers
+// A logical OIDC issuer (`https://<host>/i/<handle>`): its public metadata and
+// key set, and the internal lookup verifiers use.
+syntax = "proto3";
+
+package sid.v1.authn;
+
+import "google/api/annotations.proto";
+import "google/api/httpbody.proto";
+import "sid/v1/authn/auth.proto";
+import "sid/v1/ids/ids.proto";
+
+// OidcProviderService publishes one issuer's metadata and signing keys to its
+// relying parties. Every document belongs to the issuer the handle names; an
+// unknown handle is NOT_FOUND with ErrorInfo reason OIDC_ISSUER_NOT_FOUND and
+// never falls back to another issuer. There is no issuer-less document.
+service OidcProviderService {
+  // The issuer's metadata (OpenID Connect Discovery 1.0 §3–4, RFC 8414 §2–3).
+  // One document answers both discovery algorithms: the OIDC location under
+  // the issuer path and the RFC 8414 well-known location with the issuer path
+  // appended.
+  rpc GetProviderMetadata(IssuerHandleRequest) returns (ProviderMetadata) {
+    option (google.api.http) = {
+      get: "/i/{issuer_handle}/.well-known/openid-configuration"
+      additional_bindings {get: "/.well-known/oauth-authorization-server/i/{issuer_handle}"}
+    };
+  }
+
+  // The issuer's JSON Web Key Set (RFC 7517 §5): the public keys that verify
+  // its tokens. The response metadata carries `cache-control` for HTTP caches.
+  rpc GetJwks(IssuerHandleRequest) returns (JsonWebKeySet) {
+    option (google.api.http) = {get: "/i/{issuer_handle}/jwks"};
+  }
+
+  // UserInfo (OIDC Core 1.0 §5.3) over GET. The access token travels in the
+  // `authorization` metadata, `Bearer` (RFC 6750 §2.1) or `DPoP` with a proof
+  // in the `dpop` metadata (RFC 9449 §7.1); only tokens this issuer signed are
+  // accepted. A refused token is UNAUTHENTICATED with a `www-authenticate`
+  // response metadata challenge (RFC 6750 §3, RFC 9449 §7.1). GET and POST
+  // are separate RPCs because a DPoP proof names the request method.
+  rpc GetUserInfo(IssuerHandleRequest) returns (UserInfo) {
+    option (google.api.http) = {get: "/i/{issuer_handle}/userinfo"};
+  }
+
+  // UserInfo over POST (OIDC Core 1.0 §5.3.1); the same answer as GetUserInfo.
+  rpc PostUserInfo(IssuerHandleRequest) returns (UserInfo) {
+    option (google.api.http) = {
+      post: "/i/{issuer_handle}/userinfo"
+      body: "*"
+    };
+  }
+
+  // The browser authorization endpoint (RFC 6749 §3.1) over GET, the query
+  // parameters bound to the request fields. The answer is an HTTP redirect
+  // (`x-http-code` 303 and `location` response metadata, RFC 9700 §4.11): to
+  // the client's registered redirect URI with `code` or `error`, `state` and
+  // `iss` (RFC 9207 §2), or, when the user must sign in first, to the sign-in
+  // page with this request to return to. A request whose client or exact
+  // redirect URI is not established is answered with a page and never
+  // redirected (RFC 6749 §4.1.2.1). The signed-in user's token, when a
+  // gateway holds one, travels in the `authorization` metadata.
+  rpc GetAuthorize(OAuth2AuthorizeRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {get: "/i/{issuer_handle}/oauth2/authorize"};
+  }
+
+  // The authorization endpoint over POST with a form body (OIDC Core 1.0
+  // §3.1.2.1); the same answer as GetAuthorize. Parameters it does not know
+  // are ignored (RFC 6749 §3.1).
+  rpc PostAuthorize(ProtocolRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      post: "/i/{issuer_handle}/oauth2/authorize"
+      body: "body"
+    };
+  }
+
+  // RP-Initiated Logout (OIDC RP-Initiated Logout 1.0 §2) over GET. The
+  // browser's IdP session is read from its `__Host-sid_session` cookie
+  // (`cookie` metadata). A valid `id_token_hint` of this issuer ends the
+  // application session it names; when that session reuses the browser's
+  // IdP session, single sign-on ends too and the answer clears the cookie.
+  // Otherwise ending the browser's IdP session needs the user's confirmation
+  // (§2): the answer is a page with a form that confirms it by POST. A
+  // `post_logout_redirect_uri` is followed only for a valid `id_token_hint`
+  // whose client registered exactly that URI (§3): the answer is then a 303
+  // to it with `state`, or, while the browser's IdP session remains, the
+  // confirmation page, which returns there after either choice. Otherwise the
+  // answer is a page.
+  rpc GetEndSession(EndSessionRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {get: "/i/{issuer_handle}/oauth2/end-session"};
+  }
+
+  // RP-Initiated Logout over POST with a form body: the same parameters as
+  // GetEndSession, plus `confirmation`, the one-time value of the
+  // confirmation page's form, which ends the browser's IdP session it was
+  // issued for and returns to the post-logout redirect URI that page was
+  // shown for, if any.
+  rpc PostEndSession(ProtocolRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      post: "/i/{issuer_handle}/oauth2/end-session"
+      body: "body"
+    };
+  }
+
+  // The endpoints below are the HTTP form of AuthService's OAuth RPCs, with
+  // the same logic: the request body is the `application/x-www-form-urlencoded`
+  // form the RFC defines, the answer is the RFC's JSON with its HTTP status in
+  // the `x-http-code` response metadata and its headers (`cache-control`,
+  // `pragma`, `www-authenticate`) as response metadata. A refusal is an OK
+  // gRPC call carrying the RFC error body; typed gRPC clients use AuthService.
+  // HTTP Basic client authentication travels in the `authorization` metadata,
+  // a DPoP proof in `dpop`.
+
+  // Token endpoint (RFC 6749 §3.2): every grant, including the device_code
+  // grant (RFC 8628 §3.4). Success is RFC 6749 §5.1 JSON with
+  // `cache-control: no-store`; a refusal is RFC 6749 §5.2 or RFC 8628 §3.5
+  // JSON, 401 with a `www-authenticate` challenge for `invalid_client` when
+  // the client used HTTP Basic, 400 otherwise.
+  rpc Token(ProtocolRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      post: "/i/{issuer_handle}/oauth2/token"
+      body: "body"
+    };
+  }
+
+  // Token introspection (RFC 7662 §2): RFC 7662 §2.2 JSON, `{"active":false}`
+  // for any token this issuer does not vouch for.
+  rpc Introspect(ProtocolRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      post: "/i/{issuer_handle}/oauth2/introspect"
+      body: "body"
+    };
+  }
+
+  // Token revocation (RFC 7009 §2): 200 with an empty body, also for a token
+  // that is unknown or already revoked (RFC 7009 §2.2).
+  rpc Revoke(ProtocolRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      post: "/i/{issuer_handle}/oauth2/revoke"
+      body: "body"
+    };
+  }
+
+  // Device authorization (RFC 8628 §3.1): RFC 8628 §3.2 JSON; a refusal is
+  // RFC 6749 §5.2 JSON as at the token endpoint.
+  rpc DeviceAuthorization(ProtocolRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      post: "/i/{issuer_handle}/oauth2/device"
+      body: "body"
+    };
+  }
+
+  // The registration endpoints below are the HTTP form of ProjectService's
+  // dynamic registration RPCs, with the same logic. Bodies are
+  // `application/json` client metadata (RFC 7591 §2); the initial access
+  // token or registration access token travels as a bearer token in the
+  // `authorization` metadata. A refusal is an OK gRPC call carrying the RFC
+  // error body with its HTTP status in `x-http-code`.
+
+  // Client registration (RFC 7591 §3.1). Success is 201 with every
+  // registered metadata value, the credentials and the management location
+  // (RFC 7591 §3.2.1, RFC 7592 §3); invalid metadata is 400 with
+  // `invalid_client_metadata` or `invalid_redirect_uri` (RFC 7591 §3.2.2); a
+  // missing or invalid initial access token is 401 (RFC 6750 §3.1).
+  rpc Register(ProtocolRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      post: "/i/{issuer_handle}/oauth2/register"
+      body: "body"
+    };
+  }
+
+  // Read a registration (RFC 7592 §2.1): the client's current metadata as at
+  // registration, without its secret. An invalid registration access token,
+  // or a client this issuer does not have, is 401 (RFC 7592 §2.1).
+  rpc ReadRegistration(RegistrationRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {get: "/i/{issuer_handle}/oauth2/register/{client_id}"};
+  }
+
+  // Update a registration (RFC 7592 §2.2): the body replaces the client's
+  // metadata and is validated as a registration; a refused update changes
+  // nothing.
+  rpc UpdateRegistration(RegistrationRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      put: "/i/{issuer_handle}/oauth2/register/{client_id}"
+      body: "body"
+    };
+  }
+
+  // Delete a registration (RFC 7592 §2.3): 204 with no body.
+  rpc DeleteRegistration(RegistrationRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {delete: "/i/{issuer_handle}/oauth2/register/{client_id}"};
+  }
+}
+
+// A request to one registered client's management endpoint (RFC 7592) in its
+// HTTP form.
+message RegistrationRequest {
+  // The opaque issuer handle: the `<handle>` path segment of the issuer URL
+  // `https://<host>/i/<handle>`. 32 lowercase hex characters.
+  string issuer_handle = 1;
+  // The client being managed, the last segment of its
+  // `registration_client_uri` (RFC 7592 §3).
+  string client_id = 2;
+  // The HTTP request body with its `Content-Type`: `application/json` client
+  // metadata for an update (RFC 7592 §2.2); absent for read and delete.
+  google.api.HttpBody body = 3;
+}
+
+// A logout request of a relying party (OIDC RP-Initiated Logout 1.0 §2) at
+// one issuer's end-session endpoint.
+message EndSessionRequest {
+  // The opaque issuer handle: the `<handle>` path segment of the issuer URL
+  // `https://<host>/i/<handle>`. 32 lowercase hex characters.
+  string issuer_handle = 1;
+  // An ID token this issuer gave the relying party, naming the application
+  // session (`sid`) and the client (`aud`) that asks to log out. Accepted
+  // expired (§2); one of another issuer, or not an ID token, is ignored.
+  optional string id_token_hint = 2;
+  // The relying party's client identifier. With `id_token_hint`, it must be
+  // the hint's audience or the hint is ignored.
+  optional string client_id = 3;
+  // Where to send the browser after logout (§3). Followed only when a valid
+  // `id_token_hint` names the client and the URI exactly matches one the
+  // client registered; otherwise the answer is a page.
+  optional string post_logout_redirect_uri = 4;
+  // Opaque value of the relying party, added to the post-logout redirect as
+  // `state` (§3).
+  optional string state = 5;
+}
+
+// An OAuth request to one issuer's endpoint in its HTTP form.
+message ProtocolRequest {
+  // The opaque issuer handle: the `<handle>` path segment of the issuer URL
+  // `https://<host>/i/<handle>`. 32 lowercase hex characters.
+  string issuer_handle = 1;
+  // The HTTP request body as the client sent it, with its `Content-Type`;
+  // absent for a request without one (a GET). The endpoints read
+  // `application/x-www-form-urlencoded` (RFC 6749 §3.2) and refuse any other
+  // type as `invalid_request`.
+  google.api.HttpBody body = 2;
+}
+
+// Claims about the authenticated user (OIDC Core 1.0 §5.3.2). A claim the
+// token's scopes do not grant, or the user does not have, is absent rather
+// than empty (OIDC Core 1.0 §5.3.2).
+message UserInfo {
+  // The subject, identical to the `sub` of the ID token this issuer gave the
+  // same client (OIDC Core 1.0 §5.3.2).
+  string sub = 1 [json_name = "sub"];
+  // Full display name (`profile` scope).
+  optional string name = 2 [json_name = "name"];
+  // Given name(s) (`profile` scope).
+  optional string given_name = 3 [json_name = "given_name"];
+  // Surname(s) (`profile` scope).
+  optional string family_name = 4 [json_name = "family_name"];
+  // Middle name(s) (`profile` scope).
+  optional string middle_name = 5 [json_name = "middle_name"];
+  // Shorthand name the user chose (`profile` scope).
+  optional string preferred_username = 6 [json_name = "preferred_username"];
+  // When the profile information last changed, seconds since the Unix epoch
+  // (`profile` scope). A JSON number (OIDC Core 1.0 §5.1).
+  optional uint32 updated_at = 7 [json_name = "updated_at"];
+  // Primary email address (`email` scope).
+  optional string email = 8 [json_name = "email"];
+  // Whether the primary email address was verified (`email` scope).
+  optional bool email_verified = 9 [json_name = "email_verified"];
+  // Primary phone number in E.164 (`phone` scope).
+  optional string phone_number = 10 [json_name = "phone_number"];
+  // Whether the primary phone number was verified (`phone` scope).
+  optional bool phone_number_verified = 11 [json_name = "phone_number_verified"];
+}
+
+// Names the issuer a request is for.
+message IssuerHandleRequest {
+  // The opaque issuer handle: the `<handle>` path segment of the issuer URL
+  // `https://<host>/i/<handle>`. 32 lowercase hex characters, allocated by
+  // the server at issuer creation and never reused.
+  string issuer_handle = 1;
+}
+
+// OpenID Provider / Authorization Server metadata of one issuer. JSON member
+// names are the registered metadata names (OIDC Discovery 1.0 §3, RFC 8414 §2);
+// every endpoint is under the issuer URL.
+message ProviderMetadata {
+  // The issuer identifier, the stored canonical URL byte for byte: the `iss`
+  // of every token this issuer signs (OIDC Discovery 1.0 §4.3, RFC 8414 §3.3).
+  string issuer = 1 [json_name = "issuer"];
+  // Authorization endpoint (RFC 6749 §3.1).
+  string authorization_endpoint = 2 [json_name = "authorization_endpoint"];
+  // Token endpoint (RFC 6749 §3.2).
+  string token_endpoint = 3 [json_name = "token_endpoint"];
+  // UserInfo endpoint (OIDC Core 1.0 §5.3).
+  string userinfo_endpoint = 4 [json_name = "userinfo_endpoint"];
+  // The issuer's JSON Web Key Set (RFC 7517 §5).
+  string jwks_uri = 5 [json_name = "jwks_uri"];
+  // RP-Initiated Logout endpoint (OIDC RP-Initiated Logout 1.0 §2.1).
+  string end_session_endpoint = 6 [json_name = "end_session_endpoint"];
+  // Token introspection endpoint (RFC 7662 §2, RFC 8414 §2).
+  string introspection_endpoint = 7 [json_name = "introspection_endpoint"];
+  // Token revocation endpoint (RFC 7009 §2, RFC 8414 §2).
+  string revocation_endpoint = 8 [json_name = "revocation_endpoint"];
+  // Device authorization endpoint (RFC 8628 §4).
+  string device_authorization_endpoint = 9 [json_name = "device_authorization_endpoint"];
+  // Supported `response_type` values; only the authorization code flow.
+  repeated string response_types_supported = 10 [json_name = "response_types_supported"];
+  // Supported grant types (RFC 8414 §2).
+  repeated string grant_types_supported = 11 [json_name = "grant_types_supported"];
+  // Subject identifier types (OIDC Core 1.0 §8): `public` within this
+  // issuer. Which identifier a user's `sub` is follows the issuer, the
+  // selected Profile and the recipient, never a per-client switch.
+  repeated string subject_types_supported = 12 [json_name = "subject_types_supported"];
+  // JWS algorithms of ID tokens: the issuer's Ed25519 key signs them (EdDSA).
+  repeated string id_token_signing_alg_values_supported = 13 [json_name = "id_token_signing_alg_values_supported"];
+  // Scopes a client may request (RFC 8414 §2).
+  repeated string scopes_supported = 14 [json_name = "scopes_supported"];
+  // Client authentication methods at the token endpoint (RFC 8414 §2).
+  repeated string token_endpoint_auth_methods_supported = 15 [json_name = "token_endpoint_auth_methods_supported"];
+  // PKCE code challenge methods (RFC 7636 §4.3, RFC 8414 §2); only S256.
+  repeated string code_challenge_methods_supported = 16 [json_name = "code_challenge_methods_supported"];
+  // JWS algorithms accepted in DPoP proofs (RFC 9449 §5.1).
+  repeated string dpop_signing_alg_values_supported = 17 [json_name = "dpop_signing_alg_values_supported"];
+  // Back-channel logout is delivered to registered clients (OIDC Back-Channel
+  // Logout 1.0 §2.1).
+  bool backchannel_logout_supported = 18 [json_name = "backchannel_logout_supported"];
+  // Logout tokens carry the `sid` claim (OIDC Back-Channel Logout 1.0 §2.1).
+  bool backchannel_logout_session_supported = 19 [json_name = "backchannel_logout_session_supported"];
+  // Every authorization response names its issuer in `iss` (RFC 9207 §3).
+  bool authorization_response_iss_parameter_supported = 20 [json_name = "authorization_response_iss_parameter_supported"];
+  // Dynamic client registration endpoint (RFC 7591 §3, OIDC Discovery 1.0 §3,
+  // RFC 8414 §2).
+  string registration_endpoint = 21 [json_name = "registration_endpoint"];
+  // JWS algorithms a `private_key_jwt` client may sign its token endpoint
+  // assertion with (RFC 8414 §2: present whenever that method is listed in
+  // `token_endpoint_auth_methods_supported`). Asymmetric only; never `none`.
+  repeated string token_endpoint_auth_signing_alg_values_supported = 22 [json_name = "token_endpoint_auth_signing_alg_values_supported"];
+  // Client authentication methods at the revocation endpoint (RFC 8414 §2;
+  // absent would mean `client_secret_basic` only): the token endpoint's.
+  repeated string revocation_endpoint_auth_methods_supported = 23 [json_name = "revocation_endpoint_auth_methods_supported"];
+  // JWS algorithms of `private_key_jwt` assertions at the revocation
+  // endpoint (RFC 8414 §2): the token endpoint's.
+  repeated string revocation_endpoint_auth_signing_alg_values_supported = 24 [json_name = "revocation_endpoint_auth_signing_alg_values_supported"];
+  // Client authentication methods at the introspection endpoint (RFC 8414
+  // §2), for the confidential clients and machine users that may introspect;
+  // `none` is not among them (RFC 7662 §2.1).
+  repeated string introspection_endpoint_auth_methods_supported = 25 [json_name = "introspection_endpoint_auth_methods_supported"];
+  // JWS algorithms of `private_key_jwt` assertions at the introspection
+  // endpoint (RFC 8414 §2): the token endpoint's.
+  repeated string introspection_endpoint_auth_signing_alg_values_supported = 26 [json_name = "introspection_endpoint_auth_signing_alg_values_supported"];
+}
+
+// A JSON Web Key Set (RFC 7517 §5).
+message JsonWebKeySet {
+  // The issuer's public signing keys, newest generation first.
+  repeated JsonWebKey keys = 1 [json_name = "keys"];
+}
+
+// A public Ed25519 signing key as an OKP JWK (RFC 7517 §4, RFC 8037 §2).
+message JsonWebKey {
+  // Key type (RFC 7517 §4.1): always `OKP`.
+  string kty = 1 [json_name = "kty"];
+  // Intended use (RFC 7517 §4.2): always `sig`.
+  string use = 2 [json_name = "use"];
+  // Algorithm (RFC 7517 §4.4): always `EdDSA`.
+  string alg = 3 [json_name = "alg"];
+  // Key identifier (RFC 7517 §4.5), the JWS `kid` of every token this key
+  // signs. Unique within the issuer only.
+  string kid = 4 [json_name = "kid"];
+  // Curve (RFC 8037 §2): always `Ed25519`.
+  string crv = 5 [json_name = "crv"];
+  // The 32-byte public key, base64url without padding (RFC 8037 §2).
+  string x = 6 [json_name = "x"];
+}
+
+// OidcIssuerService lets services that verify an issuer's tokens resolve the
+// issuer and its keys by handle, and the registered resource a token must be
+// issued for.
+//
+// Internal only, no HTTP annotation: relying parties use OidcProviderService.
+service OidcIssuerService {
+  // Look up an issuer by handle. An unknown handle is NOT_FOUND with
+  // ErrorInfo reason OIDC_ISSUER_NOT_FOUND and a ResourceInfo naming the
+  // handle; the caller refuses the request and never falls back to another
+  // issuer.
+  rpc GetOidcIssuer(GetOidcIssuerRequest) returns (OidcIssuer);
+
+  // Resolve the protected resource a route of the ingress configuration names
+  // before a token is accepted for it. The resource must be registered under
+  // this issuer: an unknown issuer or indicator is NOT_FOUND with ErrorInfo
+  // reason RESOURCE_NOT_FOUND and a ResourceInfo naming the indicator. The
+  // caller refuses the route and never falls back to another target.
+  rpc GetProtectedResource(GetProtectedResourceRequest) returns (ProtectedResourceTarget);
+}
+
+message GetOidcIssuerRequest {
+  // The opaque issuer handle: the `<handle>` path segment of the issuer URL
+  // `https://<host>/i/<handle>` that received the request. 32 lowercase hex
+  // characters, allocated by the server at issuer creation and never reused.
+  string handle = 1;
+}
+
+// A logical OIDC issuer as its relying parties see it.
+message OidcIssuer {
+  // Exact issuer identifier (the stored canonical URL, `https://<host>/i/<handle>`).
+  // Discovery `issuer`, token `iss` and relying-party configuration must equal
+  // it byte for byte (OpenID Connect Discovery 1.0 §4.3). Never derived from
+  // request Host or Forwarded headers.
+  string issuer = 1;
+  // Public signing keys of this issuer, newest generation first: the current
+  // key and every earlier generation still needed to verify artifacts it
+  // issued. Keys of any other issuer never appear here, even under an equal
+  // key identifier.
+  repeated IssuerPublicKey keys = 2;
+}
+
+message GetProtectedResourceRequest {
+  // Handle of the issuer the resource is registered under: the `<handle>`
+  // path segment of the issuer URL `https://<host>/i/<handle>`.
+  string issuer_handle = 1;
+  // The resource indicator (RFC 8707 §2) as the ingress configuration names
+  // it: an absolute URI without a fragment, in canonical form. Compared
+  // exactly; another spelling of the same URI names no resource.
+  string resource = 2;
+}
+
+// A registered protected resource as a token verifier needs it.
+message ProtectedResourceTarget {
+  // Exact identifier of the issuer whose tokens the resource accepts; a
+  // token naming another `iss` is refused there.
+  string issuer = 1;
+  // The resource indicator, which is the `aud` an access token for this
+  // resource carries (RFC 9068 §4).
+  string resource = 2;
+  // Whether the resource accepts tokens now. An inactive or retired resource
+  // opens nothing: every token presented for it is refused.
+  bool active = 3;
+  // The registered resource itself: the target a permission question about
+  // its requests names.
+  sid.v1.ids.ResourceId id = 4;
+}
+
+// One generation of an issuer's server signing key.
+message IssuerPublicKey {
+  // Key identifier, published as the JWK `kid` and carried in the JWS header
+  // of every token signed with this key (RFC 7515 §4.1.4). Unique within the
+  // issuer only; a verifier matches it together with the exact issuer.
+  string key_id = 1;
+  // Ed25519 public key, the 32-byte encoding of RFC 8032 §5.1.5. Published as
+  // an OKP JWK with crv "Ed25519" and alg "EdDSA" (RFC 8037 §2).
+  bytes public_key = 2;
+}

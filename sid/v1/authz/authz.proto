@@ -1,0 +1,941 @@
+// StructuredID Authorization Service: RBAC + ABAC (Cedar).
+syntax = "proto3";
+
+package sid.v1.authz;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "sid/v1/ids/ids.proto";
+
+// ── Enums ────────────────────────────────────────────────────────────
+
+// Consistency level for authorization checks.
+// Each site/consumer chooses its level — configured per OIDC client.
+enum Consistency {
+  CONSISTENCY_UNSPECIFIED = 0;
+  // Cached, sub-ms, may be stale by seconds. Default.
+  CONSISTENCY_EVENTUAL = 1;
+  // Source of truth, 1-5ms.
+  CONSISTENCY_STRONG = 2;
+  // Strong at specific point (requires zookie).
+  CONSISTENCY_AT_SNAPSHOT = 3;
+}
+
+// Policy effect.
+enum PolicyEffect {
+  POLICY_EFFECT_UNSPECIFIED = 0;
+  POLICY_EFFECT_PERMIT = 1;
+  POLICY_EFFECT_FORBID = 2;
+}
+
+// A role administration operation an administrative assignment may permit.
+// None implies another.
+enum AdminOperation {
+  ADMIN_OPERATION_UNSPECIFIED = 0;
+  // Create assignments of the envelope's roles.
+  ADMIN_OPERATION_ASSIGN = 1;
+  // Remove assignments of the envelope's roles.
+  ADMIN_OPERATION_REVOKE = 2;
+  // Change the definition of the envelope's roles, within its ceiling.
+  ADMIN_OPERATION_EDIT_ROLE = 3;
+  // Grant administrative assignments narrower than the holder's own.
+  ADMIN_OPERATION_REDELEGATE = 4;
+}
+
+// A kind of principal an administrative assignment lets its holder assign
+// roles to. A SCIM provisioning connector is never an administered recipient.
+enum RecipientKind {
+  RECIPIENT_KIND_UNSPECIFIED = 0;
+  RECIPIENT_KIND_PROFILE = 1;
+  RECIPIENT_KIND_GROUP = 2;
+  RECIPIENT_KIND_MACHINE_USER = 3;
+  RECIPIENT_KIND_OAUTH_CLIENT = 4;
+}
+
+// ── Messages ─────────────────────────────────────────────────────────
+
+// Role represents a named collection of permissions.
+// Scoped to a project.
+message Role {
+  string id = 1;
+  string project_id = 2;
+  string name = 3;  // e.g., "admin", "viewer", "editor"
+  optional string description = 4;
+
+  // Permissions (actions) granted by this role.
+  repeated string permissions = 5;  // e.g., "profiles:read", "clients:write"
+
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+// Group represents a collection of profiles.
+// Scoped to a project.
+message Group {
+  string id = 1;
+  string project_id = 2;
+  string name = 3;
+  optional string description = 4;
+
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+// RoleAssignment assigns a role to a profile, group, machine user, an
+// independent OAuth client acting as a service, or a SCIM provisioning
+// connector.
+message RoleAssignment {
+  string id = 1;
+
+  oneof principal {
+    string profile_id = 2;
+    string group_id = 3;
+    string machine_user_id = 8;
+    // `client_id` of an independent confidential OAuth client. A machine
+    // user's OAuth credentials resolve to the machine user, never to this
+    // principal.
+    string oauth_client_id = 9;
+    // A SCIM provisioning connector. Its roles take effect only for SCIM
+    // actions on the protected directory resource named in `scope`.
+    sid.v1.ids.ProvisioningConnectorId provisioning_connector_id = 10;
+  }
+
+  string role_id = 4;
+
+  // Optional scope (resource constraint): e.g. "project:<uuid>", or
+  // "oauth_resource:<resource_id>" for one registered protected resource
+  // (its issuer is the resource's). The token inspector role is assigned
+  // only with a protected-resource scope.
+  optional string scope = 5;
+
+  // Optional expiry (temporary role).
+  optional google.protobuf.Timestamp expires_at = 6;
+
+  google.protobuf.Timestamp created_at = 7;
+
+  // Present on an administrative assignment: what its holder may administer
+  // within `scope`. Holding the role alone administers nothing.
+  optional AdminEnvelope admin = 11;
+
+  // Who granted the assignment and on what authority, recorded by the
+  // server; absent on assignments that predate provenance.
+  optional AssignmentProvenance provenance = 12;
+}
+
+// What an administrative assignment may administer. Every field is an
+// explicit bound: an empty list permits nothing, never everything.
+message AdminEnvelope {
+  // The permitted operations; UNSPECIFIED is refused.
+  repeated AdminOperation operations = 1;
+
+  // The roles that may be administered, by role id. A role is matched by
+  // identity and by its current content against `permission_ceiling`.
+  repeated string role_ids = 2;
+
+  // The permissions an administered role may hold at most: a role whose
+  // current permissions exceed it cannot be assigned, whatever its name.
+  repeated string permission_ceiling = 3;
+
+  // The kinds of principal roles may be assigned to; UNSPECIFIED is refused.
+  repeated RecipientKind recipient_kinds = 4;
+
+  // When set, only this group and its members are eligible recipients. The
+  // group cannot be deleted while an envelope names it.
+  optional string recipient_group_id = 5;
+
+  // The longest validity an administered assignment may be given; every
+  // administered assignment expires. Must be positive, whole seconds.
+  google.protobuf.Duration max_validity = 6;
+}
+
+// Who granted a role assignment and on what authority. Set by the server
+// from the authenticated caller; never accepted from a request.
+message AssignmentProvenance {
+  // The granting actor as the authorization engine names it:
+  // "user:<profile_id>", "machine:<machine_user_id>" or
+  // "oauth_client:<client_id>".
+  string granted_by = 1;
+
+  // The administrative assignment that authorized the grant; absent when the
+  // installation's administrator granted it as root of its scope.
+  optional string basis_assignment_id = 2;
+
+  // The administrative assignment this one depends on: set on a redelegated
+  // administrative assignment, which ends when that source ends. An ordinary
+  // assignment outlives the assignment that authorized it.
+  optional string depends_on_assignment_id = 3;
+
+  // The permissions the role could hold at most when an envelope approved
+  // this working assignment. The role is never edited past them while the
+  // assignment exists; widening it needs the assignment reauthorized first.
+  // Empty when the root granted it, or on an administrative assignment.
+  repeated string approved_ceiling = 4;
+}
+
+// Policy represents a Cedar policy (ABAC).
+// Scoped to a project.
+message Policy {
+  string id = 1;
+  string project_id = 2;
+  string name = 3;
+  optional string description = 4;
+
+  // Cedar policy content.
+  string policy_text = 5;
+
+  // Policy effect.
+  PolicyEffect effect = 6;
+
+  // Policy status.
+  bool enabled = 7;
+
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+// ── Service ──────────────────────────────────────────────────────────
+
+// AuthzService handles authorization, RBAC, and policy evaluation.
+service AuthzService {
+  // Permission check (primary authorization API).
+  rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/authz/check" body: "*" };
+  }
+  rpc BatchCheckPermission(BatchCheckPermissionRequest) returns (BatchCheckPermissionResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/authz/check/batch" body: "*" };
+  }
+
+  // List objects accessible by subject.
+  rpc ListObjects(ListObjectsRequest) returns (ListObjectsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/authz/objects" body: "*" };
+  }
+  // List subjects that can access an object.
+  rpc ListSubjects(ListSubjectsRequest) returns (ListSubjectsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/authz/subjects" body: "*" };
+  }
+
+  // Role management.
+  rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/authz/roles" body: "*" };
+  }
+  rpc GetRole(GetRoleRequest) returns (GetRoleResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/authz/roles/{id}" };
+  }
+  rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/authz/roles/{id}" body: "*" };
+  }
+  rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/authz/roles/{id}" };
+  }
+  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/authz/roles" };
+  }
+
+  // Role assignment.
+  rpc AssignRole(AssignRoleRequest) returns (AssignRoleResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/authz/assignments" body: "*" };
+  }
+  rpc RevokeRole(RevokeRoleRequest) returns (RevokeRoleResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/authz/assignments/{assignment_id}" };
+  }
+  rpc ListRoleAssignments(ListRoleAssignmentsRequest) returns (ListRoleAssignmentsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/authz/assignments" };
+  }
+
+  // Group management.
+  rpc CreateGroup(CreateGroupRequest) returns (CreateGroupResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/authz/groups" body: "*" };
+  }
+  rpc GetGroup(GetGroupRequest) returns (GetGroupResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/authz/groups/{id}" };
+  }
+  rpc UpdateGroup(UpdateGroupRequest) returns (UpdateGroupResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/authz/groups/{id}" body: "*" };
+  }
+  rpc DeleteGroup(DeleteGroupRequest) returns (DeleteGroupResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/authz/groups/{id}" };
+  }
+  rpc ListGroups(ListGroupsRequest) returns (ListGroupsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/authz/groups" };
+  }
+
+  // Group membership.
+  rpc AddToGroup(AddToGroupRequest) returns (AddToGroupResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/authz/groups/{group_id}/members" body: "*" };
+  }
+  rpc RemoveFromGroup(RemoveFromGroupRequest) returns (RemoveFromGroupResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/authz/groups/{group_id}/members/{profile_id}" };
+  }
+  rpc ListGroupMembers(ListGroupMembersRequest) returns (ListGroupMembersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/authz/groups/{group_id}/members" };
+  }
+
+  // Policy management (Cedar ABAC).
+  rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/authz/policies" body: "*" };
+  }
+  rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/authz/policies/{id}" };
+  }
+  rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/authz/policies/{id}" body: "*" };
+  }
+  rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/authz/policies/{id}" };
+  }
+  rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/authz/policies" };
+  }
+
+  // Policy evaluation.
+  rpc EvaluatePolicy(EvaluatePolicyRequest) returns (EvaluatePolicyResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/authz/policies/evaluate" body: "*" };
+  }
+  rpc ValidatePolicy(ValidatePolicyRequest) returns (ValidatePolicyResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/authz/policies/validate" body: "*" };
+  }
+
+  // SoD (Separation of Duties) conflict check.
+  rpc CheckSodConflicts(CheckSodConflictsRequest) returns (CheckSodConflictsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/authz/sod/check" body: "*" };
+  }
+
+  // ── Policy Simulation ──
+
+  // Simulate proposed policy changes without persisting.
+  // What-if analysis: compares current vs proposed state for affected principals.
+  rpc SimulatePolicy(SimulatePolicyRequest) returns (SimulatePolicyResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/authz/policies/simulate" body: "*" };
+  }
+}
+
+// ── Permission check ─────────────────────────────────────────────────
+
+// One permission question: may a subject perform `action` on `target`.
+//
+// The caller authenticates as itself in the request metadata. Asking about
+// any subject other than the caller's own needs the caller's current
+// `authz.check` assignment on the target resource. Which subject is
+// evaluated, and with what evidence, is stated explicitly by `evaluation`;
+// a request whose evidence fails is refused, never re-evaluated in another
+// mode.
+message CheckPermissionRequest {
+  reserved 1, 3, 5;
+  reserved "subject", "resource", "context";
+
+  // The application operation to decide, in the target application's own
+  // vocabulary (for example "orders.read"). The receiver maps its real
+  // operation to it; SID does not derive it from an HTTP method or path.
+  string action = 2;
+
+  // How fresh the decision must be; unspecified is CONSISTENCY_EVENTUAL.
+  Consistency consistency = 4;
+
+  // Where the action would take effect.
+  PermissionTarget target = 6;
+
+  // Whose permission is decided, and on what evidence.
+  oneof evaluation {
+    // The subject of one original request to the target, established from
+    // that request's own access token (request-bound evaluation).
+    RequestEvaluation request = 7;
+    // A named subject, evaluated by policy alone (abstract evaluation). It
+    // claims no presence, session, assurance or sender proof, and cannot
+    // satisfy a policy that requires them.
+    SubjectReference named_subject = 8;
+    // The caller itself, as its own credential authenticates it. Needs no
+    // checker assignment.
+    SelfEvaluation self = 9;
+  }
+}
+
+// The place an action would take effect. Its issuer and recipient
+// organization come from the resource's registration, never from the
+// caller.
+message PermissionTarget {
+  oneof scope {
+    // A registered protected resource of this installation.
+    sid.v1.ids.ResourceId resource = 1;
+    // A project of this installation, for project-wide permissions (UUID
+    // text). Only the caller's own subject may be asked about a project.
+    string project_id = 2;
+  }
+
+  // The object of the action inside the resource's application, in that
+  // application's own namespace (for example "order:8812"). Empty for the
+  // resource as a whole. Opaque to SID apart from the policies that name it.
+  string object = 3;
+}
+
+// The subject of an original request, established by SID from the request's
+// own access token. The token is evidence about its subject, never the
+// caller's credential, and is not accepted at the authorization API itself.
+message RequestEvaluation {
+  // The access token exactly as the original request presented it (JWS
+  // compact serialization or an opaque access token), unchanged. Its audience
+  // is the target resource. Refresh, ID, IdP session and exchange-only PAT
+  // parent tokens are refused. Never logged or echoed.
+  string access_token = 1;
+
+  // Checks of the original request made at the resource boundary by the
+  // caller, when the caller is trusted to make them. Absent when the request
+  // carried no sender proof or nobody trusted to verify it did.
+  RequestConfirmation confirmation = 2;
+}
+
+// What the verifier at the resource boundary confirmed about one original
+// request. It is bound to that request, its token and this query's target;
+// it is the verifier's testimony, not a new proof, and the original sender
+// proof is never sent or consumed again here.
+message RequestConfirmation {
+  // Which kind of sender proof was verified.
+  SenderProofProfile profile = 1;
+
+  // The original request's HTTP method, as received at the resource.
+  string method = 2;
+
+  // The original request's external URI without query and fragment, as
+  // reconstructed from authenticated ingress context (the DPoP `htu`,
+  // RFC 9449 §4.2).
+  string uri = 3;
+
+  // The verifier's identifier of the original request: a retry of the same
+  // pending request carries the same value, a new request a new one.
+  // 16 random bytes.
+  bytes request_id = 4;
+
+  // The JWK SHA-256 thumbprint (RFC 7638) of the key the proof was verified
+  // with; it must equal the token's `cnf.jkt` (RFC 9449 §6.1).
+  string jkt = 5;
+
+  // When the verifier checked the proof.
+  google.protobuf.Timestamp verified_at = 6;
+
+  // Until when the confirmation may be used for this request; never beyond
+  // the token's expiry.
+  google.protobuf.Timestamp valid_until = 7;
+}
+
+// The kind of sender proof a confirmation reports.
+enum SenderProofProfile {
+  SENDER_PROOF_PROFILE_UNSPECIFIED = 0;
+  // A DPoP proof (RFC 9449).
+  SENDER_PROOF_PROFILE_DPOP = 1;
+}
+
+// A subject named for abstract evaluation.
+message SubjectReference {
+  oneof kind {
+    // A machine user of this installation.
+    sid.v1.ids.MachineUserId machine_user_id = 1;
+    // An independent confidential OAuth client of this installation, by its
+    // `client_id`.
+    string oauth_client_id = 2;
+    // A user as the target's issuer identifies them to the target's
+    // recipient: that issuer's opaque `sub` for it, resolved under the
+    // issuer's subject rule, never cast to an identifier by its shape.
+    IssuerSubject issuer_subject = 3;
+  }
+}
+
+// A subject as one issuer names it.
+message IssuerSubject {
+  // The issuer's identifier (its `iss`).
+  string issuer = 1;
+  // The issuer's subject identifier for the target's recipient (its `sub`).
+  string subject = 2;
+}
+
+// The caller asks about itself.
+message SelfEvaluation {}
+
+message CheckPermissionResponse {
+  reserved 1;
+  reserved "allowed";
+
+  // Explanation of the decision, for a caller asking about itself; absent
+  // for a checker, which gets the decision without policy internals.
+  optional string reason = 2;
+
+  // Snapshot token for subsequent consistent checks.
+  optional string zookie = 3;
+
+  // The decision.
+  PermissionOutcome outcome = 4;
+}
+
+// What a permission question decided.
+enum PermissionOutcome {
+  PERMISSION_OUTCOME_UNSPECIFIED = 0;
+  // The subject may perform the action on the target.
+  PERMISSION_OUTCOME_ALLOWED = 1;
+  // The subject may not.
+  PERMISSION_OUTCOME_DENIED = 2;
+  // A policy requires evidence the question did not carry (a session, an
+  // authentication level, a sender proof); with that evidence the decision
+  // may differ. Never an allow.
+  PERMISSION_OUTCOME_EVIDENCE_REQUIRED = 3;
+}
+
+// Several permission questions, answered together or refused together.
+message BatchCheckPermissionRequest {
+  // At most 100 questions. Every one is admitted (caller, target, evidence)
+  // before any subject is evaluated; one refused question refuses the whole
+  // batch with no partial results. Questions about one original request
+  // carry the same `RequestEvaluation`.
+  repeated CheckPermissionRequest checks = 1;
+}
+
+message BatchCheckPermissionResponse {
+  // One answer per question, in the order asked.
+  repeated CheckPermissionResponse results = 1;
+}
+
+// ── List objects/subjects ────────────────────────────────────────────
+
+message ListObjectsRequest {
+  string subject = 1;         // e.g., "user:alice"
+  string action = 2;          // e.g., "view"
+  string resource_type = 3;   // e.g., "document"
+  Consistency consistency = 4;
+}
+
+message ListObjectsResponse {
+  repeated string objects = 1;  // e.g., ["document:123", "document:456"]
+}
+
+message ListSubjectsRequest {
+  string resource = 1;        // e.g., "document:123"
+  string action = 2;          // e.g., "edit"
+  Consistency consistency = 3;
+}
+
+message ListSubjectsResponse {
+  repeated string subjects = 1;  // e.g., ["user:alice", "user:bob"]
+}
+
+// ── Role management ──────────────────────────────────────────────────
+
+message CreateRoleRequest {
+  string project_id = 1;
+  string name = 2;
+  optional string description = 3;
+  repeated string permissions = 4;
+}
+
+message CreateRoleResponse {
+  Role role = 1;
+}
+
+message GetRoleRequest {
+  oneof identifier {
+    string id = 1;
+    string name = 2;
+  }
+  // Required when looking up by name.
+  optional string project_id = 3;
+}
+
+message GetRoleResponse {
+  Role role = 1;
+}
+
+// Changes a role on the caller's authority: the installation's administrator
+// edits any role; anyone else needs an administrative assignment permitting
+// edits of it whose ceiling admits the new permissions. A role never gains a
+// permission beyond the approved ceiling of one of its assignments
+// (FAILED_PRECONDITION, APPROVED_CEILING): that assignment is reauthorized
+// first.
+message UpdateRoleRequest {
+  // The role to change.
+  string id = 1;
+  // New description; unset keeps the current one.
+  optional string description = 2;
+  // The role's complete new permission list; empty keeps the current one.
+  repeated string permissions = 3;
+}
+
+message UpdateRoleResponse {
+  Role role = 1;
+}
+
+message DeleteRoleRequest {
+  string id = 1;
+}
+
+message DeleteRoleResponse {}
+
+message ListRolesRequest {
+  string project_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+message ListRolesResponse {
+  repeated Role roles = 1;
+  string next_page_token = 2;
+}
+
+// ── Role assignment ──────────────────────────────────────────────────
+
+message AssignRoleRequest {
+  oneof principal {
+    string profile_id = 1;
+    string group_id = 2;
+    string machine_user_id = 6;
+    // `client_id` of an existing confidential OAuth client; a public or
+    // unknown client is refused (INVALID_ARGUMENT / NOT_FOUND).
+    string oauth_client_id = 7;
+    // An existing, not retired SCIM provisioning connector. The assignment
+    // must be scoped to one protected resource ("oauth_resource:<resource_id>"),
+    // else INVALID_ARGUMENT; an unknown connector is NOT_FOUND, a retired one
+    // FAILED_PRECONDITION.
+    sid.v1.ids.ProvisioningConnectorId provisioning_connector_id = 8;
+  }
+  string role_id = 3;
+  // Scope of the assignment, as in RoleAssignment.scope. For the token
+  // inspector role it must name an existing, not retired protected resource
+  // ("oauth_resource:<resource_id>"), else INVALID_ARGUMENT / NOT_FOUND /
+  // FAILED_PRECONDITION (RESOURCE_RETIRED).
+  optional string scope = 4;
+  optional google.protobuf.Timestamp expires_at = 5;
+  // Makes the assignment administrative, bounded by this envelope within
+  // `scope`. Granting it requires the root of the scope, or a redelegation
+  // right of the same administrative role whose envelope this one narrows;
+  // a redelegated one needs `expires_at` within that right's validity.
+  // A malformed envelope is INVALID_ARGUMENT naming the field.
+  optional AdminEnvelope admin = 9;
+}
+
+message AssignRoleResponse {
+  RoleAssignment assignment = 1;
+}
+
+message RevokeRoleRequest {
+  string assignment_id = 1;
+}
+
+message RevokeRoleResponse {}
+
+message ListRoleAssignmentsRequest {
+  oneof filter {
+    string profile_id = 1;
+    string group_id = 2;
+    string role_id = 3;
+    string machine_user_id = 4;
+    // Assignments held by this OAuth client (`client_id`).
+    string oauth_client_id = 5;
+    // Assignments held by this SCIM provisioning connector.
+    sid.v1.ids.ProvisioningConnectorId provisioning_connector_id = 6;
+  }
+}
+
+message ListRoleAssignmentsResponse {
+  repeated RoleAssignment assignments = 1;
+}
+
+// ── Group management ─────────────────────────────────────────────────
+
+message CreateGroupRequest {
+  string project_id = 1;
+  string name = 2;
+  optional string description = 3;
+}
+
+message CreateGroupResponse {
+  Group group = 1;
+}
+
+message GetGroupRequest {
+  oneof identifier {
+    string id = 1;
+    string name = 2;
+  }
+  optional string project_id = 3;
+}
+
+message GetGroupResponse {
+  Group group = 1;
+}
+
+message UpdateGroupRequest {
+  string id = 1;
+  optional string description = 2;
+}
+
+message UpdateGroupResponse {
+  Group group = 1;
+}
+
+message DeleteGroupRequest {
+  string id = 1;
+}
+
+message DeleteGroupResponse {}
+
+message ListGroupsRequest {
+  string project_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+message ListGroupsResponse {
+  repeated Group groups = 1;
+  string next_page_token = 2;
+}
+
+// ── Group membership ─────────────────────────────────────────────────
+
+message AddToGroupRequest {
+  string group_id = 1;
+  string profile_id = 2;
+}
+
+message AddToGroupResponse {}
+
+message RemoveFromGroupRequest {
+  string group_id = 1;
+  string profile_id = 2;
+}
+
+message RemoveFromGroupResponse {}
+
+message ListGroupMembersRequest {
+  string group_id = 1;
+}
+
+message ListGroupMembersResponse {
+  repeated string profile_ids = 1;
+}
+
+// ── Policy management (Cedar) ────────────────────────────────────────
+
+message CreatePolicyRequest {
+  string project_id = 1;
+  string name = 2;
+  optional string description = 3;
+  string policy_text = 4;
+  PolicyEffect effect = 5;
+  bool enabled = 6;
+}
+
+message CreatePolicyResponse {
+  Policy policy = 1;
+}
+
+message GetPolicyRequest {
+  string id = 1;
+}
+
+message GetPolicyResponse {
+  Policy policy = 1;
+}
+
+message UpdatePolicyRequest {
+  string id = 1;
+  optional string description = 2;
+  optional string policy_text = 3;
+  optional PolicyEffect effect = 4;
+  optional bool enabled = 5;
+}
+
+message UpdatePolicyResponse {
+  Policy policy = 1;
+}
+
+message DeletePolicyRequest {
+  string id = 1;
+}
+
+message DeletePolicyResponse {}
+
+message ListPoliciesRequest {
+  string project_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+message ListPoliciesResponse {
+  repeated Policy policies = 1;
+  string next_page_token = 2;
+}
+
+// ── Policy evaluation ────────────────────────────────────────────────
+
+message EvaluatePolicyRequest {
+  string subject = 1;
+  string action = 2;
+  string resource = 3;
+  map<string, string> context = 4;
+  // Evaluate only policies in this project.
+  optional string project_id = 5;
+}
+
+message EvaluatePolicyResponse {
+  bool allowed = 1;
+  // Which policies matched and their effects.
+  repeated PolicyMatch matches = 2;
+}
+
+message PolicyMatch {
+  string policy_id = 1;
+  string policy_name = 2;
+  PolicyEffect effect = 3;
+}
+
+message ValidatePolicyRequest {
+  // Cedar policy text to validate (compile check).
+  string policy_text = 1;
+}
+
+message ValidatePolicyResponse {
+  bool valid = 1;
+  // Compilation errors, if any.
+  repeated string errors = 2;
+}
+
+// ── SoD (Separation of Duties) ────────────────────────────────────
+
+message CheckSodConflictsRequest {
+  // Existing roles assigned to the principal.
+  repeated string existing_roles = 1;
+  // Role being proposed for assignment.
+  string proposed_role = 2;
+}
+
+message CheckSodConflictsResponse {
+  // Whether any conflicts were detected.
+  bool has_conflicts = 1;
+  // Detected conflicts (may be empty).
+  repeated SodConflict conflicts = 2;
+}
+
+message SodConflict {
+  // Rule name (e.g., "payment_segregation").
+  string rule_name = 1;
+  // Human-readable description.
+  string description = 2;
+  // Severity: "warning" (an administrator may override it) or "block" (the
+  // assignment needs an approved exception).
+  string severity = 3;
+  // Roles involved in the conflict.
+  repeated string conflicting_roles = 4;
+}
+
+// ── Policy Simulation ────────────────────────────────────────────────
+
+// Proposed change to apply during simulation (not persisted).
+message PolicyChange {
+  oneof change {
+    // Add a new Cedar policy.
+    CreatePolicyRequest create_policy = 1;
+    // Modify an existing Cedar policy.
+    UpdatePolicyRequest update_policy = 2;
+    // Delete a Cedar policy by ID.
+    string delete_policy_id = 3;
+    // Assign a role to a principal.
+    AssignRoleRequest assign_role = 4;
+    // Revoke a role assignment by ID.
+    string revoke_assignment_id = 5;
+  }
+}
+
+// Request to simulate policy changes and compare current vs proposed state.
+message SimulatePolicyRequest {
+  // Project scope for the simulation.
+  string project_id = 1;
+
+  // Proposed changes to simulate.
+  repeated PolicyChange proposed_changes = 2;
+
+  // Optional: limit simulation to specific subject/action/resource.
+  // If omitted, all principals in the project are checked.
+  optional string subject = 3;
+  optional string action = 4;
+  optional string resource = 5;
+
+  // For large populations, sample up to N random principals.
+  // 0 or omitted = all principals in project.
+  int32 sample_size = 6;
+}
+
+// Impact on a single (subject, action, resource) triple.
+message SimulationImpact {
+  string subject = 1;
+  string action = 2;
+  string resource = 3;
+
+  // Decision under current policy.
+  bool current_allowed = 4;
+  // Decision under proposed policy.
+  bool proposed_allowed = 5;
+
+  // What changed.
+  SimulationImpactType impact_type = 6;
+
+  // Why — which policy/role drove the decision.
+  string current_reason = 7;
+  string proposed_reason = 8;
+}
+
+// Type of access change.
+enum SimulationImpactType {
+  SIMULATION_IMPACT_TYPE_UNSPECIFIED = 0;
+  // Current: deny → Proposed: allow.
+  SIMULATION_IMPACT_TYPE_GAINED = 1;
+  // Current: allow → Proposed: deny.
+  SIMULATION_IMPACT_TYPE_LOST = 2;
+  // No change (both allow or both deny).
+  SIMULATION_IMPACT_TYPE_UNCHANGED = 3;
+}
+
+// Response with simulation results.
+message SimulatePolicyResponse {
+  string project_id = 1;
+
+  // Impacts where access changed (gained or lost).
+  repeated SimulationImpact impacts = 2;
+
+  // Summary counts.
+  int32 total_checked = 3;
+  int32 total_gained = 4;
+  int32 total_lost = 5;
+  int32 total_unchanged = 6;
+
+  // Warnings (e.g., "results sampled from 100 of 5000 principals").
+  repeated string warnings = 7;
+  // Errors in proposed changes (e.g., invalid Cedar syntax).
+  repeated string errors = 8;
+
+  google.protobuf.Timestamp simulated_at = 9;
+}

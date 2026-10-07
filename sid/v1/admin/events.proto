@@ -1,0 +1,270 @@
+// StructuredID Events & Audit Service
+// User events, admin events, audit trail with tamper-evident hash chains.
+// EventService RPCs require admin role. AuditService for compliance.
+syntax = "proto3";
+
+package sid.v1.admin;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+import "google/api/annotations.proto";
+
+// ────────────────────────────────────────────────────────────────────────────
+// EventService — user & admin event log, event configuration
+// ────────────────────────────────────────────────────────────────────────────
+
+service EventService {
+  // ── User Events ──
+
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/events" };
+  }
+
+  rpc GetEvent(GetEventRequest) returns (Event) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/events/{event_id}" };
+  }
+
+  rpc GetUserTimeline(GetUserTimelineRequest) returns (ListEventsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/events/user/{profile_id}" };
+  }
+
+  // ── Admin Events ──
+
+  rpc ListAdminEvents(ListAdminEventsRequest) returns (ListAdminEventsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/events/admin" };
+  }
+
+  rpc GetAdminEvent(GetAdminEventRequest) returns (AdminEvent) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/events/admin/{event_id}" };
+  }
+
+  // ── Event Config ──
+
+  rpc GetEventConfig(google.protobuf.Empty) returns (EventConfig) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/events/config" };
+  }
+
+  rpc UpdateEventConfig(EventConfig) returns (EventConfig) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { put: "/v1/admin/events/config" body: "*" };
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// AuditService — tamper-evident audit trail
+// ────────────────────────────────────────────────────────────────────────────
+
+service AuditService {
+  rpc GetAuditTrail(GetAuditTrailRequest) returns (GetAuditTrailResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/audit" };
+  }
+
+  rpc VerifyChain(VerifyChainRequest) returns (VerifyChainResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/admin/audit/verify" body: "*" };
+  }
+
+  rpc ExportAuditTrail(ExportAuditTrailRequest) returns (ExportAuditTrailResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/admin/audit/export" body: "*" };
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Event types
+// ══════════════════════════════════════════════════════════════════════════
+
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  // Auth events
+  EVENT_TYPE_LOGIN = 1;
+  EVENT_TYPE_LOGIN_ERROR = 2;
+  EVENT_TYPE_LOGOUT = 3;
+  EVENT_TYPE_REGISTER = 4;
+  // Credential events
+  EVENT_TYPE_UPDATE_PASSWORD = 5;
+  EVENT_TYPE_RESET_PASSWORD = 6;
+  EVENT_TYPE_VERIFY_EMAIL = 7;
+  EVENT_TYPE_MFA_ENROLL = 8;
+  EVENT_TYPE_MFA_VERIFY = 9;
+  EVENT_TYPE_MFA_REMOVE = 10;
+  // Session events
+  EVENT_TYPE_TOKEN_ISSUED = 11;
+  EVENT_TYPE_TOKEN_REFRESHED = 12;
+  EVENT_TYPE_TOKEN_REVOKED = 13;
+  // Consent events
+  EVENT_TYPE_CONSENT_GRANTED = 14;
+  EVENT_TYPE_CONSENT_REVOKED = 15;
+  // Account events
+  EVENT_TYPE_UPDATE_PROFILE = 16;
+  EVENT_TYPE_DELETE_ACCOUNT = 17;
+  // Impersonation
+  EVENT_TYPE_IMPERSONATION = 18;
+}
+
+enum AdminEventType {
+  ADMIN_EVENT_TYPE_UNSPECIFIED = 0;
+  ADMIN_EVENT_TYPE_CREATE = 1;
+  ADMIN_EVENT_TYPE_UPDATE = 2;
+  ADMIN_EVENT_TYPE_DELETE = 3;
+  ADMIN_EVENT_TYPE_ACTION = 4;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// User Event messages
+// ══════════════════════════════════════════════════════════════════════════
+
+message Event {
+  string id = 1;
+  EventType type = 2;
+  string profile_id = 3;
+  string client_id = 4;
+  string ip_address = 5;
+  string user_agent = 6;
+  string session_id = 7;
+  google.protobuf.Struct details = 8;
+  string error = 9;
+  google.protobuf.Timestamp timestamp = 10;
+}
+
+message ListEventsRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  // Filters
+  optional EventType type = 3;
+  optional string profile_id = 4;
+  optional string client_id = 5;
+  optional string ip_address = 6;
+  optional google.protobuf.Timestamp from = 7;
+  optional google.protobuf.Timestamp to = 8;
+}
+
+message ListEventsResponse {
+  repeated Event events = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+message GetEventRequest {
+  string event_id = 1;
+}
+
+message GetUserTimelineRequest {
+  string profile_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Admin Event messages
+// ══════════════════════════════════════════════════════════════════════════
+
+message AdminEvent {
+  string id = 1;
+  AdminEventType type = 2;
+  string admin_id = 3;          // Profile ID of admin who performed action
+  string resource_type = 4;     // "profile", "application", "role", "group", etc.
+  string resource_id = 5;
+  string resource_path = 6;     // REST-like path for context
+  google.protobuf.Struct representation = 7;  // Before/after state
+  string ip_address = 8;
+  google.protobuf.Timestamp timestamp = 9;
+}
+
+message ListAdminEventsRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  optional AdminEventType type = 3;
+  optional string admin_id = 4;
+  optional string resource_type = 5;
+  optional google.protobuf.Timestamp from = 6;
+  optional google.protobuf.Timestamp to = 7;
+}
+
+message ListAdminEventsResponse {
+  repeated AdminEvent events = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+message GetAdminEventRequest {
+  string event_id = 1;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Event Config
+// ══════════════════════════════════════════════════════════════════════════
+
+message EventConfig {
+  repeated EventType enabled_event_types = 1;
+  int32 retention_days = 2;
+  bool admin_events_enabled = 3;
+  bool save_representations = 4;   // Store before/after state in admin events
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Audit Trail
+// ══════════════════════════════════════════════════════════════════════════
+
+message AuditEntry {
+  string id = 1;
+  string event_type = 2;
+  string actor_id = 3;
+  string actor_type = 4;          // "admin", "user", "machine_user", "system"
+  string resource_type = 5;
+  string resource_id = 6;
+  google.protobuf.Struct data = 7;
+  string hash = 8;                // SHA-256 hash (includes previous hash = chain)
+  string previous_hash = 9;
+  google.protobuf.Timestamp timestamp = 10;
+}
+
+message GetAuditTrailRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  optional string actor_id = 3;
+  optional string resource_type = 4;
+  optional string resource_id = 5;
+  optional google.protobuf.Timestamp from = 6;
+  optional google.protobuf.Timestamp to = 7;
+}
+
+message GetAuditTrailResponse {
+  repeated AuditEntry entries = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+message VerifyChainRequest {
+  optional google.protobuf.Timestamp from = 1;
+  optional google.protobuf.Timestamp to = 2;
+}
+
+message VerifyChainResponse {
+  bool valid = 1;
+  int32 entries_checked = 2;
+  string first_invalid_entry_id = 3;   // Empty if valid
+  string error = 4;
+}
+
+message ExportAuditTrailRequest {
+  string format = 1;               // "json", "csv"
+  optional string actor_id = 2;
+  optional string resource_type = 3;
+  optional google.protobuf.Timestamp from = 4;
+  optional google.protobuf.Timestamp to = 5;
+}
+
+message ExportAuditTrailResponse {
+  bytes data = 1;
+  string content_type = 2;
+  string filename = 3;
+}

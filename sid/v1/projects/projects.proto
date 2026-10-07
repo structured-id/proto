@@ -1,0 +1,678 @@
+// StructuredID Project Service
+// Manages projects, their applications (OAuth client and protected-resource
+// roles), explicit client-to-resource access, and project-scoped roles.
+syntax = "proto3";
+
+package sid.v1.projects;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "sid/v1/authz/authz.proto";
+import "google/api/annotations.proto";
+
+// Project is a container for related applications that share authorization scope.
+message Project {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string owner_profile_id = 4;
+  bool is_system = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+// A managed application: the registration of one product or integration in a
+// project. It has an OAuth client role (software that obtains tokens), a
+// protected-resource role (an API or application at which access is
+// enforced), or both. The roles are independent: a resource needs no client,
+// secret or callback of its own, and a client obtains tokens only for
+// resources it has explicit access to.
+message Application {
+  // Server-assigned application identifier (UUIDv7). Stable for the
+  // application's lifetime; not a credential and not a token audience.
+  string id = 1;
+  // Project (UUID) whose authorization vocabulary the application uses.
+  string project_id = 2;
+  // Name shown to administrators.
+  string name = 3;
+  // The OAuth client role, when the application has one.
+  optional OAuthClient client = 4;
+  // The protected-resource role, when the application has one.
+  optional ProtectedResource resource = 5;
+  // Stored revision of the application record; moves on with every change
+  // of its name.
+  uint64 revision = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+  // Set when the application is one of the installation's own integrations,
+  // which SID provisions and keeps; unset for an administrator's application.
+  // Its roles and access are shown like any other application's.
+  SystemIntegration system_integration = 9;
+}
+
+// An integration of the installation with itself, provisioned by SID.
+enum SystemIntegration {
+  // An administrator's application.
+  SYSTEM_INTEGRATION_UNSPECIFIED = 0;
+  // SID's own account UI: its confidential web client, the account API it
+  // calls and the client's explicit access to that API.
+  SYSTEM_INTEGRATION_ACCOUNT = 1;
+}
+
+// The OAuth client role of an application: software that obtains tokens.
+message OAuthClient {
+  // OAuth `client_id`, assigned by the server; unique within the installation.
+  string client_id = 1;
+  // Application (UUIDv7) whose client role this is.
+  string application_id = 2;
+  // Project (UUID) of the application.
+  string project_id = 3;
+  // Client name shown to users (RFC 7591 §2 `client_name`).
+  string name = 4;
+  // Kind of client software; decides whether it can hold a secret.
+  ApplicationType type = 5;
+  repeated string redirect_uris = 6;
+  // Scopes this client may request at all; access to a resource further
+  // limits them to what that access grants.
+  repeated string allowed_scopes = 7;
+  repeated string grant_types = 8;
+  bool active = 9;
+  google.protobuf.Timestamp created_at = 10;
+  // How the client authenticates at the token endpoint (RFC 7591 §2).
+  TokenEndpointAuthMethod token_endpoint_auth_method = 11;
+  repeated string response_types = 12;
+  SubjectType subject_type = 13;
+  optional string sector_identifier_uri = 14;
+  repeated string contacts = 15;
+  google.protobuf.Timestamp client_id_issued_at = 16;
+  optional google.protobuf.Timestamp client_secret_expires_at = 17;
+  // Registered through Dynamic Client Registration (RFC 7591).
+  bool dynamically_registered = 18;
+  // Recipient organization of this client (UUIDv7). A pairwise recipient's
+  // subject is the stored BindingId of the (Profile, organization) pair, so
+  // every client of one organization sees the same subject for a user and
+  // redirect domains do not change it. Assigned at registration.
+  optional string org_id = 19;
+  // Exact OIDC issuer identifier this client is registered under, the
+  // canonical URL `https://<host>/i/<handle>`. Part of the connection details
+  // a relying party configures verbatim: it discovers endpoints at
+  // `<issuer>/.well-known/openid-configuration` and keys accounts by
+  // (issuer, sub). Assigned by the server at registration and never changed
+  // by an ordinary update; every client has one.
+  string issuer = 20;
+  // The protected resource (ProtectedResource.id, UUIDv7) a token is issued
+  // for when a token request names none (RFC 8707 §2). Effective only while
+  // the client has access to that resource. Without it, a request naming no
+  // resource is refused with `invalid_target`; no other audience is
+  // substituted.
+  optional string default_resource_id = 21;
+  // Stored revision of the client role.
+  uint64 revision = 22;
+  // The client's registered public signing keys (RFC 7591 §2 `jwks`), the
+  // JSON text of a JWK Set, when it has any. Public material only.
+  optional string jwks = 23;
+  // Where the end-session endpoint may send the browser after logout (OIDC
+  // RP-Initiated Logout 1.0 §3.1): absolute URIs without a fragment, compared
+  // exactly. Empty means the endpoint never redirects for this client.
+  repeated string post_logout_redirect_uris = 24;
+}
+
+// The protected-resource role of an application: an API or application at
+// which access tokens are accepted and access is enforced.
+message ProtectedResource {
+  // Server-assigned resource identifier (UUIDv7), used to manage the resource
+  // and its access. Not the token audience.
+  string id = 1;
+  // Application (UUIDv7) holding this role; absent once the resource is
+  // retired with its application.
+  optional string application_id = 2;
+  // The resource indicator (RFC 8707 §2): an absolute URI without a fragment,
+  // in canonical form, e.g. `https://api.example.com/orders`. It is the `aud`
+  // of every access token issued for this resource and the `resource` value
+  // clients send. An identifier, not a URL SID fetches. Unique within its
+  // issuer for ever: a retired indicator is never given to another resource.
+  string indicator = 3;
+  // Exact OIDC issuer identifier whose tokens this resource accepts, the
+  // canonical URL `https://<host>/i/<handle>`. Fixed at registration.
+  string issuer = 4;
+  // Scopes this resource understands; access to it grants no others.
+  repeated string scopes = 5;
+  ResourceState state = 6;
+  // Stored revision of the resource role.
+  uint64 revision = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+// Lifecycle of a protected resource.
+enum ResourceState {
+  RESOURCE_STATE_UNSPECIFIED = 0;
+  // Tokens are issued for it and accepted by it.
+  RESOURCE_STATE_ACTIVE = 1;
+  // Temporarily not a target; can be activated again.
+  RESOURCE_STATE_INACTIVE = 2;
+  // Its application was removed. The indicator stays reserved; a retired
+  // resource never becomes active again.
+  RESOURCE_STATE_RETIRED = 3;
+}
+
+// Explicit permission for one client to obtain access tokens for one
+// resource, limited to `scopes`. Project membership, a shared issuer or an
+// equal subject grant no access by themselves.
+message ResourceAccess {
+  // Identifier (RFC 6749 §2.2) of the client given access: an OAuth client
+  // of an application, or a machine user requesting tokens for itself.
+  string client_id = 1;
+  // The resource (ProtectedResource.id, UUIDv7) it may obtain tokens for.
+  string resource_id = 2;
+  // Scopes this access grants; always a subset of the resource's scopes.
+  repeated string scopes = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+enum TokenEndpointAuthMethod {
+  TOKEN_ENDPOINT_AUTH_METHOD_UNSPECIFIED = 0;
+  TOKEN_ENDPOINT_AUTH_METHOD_CLIENT_SECRET_POST = 1;
+  TOKEN_ENDPOINT_AUTH_METHOD_CLIENT_SECRET_BASIC = 2;
+  TOKEN_ENDPOINT_AUTH_METHOD_NONE = 3;
+  TOKEN_ENDPOINT_AUTH_METHOD_PRIVATE_KEY_JWT = 4;
+}
+
+enum SubjectType {
+  SUBJECT_TYPE_UNSPECIFIED = 0;
+  SUBJECT_TYPE_PAIRWISE = 1;
+  SUBJECT_TYPE_PUBLIC = 2;
+}
+
+// Initial Access Token constrains DCR registrations.
+message InitialAccessToken {
+  string id = 1;
+  string project_id = 2;
+  uint32 max_clients = 3;
+  uint32 clients_registered = 4;
+  repeated string allowed_scopes = 5;
+  repeated string allowed_grant_types = 6;
+  repeated string allowed_redirect_patterns = 7;
+  google.protobuf.Timestamp expires_at = 8;
+  google.protobuf.Timestamp created_at = 9;
+  string created_by = 10;
+  bool revoked = 11;
+}
+
+// Kind of client software.
+enum ApplicationType {
+  APPLICATION_TYPE_UNSPECIFIED = 0;
+  // Server-side web application; can hold a secret.
+  APPLICATION_TYPE_WEB = 1;
+  // Mobile or desktop application; public client.
+  APPLICATION_TYPE_NATIVE = 2;
+  // Machine client (client credentials); can hold a secret. An API that only
+  // receives requests needs no client role at all.
+  APPLICATION_TYPE_API = 3;
+  // Single-page application; public client.
+  APPLICATION_TYPE_SPA = 4;
+}
+
+// ProjectService manages projects and their resources.
+service ProjectService {
+  // Project CRUD.
+  rpc CreateProject(CreateProjectRequest) returns (Project) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/projects" body: "*" };
+  }
+  rpc GetProject(GetProjectRequest) returns (Project) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/projects/{id}" };
+  }
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/projects" };
+  }
+  rpc UpdateProject(UpdateProjectRequest) returns (Project) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/projects/{id}" body: "*" };
+  }
+  rpc DeleteProject(DeleteProjectRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/projects/{id}" };
+  }
+
+  // Applications within a project. Creating one registers the roles it
+  // starts with in one step.
+  rpc CreateApplication(CreateApplicationRequest) returns (CreateApplicationResponse) {
+    option (google.api.http) = { post: "/v1/projects/{project_id}/applications" body: "*" };
+  }
+  rpc GetApplication(GetApplicationRequest) returns (Application) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/applications/{id}" };
+  }
+  rpc ListApplications(ListApplicationsRequest) returns (ListApplicationsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/projects/{project_id}/applications" };
+  }
+  rpc UpdateApplication(UpdateApplicationRequest) returns (Application) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/applications/{id}" body: "*" };
+  }
+  // Removes the application: its client role and the client's access are
+  // deleted, its resource role is retired and access to it ends.
+  rpc DeleteApplication(DeleteApplicationRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/applications/{id}" };
+  }
+
+  // Client role.
+  rpc AddClientRole(AddClientRoleRequest) returns (CreateApplicationResponse) {
+    option (google.api.http) = { post: "/v1/applications/{application_id}/client" body: "*" };
+  }
+  rpc UpdateClientRole(UpdateClientRoleRequest) returns (Application) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/clients/{client_id}" body: "*" };
+  }
+
+  // Protected-resource role.
+  rpc AddResourceRole(AddResourceRoleRequest) returns (Application) {
+    option (google.api.http) = { post: "/v1/applications/{application_id}/resource" body: "*" };
+  }
+  rpc UpdateResourceRole(UpdateResourceRoleRequest) returns (ProtectedResource) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/resources/{resource_id}" body: "*" };
+  }
+
+  // Client-to-resource access.
+  rpc SetResourceAccess(SetResourceAccessRequest) returns (ResourceAccess) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { put: "/v1/clients/{client_id}/resources/{resource_id}" body: "*" };
+  }
+  rpc RemoveResourceAccess(RemoveResourceAccessRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/clients/{client_id}/resources/{resource_id}" };
+  }
+  rpc ListResourceAccess(ListResourceAccessRequest) returns (ListResourceAccessResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = {
+      get: "/v1/clients/{client_id}/resources"
+      additional_bindings { get: "/v1/resources/{resource_id}/clients" }
+    };
+  }
+
+  // Roles within project (uses Role type from authz.proto).
+  rpc AddRole(AddRoleRequest) returns (sid.v1.authz.Role) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/projects/{project_id}/roles" body: "*" };
+  }
+  rpc RemoveRole(RemoveRoleRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/projects/{project_id}/roles/{role_id}" };
+  }
+  // ListRoles is already defined in AuthzService; reuse authz.proto messages.
+
+  // Dynamic Client Registration (RFC 7591) and client management (RFC 7592)
+  // under one issuer. No HTTP binding here: the RFC form of these RPCs is
+  // OidcProviderService's registration endpoints under the issuer path.
+  // RegisterClient creates a new client on every call; it is not advertised
+  // as safely retryable. A registration creates a client, never a resource or
+  // access to one.
+  rpc RegisterClient(RegisterClientRequest) returns (RegisterClientResponse);
+  rpc GetRegisteredClient(GetRegisteredClientRequest) returns (OAuthClient) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc UpdateRegisteredClient(UpdateRegisteredClientRequest) returns (OAuthClient) {
+    option idempotency_level = IDEMPOTENT;
+  }
+  rpc DeleteRegisteredClient(DeleteRegisteredClientRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+  }
+
+  // Initial Access Token management (admin operations).
+  rpc CreateInitialAccessToken(CreateInitialAccessTokenRequest) returns (CreateInitialAccessTokenResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/projects/{project_id}/iat" body: "*" };
+  }
+  rpc ListInitialAccessTokens(ListInitialAccessTokensRequest) returns (ListInitialAccessTokensResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/projects/{project_id}/iat" };
+  }
+  rpc RevokeInitialAccessToken(RevokeInitialAccessTokenRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/projects/iat/{id}" };
+  }
+}
+
+// ── Project messages ──
+
+message CreateProjectRequest {
+  string name = 1;
+  string description = 2;
+  string owner_profile_id = 3;
+}
+
+message GetProjectRequest {
+  string id = 1;
+}
+
+message ListProjectsRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+message ListProjectsResponse {
+  repeated Project projects = 1;
+  string next_page_token = 2;
+}
+
+message UpdateProjectRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string description = 3;
+}
+
+message DeleteProjectRequest {
+  string id = 1;
+}
+
+// ── Application messages ──
+
+// Settings of a new OAuth client role.
+message ClientRoleSettings {
+  // Kind of client software. Web and API clients get a secret; native and
+  // single-page clients are public and authenticate with PKCE alone.
+  // Unspecified is web.
+  ApplicationType type = 1;
+  repeated string redirect_uris = 2;
+  // Scopes the client may request; empty is `openid profile email`.
+  repeated string allowed_scopes = 3;
+  // Grant types; empty is `authorization_code refresh_token`.
+  repeated string grant_types = 4;
+  // The client's public signing keys, the JSON text of a JWK Set (RFC 7591 §2
+  // `jwks`; see RegisterClientRequest.jwks for the accepted keys). Given, a
+  // web or API client authenticates with `private_key_jwt` (RFC 7523 §2.2)
+  // and gets no secret: its private key never reaches SID. Refused for a
+  // native or single-page client, which is public.
+  optional string jwks = 5;
+  // Post-logout redirect URIs (see OAuthClient.post_logout_redirect_uris),
+  // validated like redirect URIs for the client's type; an invalid one is
+  // INVALID_ARGUMENT, field `post_logout_redirect_uris`.
+  repeated string post_logout_redirect_uris = 6;
+}
+
+// A list of URIs, set as a whole by an update.
+message UriList {
+  // The URIs; empty clears the list.
+  repeated string uris = 1;
+}
+
+// Settings of a new protected-resource role.
+message ResourceRoleSettings {
+  // Resource indicator (RFC 8707 §2): an absolute URI without a fragment in
+  // canonical form. Refused (INVALID_ARGUMENT, field `indicator`) otherwise,
+  // with the canonical spelling in the message when that is the only fault;
+  // ALREADY_EXISTS when the issuer already has, or had, a resource with it.
+  string indicator = 1;
+  // Scopes the resource understands.
+  repeated string scopes = 2;
+}
+
+message CreateApplicationRequest {
+  string project_id = 1;
+  string name = 2;
+  // At least one role is required.
+  optional ClientRoleSettings client = 3;
+  optional ResourceRoleSettings resource = 4;
+  // Recipient organization (UUIDv7). Empty means the installation's
+  // organization; naming any other organization is refused.
+  optional string org_id = 5;
+}
+
+// The application, and the client secret when a client role that holds a
+// secret was created. The secret is returned only here and never stored in
+// plaintext.
+message CreateApplicationResponse {
+  Application application = 1;
+  string client_secret = 2;
+}
+
+message GetApplicationRequest {
+  string id = 1;
+}
+
+message ListApplicationsRequest {
+  string project_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+message ListApplicationsResponse {
+  repeated Application applications = 1;
+  string next_page_token = 2;
+}
+
+message UpdateApplicationRequest {
+  string id = 1;
+  optional string name = 2;
+}
+
+message DeleteApplicationRequest {
+  string id = 1;
+}
+
+message AddClientRoleRequest {
+  // Application (UUIDv7) without a client role yet; ALREADY_EXISTS otherwise.
+  string application_id = 1;
+  ClientRoleSettings settings = 2;
+}
+
+message UpdateClientRoleRequest {
+  string client_id = 1;
+  optional string name = 2;
+  repeated string redirect_uris = 3;
+  repeated string allowed_scopes = 4;
+  repeated string grant_types = 5;
+  optional bool active = 6;
+  // OIDC subject type metadata. Only "public" is accepted: each issuer
+  // advertises `subject_types_supported: ["public"]` and SID's pairwise
+  // privacy comes from the recipient's BindingId, not from this value. Any
+  // other value is INVALID_ARGUMENT (ErrorInfo metadata `oauth_error` =
+  // `invalid_client_metadata`) and nothing is changed. Moving an application's
+  // users to another identifier is an explicit account migration, never an
+  // update.
+  optional string subject_type = 7;
+  // The resource (ProtectedResource.id) tokens are for when a request names
+  // none. The client must already have access to it (INVALID_ARGUMENT,
+  // field `default_resource_id`, otherwise). An empty value removes the
+  // default.
+  optional string default_resource_id = 8;
+  // Replaces the post-logout redirect URIs (see ClientRoleSettings); left out,
+  // they are unchanged.
+  optional UriList post_logout_redirect_uris = 9;
+}
+
+message AddResourceRoleRequest {
+  // Application (UUIDv7) without a resource role yet; ALREADY_EXISTS otherwise.
+  string application_id = 1;
+  ResourceRoleSettings settings = 2;
+}
+
+// A replacement list of scopes, set as a whole.
+message ScopeList {
+  repeated string scopes = 1;
+}
+
+message UpdateResourceRoleRequest {
+  string resource_id = 1;
+  // Replaces the scopes the resource understands. Access already granted
+  // keeps its scopes but grants only those the resource still understands.
+  optional ScopeList scopes = 2;
+  // ACTIVE or INACTIVE. A resource is retired only by removing its
+  // application; RETIRED here, or any change of a retired resource, is
+  // FAILED_PRECONDITION.
+  optional ResourceState state = 3;
+}
+
+message SetResourceAccessRequest {
+  // Identifier of the client to give access: an OAuth client, or a machine
+  // user (served by the installation organization's issuer). Unknown to both
+  // is NOT_FOUND.
+  string client_id = 1;
+  // The resource (ProtectedResource.id, UUIDv7).
+  string resource_id = 2;
+  // Replaces the scopes of this access. Each must be a scope of the resource
+  // (INVALID_ARGUMENT otherwise). The client and the resource must belong to
+  // the same issuer (FAILED_PRECONDITION, ISSUER_MISMATCH), and a retired
+  // resource accepts no access (FAILED_PRECONDITION, RESOURCE_RETIRED).
+  repeated string scopes = 3;
+}
+
+message RemoveResourceAccessRequest {
+  // Identifier of the OAuth client or machine user losing access.
+  string client_id = 1;
+  // The resource (ProtectedResource.id, UUIDv7).
+  string resource_id = 2;
+}
+
+message ListResourceAccessRequest {
+  // Every access of one client, or every access to one resource.
+  oneof subject {
+    string client_id = 1;
+    string resource_id = 2;
+  }
+}
+
+message ListResourceAccessResponse {
+  repeated ResourceAccess access = 1;
+}
+
+// ── Role messages (AddRole/RemoveRole specific to ProjectService) ──
+
+message AddRoleRequest {
+  string project_id = 1;
+  string key = 2;
+  string display_name = 3;
+  optional string description = 4;
+  optional string group = 5;
+  repeated string permissions = 6;
+}
+
+message RemoveRoleRequest {
+  string project_id = 1;
+  string role_id = 2;
+}
+
+// ── Dynamic Client Registration messages (RFC 7591/7592) ──
+
+message RegisterClientRequest {
+  // Bearer initial_access_token in gRPC metadata (authorization header).
+  string client_name = 1;
+  repeated string redirect_uris = 2;
+  repeated string grant_types = 3;
+  repeated string response_types = 4;
+  TokenEndpointAuthMethod token_endpoint_auth_method = 5;
+  ApplicationType application_type = 6;
+  SubjectType subject_type = 7;
+  optional string sector_identifier_uri = 8;
+  repeated string contacts = 9;
+  repeated string scope = 10;
+  // Handle of the OIDC issuer the client registers under, the `<handle>` of
+  // `https://<host>/i/<handle>`. The client belongs to the organization this
+  // issuer serves, and its registration access token manages it only under
+  // this issuer. An unknown handle is NOT_FOUND (OIDC_ISSUER_NOT_FOUND).
+  string issuer_handle = 11;
+  // The client's public signing keys (RFC 7591 §2 `jwks`), the JSON text of a
+  // JWK Set (RFC 7517 §5): Ed25519, P-256/P-384 or RSA (at least 2048 bits)
+  // public keys, each with a distinct `kid`, no private members. Required for
+  // `private_key_jwt`, whose token endpoint assertions they verify.
+  optional string jwks = 12;
+  // Post-logout redirect URIs (OIDC RP-Initiated Logout 1.0 §3.1), validated
+  // like `redirect_uris` and against the initial access token's redirect
+  // patterns; refused as `invalid_client_metadata`.
+  repeated string post_logout_redirect_uris = 13;
+}
+
+message RegisterClientResponse {
+  // The registered client, the client role of a new application.
+  OAuthClient client = 1;
+  // Plaintext secret, returned only on registration. Never stored.
+  optional string client_secret = 2;
+  // Registration Access Token for future management (RFC 7592).
+  string registration_access_token = 3;
+}
+
+// RFC 7592: client reads own registration. RAT in authorization header.
+message GetRegisteredClientRequest {
+  string client_id = 1;
+  // Handle of the issuer the client is registered under. A client of another
+  // issuer, or none, is refused exactly like an invalid registration access
+  // token (RFC 7592 §2.1).
+  string issuer_handle = 2;
+}
+
+// RFC 7592: client updates own registration. RAT in authorization header.
+// The request is the client's whole metadata and replaces its registration
+// (RFC 7592 §2.2): a field left out is removed, an absent authentication
+// method is `client_secret_basic` (RFC 7591 §2), and the result is validated
+// as a registration; a refused update changes nothing.
+message UpdateRegisteredClientRequest {
+  string client_id = 1;
+  optional string client_name = 2;
+  repeated string redirect_uris = 3;
+  repeated string grant_types = 4;
+  repeated string response_types = 5;
+  optional TokenEndpointAuthMethod token_endpoint_auth_method = 6;
+  optional SubjectType subject_type = 7;
+  optional string sector_identifier_uri = 8;
+  repeated string contacts = 9;
+  repeated string scope = 10;
+  // Handle of the issuer the client is registered under (see
+  // GetRegisteredClientRequest).
+  string issuer_handle = 11;
+  // The client's current secret, when the client sends it back with its
+  // metadata. It must equal the issued secret (RFC 7592 §2.2); it never sets
+  // a new one.
+  optional string client_secret = 12;
+  // The client's public signing keys (see RegisterClientRequest.jwks); left
+  // out, the client registers none. A rotation sends the next key beside the
+  // current one, then the next key alone.
+  optional string jwks = 13;
+  // Post-logout redirect URIs (see RegisterClientRequest); left out, the
+  // client registers none.
+  repeated string post_logout_redirect_uris = 14;
+}
+
+// RFC 7592: client deletes own registration. RAT in authorization header.
+message DeleteRegisteredClientRequest {
+  string client_id = 1;
+  // Handle of the issuer the client is registered under (see
+  // GetRegisteredClientRequest).
+  string issuer_handle = 2;
+}
+
+// ── Initial Access Token messages ──
+
+message CreateInitialAccessTokenRequest {
+  string project_id = 1;
+  uint32 max_clients = 2;
+  repeated string allowed_scopes = 3;
+  repeated string allowed_grant_types = 4;
+  repeated string allowed_redirect_patterns = 5;
+  // Token lifetime in seconds.
+  int64 expires_in_seconds = 6;
+}
+
+// Returns the plaintext token, only on creation.
+message CreateInitialAccessTokenResponse {
+  InitialAccessToken token = 1;
+  // Plaintext bearer token: never stored, never returned again.
+  string token_value = 2;
+}
+
+message ListInitialAccessTokensRequest {
+  string project_id = 1;
+}
+
+message ListInitialAccessTokensResponse {
+  repeated InitialAccessToken tokens = 1;
+}
+
+message RevokeInitialAccessTokenRequest {
+  string id = 1;
+}

@@ -1,0 +1,459 @@
+// StructuredID Auth Flow Configuration Service
+// Authentication flow management: flow CRUD, step catalog, action hooks.
+// All RPCs require admin role.
+syntax = "proto3";
+
+package sid.v1.authn;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+// ────────────────────────────────────────────────────────────────────────────
+// FlowService — auth flow CRUD, step bindings, blueprint import/export
+// ────────────────────────────────────────────────────────────────────────────
+
+service FlowService {
+  // ── Flow CRUD ──
+
+  rpc ListFlows(google.protobuf.Empty) returns (ListFlowsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/flows" };
+  }
+
+  rpc GetFlow(GetFlowRequest) returns (Flow) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/flows/{flow_id}" };
+  }
+
+  rpc CreateFlow(CreateFlowRequest) returns (Flow) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/admin/flows" body: "*" };
+  }
+
+  rpc UpdateFlow(UpdateFlowRequest) returns (Flow) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/admin/flows/{flow_id}" body: "*" };
+  }
+
+  rpc DeleteFlow(DeleteFlowRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/admin/flows/{flow_id}" };
+  }
+
+  rpc DuplicateFlow(DuplicateFlowRequest) returns (Flow) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/admin/flows/{flow_id}/duplicate" body: "*" };
+  }
+
+  rpc BindFlow(BindFlowRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/admin/flows/{flow_id}/bind" body: "*" };
+  }
+
+  // ── Blueprint Import/Export ──
+
+  rpc ExportBlueprint(ExportBlueprintRequest) returns (BlueprintResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/flows/{flow_id}/blueprint" };
+  }
+
+  rpc ImportBlueprint(ImportBlueprintRequest) returns (Flow) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/admin/flows/import" body: "*" };
+  }
+
+  // ── Step Bindings ──
+
+  rpc ListStepBindings(ListStepBindingsRequest) returns (ListStepBindingsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/flows/{flow_id}/steps" };
+  }
+
+  rpc AddStepBinding(AddStepBindingRequest) returns (StepBinding) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/admin/flows/{flow_id}/steps" body: "*" };
+  }
+
+  rpc UpdateStepBinding(UpdateStepBindingRequest) returns (StepBinding) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/admin/flows/{flow_id}/steps/{binding_id}" body: "*" };
+  }
+
+  rpc RemoveStepBinding(RemoveStepBindingRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/admin/flows/{flow_id}/steps/{binding_id}" };
+  }
+
+  rpc ReorderStepBindings(ReorderStepBindingsRequest) returns (ListStepBindingsResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/admin/flows/{flow_id}/steps/reorder" body: "*" };
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// StepService — step type catalog and global step config
+// ────────────────────────────────────────────────────────────────────────────
+
+service StepService {
+  rpc ListStepTypes(google.protobuf.Empty) returns (ListStepTypesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/steps" };
+  }
+
+  rpc GetStepConfig(GetStepConfigRequest) returns (StepConfig) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/steps/{step_type}/config" };
+  }
+
+  rpc UpdateStepConfig(UpdateStepConfigRequest) returns (StepConfig) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/admin/steps/{step_type}/config" body: "*" };
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// ActionService — webhook/action hooks at flow points
+// ────────────────────────────────────────────────────────────────────────────
+
+service ActionService {
+  rpc ListActions(google.protobuf.Empty) returns (ListActionsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/actions" };
+  }
+
+  rpc GetAction(GetActionRequest) returns (Action) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/actions/{action_id}" };
+  }
+
+  rpc CreateAction(CreateActionRequest) returns (Action) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/admin/actions" body: "*" };
+  }
+
+  rpc UpdateAction(UpdateActionRequest) returns (Action) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/admin/actions/{action_id}" body: "*" };
+  }
+
+  rpc DeleteAction(DeleteActionRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/admin/actions/{action_id}" };
+  }
+
+  rpc TestAction(TestActionRequest) returns (TestActionResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/admin/actions/{action_id}/test" body: "*" };
+  }
+
+  rpc ListBuiltinActions(google.protobuf.Empty) returns (ListBuiltinActionsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/actions/builtin" };
+  }
+
+  rpc ConfigureBuiltinAction(ConfigureBuiltinActionRequest) returns (BuiltinAction) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/admin/actions/builtin/{action_type}" body: "*" };
+  }
+
+  rpc ListEventTypes(google.protobuf.Empty) returns (ListEventTypesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/actions/event-types" };
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Flow types
+// ══════════════════════════════════════════════════════════════════════════
+
+enum FlowPurpose {
+  FLOW_PURPOSE_UNSPECIFIED = 0;
+  FLOW_PURPOSE_LOGIN = 1;
+  FLOW_PURPOSE_REGISTRATION = 2;
+  FLOW_PURPOSE_RESET_CREDENTIALS = 3;
+  FLOW_PURPOSE_FIRST_BROKER_LOGIN = 4;
+  FLOW_PURPOSE_POST_BROKER_LOGIN = 5;
+  FLOW_PURPOSE_DOCKER_AUTH = 6;
+}
+
+enum StepRequirement {
+  STEP_REQUIREMENT_UNSPECIFIED = 0;
+  STEP_REQUIREMENT_REQUIRED = 1;
+  STEP_REQUIREMENT_ALTERNATIVE = 2;
+  STEP_REQUIREMENT_OPTIONAL = 3;
+  STEP_REQUIREMENT_CONDITIONAL = 4;
+  STEP_REQUIREMENT_DISABLED = 5;
+}
+
+enum ActionHookPoint {
+  ACTION_HOOK_POINT_UNSPECIFIED = 0;
+  ACTION_HOOK_POINT_PRE_AUTHENTICATION = 1;
+  ACTION_HOOK_POINT_POST_AUTHENTICATION = 2;
+  ACTION_HOOK_POINT_POST_MFA = 3;
+  ACTION_HOOK_POINT_PRE_TOKEN_CREATION = 4;
+  ACTION_HOOK_POINT_POST_LOGIN = 5;
+  ACTION_HOOK_POINT_POST_REGISTRATION = 6;
+  ACTION_HOOK_POINT_PRE_CONSENT = 7;
+}
+
+enum ActionType {
+  ACTION_TYPE_UNSPECIFIED = 0;
+  ACTION_TYPE_WEBHOOK = 1;
+  ACTION_TYPE_LOG = 2;
+  ACTION_TYPE_ASSIGN_ROLE = 3;
+  ACTION_TYPE_ADD_CLAIM = 4;
+  ACTION_TYPE_SEND_EMAIL = 5;
+  ACTION_TYPE_DENY = 6;
+  ACTION_TYPE_REDIRECT = 7;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Flow messages
+// ══════════════════════════════════════════════════════════════════════════
+
+message Flow {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  FlowPurpose purpose = 4;
+  bool built_in = 5;          // True = system default, cannot delete
+  bool bound = 6;             // True = currently active for its purpose
+  int32 step_count = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message ListFlowsResponse {
+  repeated Flow flows = 1;
+}
+
+message GetFlowRequest {
+  string flow_id = 1;
+}
+
+message CreateFlowRequest {
+  string name = 1;
+  string description = 2;
+  FlowPurpose purpose = 3;
+}
+
+message UpdateFlowRequest {
+  string flow_id = 1;
+  optional string name = 2;
+  optional string description = 3;
+}
+
+message DeleteFlowRequest {
+  string flow_id = 1;
+}
+
+message DuplicateFlowRequest {
+  string flow_id = 1;
+  string new_name = 2;
+}
+
+message BindFlowRequest {
+  string flow_id = 1;
+  FlowPurpose purpose = 2;
+}
+
+// ── Blueprint ──
+
+message ExportBlueprintRequest {
+  string flow_id = 1;
+}
+
+message BlueprintResponse {
+  string yaml = 1;
+}
+
+message ImportBlueprintRequest {
+  string yaml = 1;
+  string name = 2;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Step Binding messages
+// ══════════════════════════════════════════════════════════════════════════
+
+message StepBinding {
+  string id = 1;
+  string flow_id = 2;
+  string step_type = 3;       // Reference to step type
+  string display_name = 4;
+  StepRequirement requirement = 5;
+  int32 order = 6;
+  google.protobuf.Struct config = 7;   // Step-specific configuration
+}
+
+message ListStepBindingsRequest {
+  string flow_id = 1;
+}
+
+message ListStepBindingsResponse {
+  repeated StepBinding bindings = 1;
+}
+
+message AddStepBindingRequest {
+  string flow_id = 1;
+  string step_type = 2;
+  string display_name = 3;
+  StepRequirement requirement = 4;
+  int32 order = 5;
+  google.protobuf.Struct config = 6;
+}
+
+message UpdateStepBindingRequest {
+  string flow_id = 1;
+  string binding_id = 2;
+  optional string display_name = 3;
+  optional StepRequirement requirement = 4;
+  optional int32 order = 5;
+  google.protobuf.Struct config = 6;
+}
+
+message RemoveStepBindingRequest {
+  string flow_id = 1;
+  string binding_id = 2;
+}
+
+message ReorderStepBindingsRequest {
+  string flow_id = 1;
+  repeated string binding_ids = 2;  // Ordered list of IDs
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Step Type messages
+// ══════════════════════════════════════════════════════════════════════════
+
+message StepType {
+  string type = 1;             // "username-password", "otp", "webauthn", etc.
+  string display_name = 2;
+  string description = 3;
+  string category = 4;         // "authenticator", "identity", "verification"
+  reserved 5;
+  bool configurable = 6;
+}
+
+message ListStepTypesResponse {
+  repeated StepType types = 1;
+}
+
+message StepConfig {
+  string step_type = 1;
+  google.protobuf.Struct config = 2;
+}
+
+message GetStepConfigRequest {
+  string step_type = 1;
+}
+
+message UpdateStepConfigRequest {
+  string step_type = 1;
+  google.protobuf.Struct config = 2;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Action messages
+// ══════════════════════════════════════════════════════════════════════════
+
+message Action {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  ActionType type = 4;
+  ActionHookPoint hook_point = 5;
+  bool enabled = 6;
+  int32 priority = 7;
+  // Type-specific config
+  string webhook_url = 8;          // For WEBHOOK type
+  string webhook_secret = 9;       // Write-only
+  int32 webhook_timeout_ms = 10;
+  repeated string event_filters = 11;  // Filter which events trigger action
+  google.protobuf.Struct config = 12;  // Additional type-specific config
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
+}
+
+message ListActionsResponse {
+  repeated Action actions = 1;
+}
+
+message GetActionRequest {
+  string action_id = 1;
+}
+
+message CreateActionRequest {
+  string name = 1;
+  string description = 2;
+  ActionType type = 3;
+  ActionHookPoint hook_point = 4;
+  bool enabled = 5;
+  int32 priority = 6;
+  string webhook_url = 7;
+  string webhook_secret = 8;
+  int32 webhook_timeout_ms = 9;
+  repeated string event_filters = 10;
+  google.protobuf.Struct config = 11;
+}
+
+message UpdateActionRequest {
+  string action_id = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional bool enabled = 4;
+  optional int32 priority = 5;
+  optional string webhook_url = 6;
+  optional string webhook_secret = 7;
+  optional int32 webhook_timeout_ms = 8;
+  repeated string event_filters = 9;
+  google.protobuf.Struct config = 10;
+}
+
+message DeleteActionRequest {
+  string action_id = 1;
+}
+
+message TestActionRequest {
+  string action_id = 1;
+}
+
+message TestActionResponse {
+  bool success = 1;
+  int32 status_code = 2;
+  string response_body = 3;
+  int32 latency_ms = 4;
+  string error = 5;
+}
+
+// ── Built-in Actions ──
+
+message BuiltinAction {
+  string action_type = 1;     // "log_event", "notify_admin", etc.
+  string display_name = 2;
+  string description = 3;
+  bool enabled = 4;
+  google.protobuf.Struct config = 5;
+}
+
+message ListBuiltinActionsResponse {
+  repeated BuiltinAction actions = 1;
+}
+
+message ConfigureBuiltinActionRequest {
+  string action_type = 1;
+  bool enabled = 2;
+  google.protobuf.Struct config = 3;
+}
+
+message ListEventTypesResponse {
+  repeated ActionEventType event_types = 1;
+}
+
+message ActionEventType {
+  string type = 1;             // "login.success", "login.failure", etc.
+  string display_name = 2;
+  string category = 3;        // "authentication", "account", "admin"
+}

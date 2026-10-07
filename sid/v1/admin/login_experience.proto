@@ -1,0 +1,143 @@
+// StructuredID Login Experience Service
+// Screen catalog, text overrides, headless API reference.
+syntax = "proto3";
+
+package sid.v1.admin;
+
+import "google/protobuf/empty.proto";
+import "google/api/annotations.proto";
+
+// ══════════════════════════════════════════════════════════════════════════
+// Login Experience — screen catalog, text overrides, headless API docs
+// ══════════════════════════════════════════════════════════════════════════
+
+service LoginExperienceService {
+  // ── Screen Catalog ──
+
+  // List all login screens with current text overrides.
+  rpc ListScreens(google.protobuf.Empty) returns (ListScreensResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/login-experience/screens" };
+  }
+
+  // Get a single screen with its text keys and overrides.
+  rpc GetScreen(GetScreenRequest) returns (LoginScreen) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/login-experience/screens/{screen_id}" };
+  }
+
+  // Preview a screen with current branding (returns HTML).
+  rpc PreviewScreen(PreviewScreenRequest) returns (PreviewScreenResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/login-experience/screens/{screen_id}/preview" };
+  }
+
+  // ── Text Overrides ──
+
+  // Update text overrides for a screen in a specific locale.
+  rpc UpdateTextOverrides(UpdateTextOverridesRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = { put: "/v1/admin/login-experience/screens/{screen_id}/text/{locale}" body: "*" };
+  }
+
+  // ── Headless API Reference ──
+
+  // Get headless API documentation (rendered markdown/HTML).
+  rpc GetHeadlessApiDocs(google.protobuf.Empty) returns (HeadlessApiDocsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/login-experience/headless/docs" };
+  }
+
+  // Start an interactive test flow (for "Try it" API explorer).
+  rpc StartTestFlow(StartTestFlowRequest) returns (TestFlowResponse) {
+    option (google.api.http) = { post: "/v1/admin/login-experience/headless/test" body: "*" };
+  }
+
+  // Submit a step in the interactive test flow.
+  rpc SubmitTestFlowStep(SubmitTestFlowStepRequest) returns (TestFlowResponse) {
+    option (google.api.http) = { post: "/v1/admin/login-experience/headless/test/{flow_id}/step" body: "*" };
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Messages
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── Screen Catalog ──
+
+message LoginScreen {
+  string screen_id = 1;           // e.g., "login", "register", "mfa-totp"
+  string title = 2;               // Human-readable title
+  string description = 3;         // What this screen does
+  repeated TextKey text_keys = 4; // Available text keys for override
+}
+
+message TextKey {
+  string key = 1;                 // e.g., "login.title", "login.submit_button"
+  string default_value = 2;       // Default text
+  optional string override = 3;   // Current override (if set)
+}
+
+message ListScreensResponse {
+  repeated LoginScreen screens = 1;
+}
+
+message GetScreenRequest {
+  string screen_id = 1;
+}
+
+message PreviewScreenRequest {
+  string screen_id = 1;
+  optional string locale = 2;    // Preview in specific locale
+}
+
+message PreviewScreenResponse {
+  string html = 1;               // Rendered preview HTML
+}
+
+message UpdateTextOverridesRequest {
+  string screen_id = 1;
+  string locale = 2;
+  map<string, string> overrides = 3; // key → override text
+}
+
+// ── Headless API Docs ──
+
+message HeadlessApiDocsResponse {
+  string content = 1;            // Rendered documentation (HTML)
+  repeated CodeExample examples = 2;
+  repeated SdkDownload sdks = 3;
+}
+
+message CodeExample {
+  string language = 1;           // "typescript", "rust", "go", "python"
+  string title = 2;
+  string code = 3;
+}
+
+message SdkDownload {
+  string name = 1;               // "@structured-id/client"
+  string language = 2;
+  string install_command = 3;    // "npm install @structured-id/client"
+  string docs_url = 4;
+}
+
+// ── Test Flow ──
+
+message StartTestFlowRequest {
+  string client_id = 1;          // OAuth2 client to test with
+}
+
+message SubmitTestFlowStepRequest {
+  string flow_id = 1;
+  string step_type = 2;          // "identification", "credential", "mfa", etc.
+  map<string, string> data = 3;  // Step-specific data
+}
+
+message TestFlowResponse {
+  string flow_id = 1;
+  string current_step = 2;       // Current step in the flow
+  repeated string available_steps = 3; // What steps can be submitted next
+  bool complete = 4;
+  optional string redirect_uri = 5; // Set when flow completes
+  string raw_response = 6;       // JSON of the gRPC response (for developer inspection)
+}

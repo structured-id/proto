@@ -1,0 +1,240 @@
+// StructuredID Auth Flow Service
+// Runtime configuration for hardcoded auth flows (step enable/disable, timeouts)
+// and actions (webhook hooks at pipeline points). Admin role required.
+syntax = "proto3";
+
+package sid.v1.admin;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+import "google/api/annotations.proto";
+
+// FlowConfigService manages per-project, per-flow-type step configuration.
+// Flow structure is hardcoded — only step enable/disable and params are configurable.
+service FlowConfigService {
+  // Get flow config for a specific project and flow type.
+  rpc GetFlowConfig(GetFlowConfigRequest) returns (FlowConfig) {
+    option (google.api.http) = {
+      get: "/v1/projects/{project_id}/flows/{flow_type}"
+    };
+  }
+
+  // Save (create or update) flow config.
+  rpc SaveFlowConfig(SaveFlowConfigRequest) returns (FlowConfig) {
+    option (google.api.http) = {
+      put: "/v1/projects/{project_id}/flows/{flow_type}"
+      body: "*"
+    };
+  }
+
+  // List all flow configs for a project.
+  rpc ListFlowConfigs(ListFlowConfigsRequest) returns (ListFlowConfigsResponse) {
+    option (google.api.http) = {
+      get: "/v1/projects/{project_id}/flows"
+    };
+  }
+}
+
+// FlowActionService manages webhook hooks attached to auth flow pipeline points.
+service FlowActionService {
+  // Create a new action.
+  rpc CreateFlowAction(CreateFlowActionRequest) returns (FlowAction) {
+    option (google.api.http) = {
+      post: "/v1/projects/{project_id}/flows/{flow_type}/actions"
+      body: "*"
+    };
+  }
+
+  // Get an action by ID.
+  rpc GetFlowAction(GetFlowActionRequest) returns (FlowAction) {
+    option (google.api.http) = {
+      get: "/v1/projects/{project_id}/flows/{flow_type}/actions/{action_id}"
+    };
+  }
+
+  // List actions for a project + flow type, optionally filtered by action point.
+  rpc ListFlowActions(ListFlowActionsRequest) returns (ListFlowActionsResponse) {
+    option (google.api.http) = {
+      get: "/v1/projects/{project_id}/flows/{flow_type}/actions"
+    };
+  }
+
+  // Update an existing action.
+  rpc UpdateFlowAction(UpdateFlowActionRequest) returns (FlowAction) {
+    option (google.api.http) = {
+      patch: "/v1/projects/{project_id}/flows/{flow_type}/actions/{action_id}"
+      body: "*"
+    };
+  }
+
+  // Delete an action.
+  rpc DeleteFlowAction(DeleteFlowActionRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/v1/projects/{project_id}/flows/{flow_type}/actions/{action_id}"
+    };
+  }
+}
+
+// ── Enums ──
+
+enum FlowType {
+  FLOW_TYPE_UNSPECIFIED = 0;
+  FLOW_TYPE_AUTHENTICATION = 1;
+  FLOW_TYPE_REGISTRATION = 2;
+  FLOW_TYPE_RECOVERY = 3;
+  FLOW_TYPE_DEVICE_GRANT = 4;
+  FLOW_TYPE_DIRECT_GRANT = 5;
+  FLOW_TYPE_ENROLLMENT = 6;
+}
+
+enum ActionPoint {
+  ACTION_POINT_UNSPECIFIED = 0;
+  ACTION_POINT_PRE_AUTHENTICATION = 1;
+  ACTION_POINT_POST_AUTHENTICATION = 2;
+  ACTION_POINT_POST_MFA = 3;
+  ACTION_POINT_PRE_TOKEN_CREATION = 4;
+  ACTION_POINT_POST_LOGIN = 5;
+  ACTION_POINT_POST_REGISTRATION = 6;
+  ACTION_POINT_PRE_CONSENT = 7;
+}
+
+enum ActionType {
+  ACTION_TYPE_UNSPECIFIED = 0;
+  // HTTP POST to external URL.
+  ACTION_TYPE_WEBHOOK = 1;
+}
+
+enum ActionOnError {
+  ACTION_ON_ERROR_UNSPECIFIED = 0;
+  // Skip the failed action and continue the flow.
+  ACTION_ON_ERROR_CONTINUE = 1;
+  // Deny the entire auth flow.
+  ACTION_ON_ERROR_DENY = 2;
+}
+
+// ── Messages ──
+
+message StepConfig {
+  // Step type identifier (e.g., "identification", "password", "mfa").
+  string step_type = 1;
+  // Whether this step is enabled.
+  bool enabled = 2;
+  // Step-specific parameters.
+  google.protobuf.Struct params = 3;
+}
+
+message FlowConfig {
+  string project_id = 1;
+  FlowType flow_type = 2;
+  // Per-step configurations.
+  repeated StepConfig steps = 3;
+  // Flow-level timeout in seconds (default: 300).
+  uint32 timeout_seconds = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+message WebhookConfig {
+  // Target URL (must start with http:// or https://).
+  string url = 1;
+  // Request timeout in seconds (1-30, default: 5).
+  uint32 timeout_seconds = 2;
+  // Retry count on failure (0-3, default: 0).
+  uint32 retry_count = 3;
+  // Additional HTTP headers.
+  map<string, string> headers = 4;
+}
+
+message FlowAction {
+  string action_id = 1;
+  string project_id = 2;
+  FlowType flow_type = 3;
+  ActionPoint action_point = 4;
+  // Human-readable name.
+  string name = 5;
+  ActionType action_type = 6;
+  // Type-specific configuration.
+  oneof config {
+    WebhookConfig webhook = 7;
+  }
+  // Execution order within hook point (lower = first).
+  int32 order = 8;
+  ActionOnError on_error = 9;
+  bool enabled = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+// ── Requests/Responses ──
+
+message GetFlowConfigRequest {
+  string project_id = 1;
+  string flow_type = 2;
+}
+
+message SaveFlowConfigRequest {
+  string project_id = 1;
+  string flow_type = 2;
+  repeated StepConfig steps = 3;
+  uint32 timeout_seconds = 4;
+}
+
+message ListFlowConfigsRequest {
+  string project_id = 1;
+}
+
+message ListFlowConfigsResponse {
+  repeated FlowConfig configs = 1;
+}
+
+message CreateFlowActionRequest {
+  string project_id = 1;
+  string flow_type = 2;
+  ActionPoint action_point = 3;
+  string name = 4;
+  ActionType action_type = 5;
+  oneof config {
+    WebhookConfig webhook = 6;
+  }
+  int32 order = 7;
+  ActionOnError on_error = 8;
+  bool enabled = 9;
+}
+
+message GetFlowActionRequest {
+  string project_id = 1;
+  string flow_type = 2;
+  string action_id = 3;
+}
+
+message ListFlowActionsRequest {
+  string project_id = 1;
+  string flow_type = 2;
+  // Optional filter by action point.
+  ActionPoint action_point = 3;
+}
+
+message ListFlowActionsResponse {
+  repeated FlowAction actions = 1;
+}
+
+message UpdateFlowActionRequest {
+  string project_id = 1;
+  string flow_type = 2;
+  string action_id = 3;
+  // Fields to update (all optional — only set fields are applied).
+  optional string name = 4;
+  optional ActionPoint action_point = 5;
+  oneof config {
+    WebhookConfig webhook = 6;
+  }
+  optional int32 order = 7;
+  optional ActionOnError on_error = 8;
+  optional bool enabled = 9;
+}
+
+message DeleteFlowActionRequest {
+  string project_id = 1;
+  string flow_type = 2;
+  string action_id = 3;
+}

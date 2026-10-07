@@ -1,0 +1,268 @@
+// StructuredID Provisioning Service
+// The provisioning connectors of this installation's organization and their
+// credentials. A connector is one directory source sending SCIM to the
+// organization (inbound) or one target it provisions (outbound), acting as
+// its own non-human actor. What a connector may do is granted through the
+// common role assignments (sid.v1.authz.AuthzService/AssignRole) on the SCIM
+// directory resource; this service grants nothing.
+// Administrator role required for all RPCs.
+syntax = "proto3";
+
+package sid.v1.admin;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "sid/v1/ids/ids.proto";
+
+// ProvisioningService manages provisioning connectors and their credentials.
+service ProvisioningService {
+  // ── Connectors ──
+
+  // Every connector of the organization, retired ones included, newest first.
+  rpc ListProvisioningConnectors(ListProvisioningConnectorsRequest) returns (ListProvisioningConnectorsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/provisioning/connectors" };
+  }
+
+  // Register an inbound connector: a directory source that will send SCIM to
+  // this organization. It starts active, with no credential and no grant.
+  // Keyed: a retry with the same idempotency key returns the connector the
+  // first attempt created.
+  rpc CreateInboundConnector(CreateInboundConnectorRequest) returns (ProvisioningConnector) {
+    option (google.api.http) = { post: "/v1/admin/provisioning/connectors" body: "*" };
+  }
+
+  rpc GetProvisioningConnector(GetProvisioningConnectorRequest) returns (ProvisioningConnector) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/admin/provisioning/connectors:get" body: "*" };
+  }
+
+  // Rename a connector still at `revision`; its identity and credentials stay.
+  // A changed connector is ABORTED (CONCURRENT_MODIFICATION), a retired one
+  // FAILED_PRECONDITION.
+  rpc RenameProvisioningConnector(RenameProvisioningConnectorRequest) returns (ProvisioningConnector) {
+    option (google.api.http) = { post: "/v1/admin/provisioning/connectors:rename" body: "*" };
+  }
+
+  // Disable, enable again, or retire a connector. Disabling stops every
+  // request of it at once, its credentials kept; it deactivates no user.
+  // Retiring is final and revokes its credentials. A step that is no
+  // lifecycle transition is FAILED_PRECONDITION; moving to the state it
+  // already has returns it unchanged.
+  rpc ChangeProvisioningConnectorState(ChangeProvisioningConnectorStateRequest) returns (ProvisioningConnector) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/admin/provisioning/connectors:state" body: "*" };
+  }
+
+  // What an inbound connector's SCIM client is configured with.
+  rpc GetScimInboundConfig(GetScimInboundConfigRequest) returns (ScimInboundConfig) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/admin/provisioning/connectors:scim-config" body: "*" };
+  }
+
+  // ── Credentials of an inbound connector ──
+
+  // A connector's credentials, revoked ones included: metadata only.
+  rpc ListConnectorCredentials(ListConnectorCredentialsRequest) returns (ListConnectorCredentialsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/admin/provisioning/credentials:list" body: "*" };
+  }
+
+  // Issue a credential of an active inbound connector; the secret is in the
+  // response only. A connector holds at most two usable credentials
+  // (RESOURCE_EXHAUSTED beyond). Keyed: a retry with the same idempotency
+  // key returns the credential the first attempt created, without its
+  // secret; a lost secret is replaced through RotateConnectorCredential.
+  rpc CreateConnectorCredential(CreateConnectorCredentialRequest) returns (IssuedConnectorCredential) {
+    option (google.api.http) = { post: "/v1/admin/provisioning/credentials" body: "*" };
+  }
+
+  // Replace an active credential: a new one is issued (its secret in the
+  // response only) and the old one keeps working for the rotation grace
+  // period, so the client can switch without an outage. Keyed like
+  // CreateConnectorCredential.
+  rpc RotateConnectorCredential(RotateConnectorCredentialRequest) returns (IssuedConnectorCredential) {
+    option (google.api.http) = { post: "/v1/admin/provisioning/credentials:rotate" body: "*" };
+  }
+
+  // Revoke a credential at once, with no grace. Revoking one already
+  // revoked is a no-op.
+  rpc RevokeConnectorCredential(RevokeConnectorCredentialRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/admin/provisioning/credentials:revoke" body: "*" };
+  }
+}
+
+// Which way a connector's SCIM requests go, fixed at its creation.
+enum ProvisioningDirection {
+  PROVISIONING_DIRECTION_UNSPECIFIED = 0;
+  // An external directory sends SCIM to this organization.
+  PROVISIONING_DIRECTION_INBOUND = 1;
+  // This organization sends SCIM to an external target.
+  PROVISIONING_DIRECTION_OUTBOUND = 2;
+}
+
+// Where a connector is in its lifecycle.
+enum ProvisioningConnectorState {
+  PROVISIONING_CONNECTOR_STATE_UNSPECIFIED = 0;
+  // Its requests are served (within its grants).
+  PROVISIONING_CONNECTOR_STATE_ACTIVE = 1;
+  // Every request is refused; credentials and grants are kept.
+  PROVISIONING_CONNECTOR_STATE_DISABLED = 2;
+  // Final: credentials revoked, kept for audit and correlation only.
+  PROVISIONING_CONNECTOR_STATE_RETIRED = 3;
+}
+
+// A provisioning connector as the organization's administrators see it.
+message ProvisioningConnector {
+  // Stable identity; renames and credential rotations keep it.
+  sid.v1.ids.ProvisioningConnectorId id = 1;
+  ProvisioningDirection direction = 2;
+  // Administrator-chosen label.
+  string display_name = 3;
+  ProvisioningConnectorState state = 4;
+  // Moved on by every change of the connector, its state or its grants. A
+  // rename names the revision it was based on.
+  int64 revision = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+message ListProvisioningConnectorsRequest {}
+
+message ListProvisioningConnectorsResponse {
+  repeated ProvisioningConnector connectors = 1;
+}
+
+message CreateInboundConnectorRequest {
+  // Administrator-chosen label, non-empty.
+  string display_name = 1;
+}
+
+message GetProvisioningConnectorRequest {
+  sid.v1.ids.ProvisioningConnectorId connector_id = 1;
+}
+
+message RenameProvisioningConnectorRequest {
+  sid.v1.ids.ProvisioningConnectorId connector_id = 1;
+  // The revision the rename is based on (ProvisioningConnector.revision).
+  int64 revision = 2;
+  // The new label, non-empty.
+  string display_name = 3;
+}
+
+message ChangeProvisioningConnectorStateRequest {
+  sid.v1.ids.ProvisioningConnectorId connector_id = 1;
+  // The state to move to: ACTIVE (enable), DISABLED or RETIRED.
+  ProvisioningConnectorState state = 2;
+}
+
+// How a SCIM client authenticates as an inbound connector.
+enum ScimAuthenticationMethod {
+  SCIM_AUTHENTICATION_METHOD_UNSPECIFIED = 0;
+  // A dedicated bearer secret of this connector (RFC 6750 header syntax),
+  // issued through CreateConnectorCredential with kind SCIM_BEARER.
+  SCIM_AUTHENTICATION_METHOD_STATIC_BEARER = 1;
+  // An access token for the SCIM directory resource, obtained at the token
+  // endpoint with the connector's client_id and a client secret issued with
+  // kind CLIENT_SECRET (OAuth 2.0 client credentials, RFC 6749 §4.4;
+  // client_secret_basic or client_secret_post).
+  SCIM_AUTHENTICATION_METHOD_OAUTH_CLIENT_CREDENTIALS = 2;
+}
+
+// What a connector credential authenticates, fixed at its issue. Neither is
+// accepted where the other is expected.
+enum ConnectorCredentialKind {
+  CONNECTOR_CREDENTIAL_KIND_UNSPECIFIED = 0;
+  // Presented as the bearer of a SCIM request.
+  CONNECTOR_CREDENTIAL_KIND_SCIM_BEARER = 1;
+  // Presented as the OAuth client secret at the token endpoint; never a
+  // bearer itself.
+  CONNECTOR_CREDENTIAL_KIND_CLIENT_SECRET = 2;
+}
+
+message GetScimInboundConfigRequest {
+  sid.v1.ids.ProvisioningConnectorId connector_id = 1;
+}
+
+// What an inbound connector's SCIM client is configured with. Holds no
+// secret.
+message ScimInboundConfig {
+  ProvisioningConnector connector = 1;
+  // The SCIM 2.0 base URL this installation serves (RFC 7644 §3.13).
+  string base_url = 2;
+  // The protected resource indicator of the SCIM directory: the resource the
+  // connector's roles are assigned on.
+  string resource_indicator = 3;
+  // Methods this installation accepts for the connector.
+  repeated ScimAuthenticationMethod authentication_methods = 4;
+  // The connector's OAuth client_id at the token endpoint (OAuth client
+  // credentials). Not its ID: tokens name the connector in `sub`.
+  string client_id = 5;
+  // The token endpoint of the issuer whose tokens the SCIM resource accepts.
+  string token_endpoint = 6;
+  // That issuer's identifier, the `iss` of its tokens.
+  string issuer = 7;
+}
+
+// Where a connector credential is in its lifecycle.
+enum ConnectorCredentialStatus {
+  CONNECTOR_CREDENTIAL_STATUS_UNSPECIFIED = 0;
+  // Authenticates the connector.
+  CONNECTOR_CREDENTIAL_STATUS_ACTIVE = 1;
+  // Rotated out; authenticates until expires_at.
+  CONNECTOR_CREDENTIAL_STATUS_GRACE_PERIOD = 2;
+  // Past its end; no longer authenticates.
+  CONNECTOR_CREDENTIAL_STATUS_EXPIRED = 3;
+  // Revoked; no longer authenticates.
+  CONNECTOR_CREDENTIAL_STATUS_REVOKED = 4;
+}
+
+// A connector credential's metadata. Never its secret.
+message ConnectorCredential {
+  sid.v1.ids.ProvisioningCredentialId id = 1;
+  ConnectorCredentialStatus status = 2;
+  ConnectorCredentialKind kind = 5;
+  // When it stops working, when it does: its own expiry or the end of its
+  // rotation grace.
+  google.protobuf.Timestamp expires_at = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+// A newly issued credential and its secret.
+message IssuedConnectorCredential {
+  ConnectorCredential credential = 1;
+  // The bearer secret, in this response only: SID keeps only its verifier.
+  // Empty when the response answers a retried request whose first attempt
+  // already issued it; replace it through RotateConnectorCredential.
+  string secret = 2;
+}
+
+message ListConnectorCredentialsRequest {
+  sid.v1.ids.ProvisioningConnectorId connector_id = 1;
+}
+
+message ListConnectorCredentialsResponse {
+  repeated ConnectorCredential credentials = 1;
+}
+
+message CreateConnectorCredentialRequest {
+  sid.v1.ids.ProvisioningConnectorId connector_id = 1;
+  // When the credential stops working; absent for no expiry. Must be in the
+  // future.
+  google.protobuf.Timestamp expires_at = 2;
+  // What it authenticates; required. A rotation keeps the kind it replaces.
+  ConnectorCredentialKind kind = 3;
+}
+
+message RotateConnectorCredentialRequest {
+  sid.v1.ids.ProvisioningConnectorId connector_id = 1;
+  // The active credential being replaced.
+  sid.v1.ids.ProvisioningCredentialId credential_id = 2;
+}
+
+message RevokeConnectorCredentialRequest {
+  sid.v1.ids.ProvisioningConnectorId connector_id = 1;
+  sid.v1.ids.ProvisioningCredentialId credential_id = 2;
+}

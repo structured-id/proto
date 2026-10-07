@@ -1,0 +1,295 @@
+// StructuredID Machine User Service
+// Manages non-human identities (service accounts, bots, agents).
+// Machine users authenticate via OAuth2 client credentials grant
+// and support credential rotation, impersonation, and lifecycle management.
+syntax = "proto3";
+
+package sid.v1.machine;
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+// MachineUserService manages non-human identities (service accounts).
+service MachineUserService {
+  // CRUD
+  rpc CreateMachineUser(CreateMachineUserRequest) returns (CreateMachineUserResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/machine-users" body: "*" };
+  }
+  rpc GetMachineUser(GetMachineUserRequest) returns (MachineUserResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/machine-users/{machine_user_id}" };
+  }
+  rpc UpdateMachineUser(UpdateMachineUserRequest) returns (MachineUserResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/machine-users/{machine_user_id}" body: "*" };
+  }
+  rpc DeleteMachineUser(DeleteMachineUserRequest) returns (DeleteMachineUserResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/machine-users/{machine_user_id}" };
+  }
+  rpc ListMachineUsers(ListMachineUsersRequest) returns (ListMachineUsersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/projects/{project_id}/machine-users" };
+  }
+  rpc SuspendMachineUser(SuspendMachineUserRequest) returns (MachineUserResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/machine-users/{machine_user_id}/suspend" body: "*" };
+  }
+  rpc ReactivateMachineUser(ReactivateMachineUserRequest) returns (MachineUserResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/machine-users/{machine_user_id}/reactivate" body: "*" };
+  }
+
+  // Credentials
+  rpc AddMachineCredential(AddMachineCredentialRequest) returns (AddMachineCredentialResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/machine-users/{machine_user_id}/credentials" body: "*" };
+  }
+  rpc RevokeMachineCredential(RevokeMachineCredentialRequest) returns (RevokeMachineCredentialResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/machine-users/{machine_user_id}/credentials/{kid}" };
+  }
+  rpc ListMachineCredentials(ListMachineCredentialsRequest) returns (ListMachineCredentialsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/machine-users/{machine_user_id}/credentials" };
+  }
+  rpc RotateMachineCredential(RotateMachineCredentialRequest) returns (RotateMachineCredentialResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/machine-users/{machine_user_id}/credentials/{kid}/rotate" body: "*" };
+  }
+
+  // Impersonation
+  rpc GrantImpersonation(GrantImpersonationRequest) returns (GrantImpersonationResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/machine-users/{machine_user_id}/impersonation" body: "*" };
+  }
+  rpc RevokeImpersonation(RevokeImpersonationRequest) returns (RevokeImpersonationResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/machine-users/{machine_user_id}/impersonation/{target_type}/{target}" };
+  }
+  rpc ListImpersonationGrants(ListImpersonationGrantsRequest) returns (ListImpersonationGrantsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/machine-users/{machine_user_id}/impersonation" };
+  }
+}
+
+// Enums
+enum MachineUserType {
+  MACHINE_USER_TYPE_UNSPECIFIED = 0;
+  MACHINE_USER_TYPE_SERVICE = 1;
+  MACHINE_USER_TYPE_BOT = 2;
+  MACHINE_USER_TYPE_AGENT = 3;
+}
+
+enum MachineUserStatus {
+  MACHINE_USER_STATUS_UNSPECIFIED = 0;
+  MACHINE_USER_STATUS_ACTIVE = 1;
+  MACHINE_USER_STATUS_SUSPENDED = 2;
+  MACHINE_USER_STATUS_EXPIRED = 3;
+  MACHINE_USER_STATUS_DELETED = 4;
+}
+
+enum MachineCredentialType {
+  MACHINE_CREDENTIAL_TYPE_UNSPECIFIED = 0;
+  MACHINE_CREDENTIAL_TYPE_CLIENT_SECRET = 1;
+  MACHINE_CREDENTIAL_TYPE_PRIVATE_KEY_JWT = 2;
+  MACHINE_CREDENTIAL_TYPE_MTLS = 3;
+  MACHINE_CREDENTIAL_TYPE_WORKLOAD_IDENTITY = 4;
+}
+
+enum MachineCredentialStatus {
+  MACHINE_CREDENTIAL_STATUS_UNSPECIFIED = 0;
+  MACHINE_CREDENTIAL_STATUS_ACTIVE = 1;
+  MACHINE_CREDENTIAL_STATUS_GRACE_PERIOD = 2;
+  MACHINE_CREDENTIAL_STATUS_EXPIRED = 3;
+  MACHINE_CREDENTIAL_STATUS_REVOKED = 4;
+}
+
+enum ImpersonationTargetType {
+  IMPERSONATION_TARGET_TYPE_UNSPECIFIED = 0;
+  IMPERSONATION_TARGET_TYPE_ROLE = 1;
+  IMPERSONATION_TARGET_TYPE_USER = 2;
+}
+
+// Messages
+message MachineUserInfo {
+  string id = 1;
+  string project_id = 2;
+  string client_id = 3;
+  string display_name = 4;
+  string description = 5;
+  MachineUserType machine_type = 6;
+  MachineUserStatus status = 7;
+  string owner_type = 8;
+  string owner_id = 9;
+  repeated string scopes = 10;
+  // Roles are RoleAssignments of the machine user principal (AuthzService),
+  // never a list stored on the machine user.
+  reserved 11;
+  reserved "roles";
+  repeated string ip_allowlist = 12;
+  int32 rate_limit_rpm = 13;
+  int32 max_token_lifetime = 14;
+  google.protobuf.Timestamp expires_at = 15;
+  google.protobuf.Timestamp last_used_at = 16;
+  google.protobuf.Timestamp created_at = 17;
+  google.protobuf.Timestamp updated_at = 18;
+}
+
+message MachineCredentialInfo {
+  string kid = 1;
+  MachineCredentialType credential_type = 2;
+  MachineCredentialStatus status = 3;
+  string algorithm = 4;
+  google.protobuf.Timestamp expires_at = 5;
+  google.protobuf.Timestamp created_at = 6;
+  // NOTE: credential_data is NEVER returned for client_secret type
+}
+
+message ImpersonationGrantInfo {
+  string id = 1;
+  string machine_user_id = 2;
+  ImpersonationTargetType target_type = 3;
+  string target = 4;
+  repeated string allowed_scopes = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+// -- CRUD messages --
+
+message CreateMachineUserRequest {
+  string project_id = 1;
+  string display_name = 2;
+  string description = 3;
+  MachineUserType machine_type = 4;
+  repeated string scopes = 5;
+  // Roles are granted through AuthzService.AssignRole.
+  reserved 6;
+  reserved "roles";
+  repeated string ip_allowlist = 7;
+  int32 rate_limit_rpm = 8;
+  int32 max_token_lifetime = 9;
+  google.protobuf.Timestamp expires_at = 10;
+}
+
+message CreateMachineUserResponse {
+  MachineUserInfo machine_user = 1;
+}
+
+message GetMachineUserRequest {
+  string machine_user_id = 1;
+}
+
+message MachineUserResponse {
+  MachineUserInfo machine_user = 1;
+}
+
+message UpdateMachineUserRequest {
+  string machine_user_id = 1;
+  string display_name = 2;
+  string description = 3;
+  repeated string scopes = 4;
+  // Roles are granted through AuthzService.AssignRole.
+  reserved 5;
+  reserved "roles";
+  repeated string ip_allowlist = 6;
+  int32 rate_limit_rpm = 7;
+  int32 max_token_lifetime = 8;
+  google.protobuf.Timestamp expires_at = 9;
+}
+
+message DeleteMachineUserRequest {
+  string machine_user_id = 1;
+}
+
+message DeleteMachineUserResponse {}
+
+message ListMachineUsersRequest {
+  string project_id = 1;
+}
+
+message ListMachineUsersResponse {
+  repeated MachineUserInfo machine_users = 1;
+}
+
+message SuspendMachineUserRequest {
+  string machine_user_id = 1;
+}
+
+message ReactivateMachineUserRequest {
+  string machine_user_id = 1;
+}
+
+// -- Credential messages --
+
+message AddMachineCredentialRequest {
+  string machine_user_id = 1;
+  MachineCredentialType credential_type = 2;
+  string algorithm = 3;           // For private_key_jwt: "RS256", "ES256"
+  string public_key_pem = 4;     // For private_key_jwt: PEM-encoded public key
+  google.protobuf.Timestamp expires_at = 5;
+}
+
+message AddMachineCredentialResponse {
+  MachineCredentialInfo credential = 1;
+  string client_secret = 2;      // Plaintext — shown ONCE for client_secret type. Empty for others.
+}
+
+message RevokeMachineCredentialRequest {
+  string machine_user_id = 1;
+  string kid = 2;
+}
+
+message RevokeMachineCredentialResponse {}
+
+message ListMachineCredentialsRequest {
+  string machine_user_id = 1;
+}
+
+message ListMachineCredentialsResponse {
+  repeated MachineCredentialInfo credentials = 1;
+}
+
+message RotateMachineCredentialRequest {
+  string machine_user_id = 1;
+  string kid = 2;                // Old credential kid to rotate
+  string algorithm = 3;          // For new private_key_jwt
+  string public_key_pem = 4;    // For new private_key_jwt
+  google.protobuf.Timestamp expires_at = 5;
+}
+
+message RotateMachineCredentialResponse {
+  MachineCredentialInfo old_credential = 1;  // Set to grace_period
+  MachineCredentialInfo new_credential = 2;
+  string client_secret = 3;           // If client_secret type
+}
+
+// -- Impersonation messages --
+
+message GrantImpersonationRequest {
+  string machine_user_id = 1;
+  ImpersonationTargetType target_type = 2;
+  string target = 3;
+  repeated string allowed_scopes = 4;
+}
+
+message GrantImpersonationResponse {
+  ImpersonationGrantInfo grant = 1;
+}
+
+message RevokeImpersonationRequest {
+  string machine_user_id = 1;
+  string target_type = 2;
+  string target = 3;
+}
+
+message RevokeImpersonationResponse {}
+
+message ListImpersonationGrantsRequest {
+  string machine_user_id = 1;
+}
+
+message ListImpersonationGrantsResponse {
+  repeated ImpersonationGrantInfo grants = 1;
+}

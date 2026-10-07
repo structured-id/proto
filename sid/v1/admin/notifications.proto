@@ -1,0 +1,181 @@
+// StructuredID Notification Template Service
+// Template management for email, SMS, and push notifications.
+// Admin role required for all RPCs.
+syntax = "proto3";
+
+package sid.v1.admin;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+// NotificationTemplateService manages notification templates across channels.
+service NotificationTemplateService {
+  // List all available notification templates.
+  rpc ListTemplates(ListTemplatesRequest) returns (ListTemplatesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/notification-templates" };
+  }
+
+  // Get a specific template (with content for given channel and locale).
+  rpc GetTemplate(GetTemplateRequest) returns (NotificationTemplate) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/notification-templates/{template_id}" };
+  }
+
+  // Update template content for a specific channel and locale.
+  rpc UpdateTemplate(UpdateTemplateRequest) returns (NotificationTemplate) {
+    option (google.api.http) = { patch: "/v1/admin/notification-templates/{template_id}" body: "*" };
+  }
+
+  // Reset template to default from sid-i18n (per channel + locale).
+  rpc ResetTemplate(ResetTemplateRequest) returns (NotificationTemplate) {
+    option (google.api.http) = { post: "/v1/admin/notification-templates/{template_id}/reset" body: "*" };
+  }
+
+  // Render a preview with sample data.
+  rpc PreviewTemplate(PreviewTemplateRequest) returns (PreviewTemplateResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/admin/notification-templates/{template_id}/preview" body: "*" };
+  }
+
+  // Render the template with its example values and deliver it once through
+  // its channel. Succeeds when the channel accepted the message. A channel
+  // that is not enabled is FEATURE_NOT_CONFIGURED; a channel that did not
+  // accept it is DEPENDENCY_UNAVAILABLE with a RetryInfo delay.
+  rpc SendTestNotification(SendTestNotificationRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = { post: "/v1/admin/notification-templates/{template_id}/test" body: "*" };
+  }
+}
+
+// ── Enums ──
+
+enum NotificationChannel {
+  NOTIFICATION_CHANNEL_UNSPECIFIED = 0;
+  NOTIFICATION_CHANNEL_EMAIL = 1;
+  NOTIFICATION_CHANNEL_SMS = 2;
+  NOTIFICATION_CHANNEL_PUSH = 3;
+}
+
+// ── Messages ──
+
+// Summary entry in the template catalog.
+message TemplateSummary {
+  string template_id = 1;
+  string name = 2;
+  string description = 3;
+  // Which channels this template supports.
+  repeated NotificationChannel channels = 4;
+  // Event that triggers this notification.
+  string trigger = 5;
+  // Whether the template has been customized (non-default).
+  bool customized = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+// Full template with content for a specific channel + locale.
+message NotificationTemplate {
+  string template_id = 1;
+  string name = 2;
+  string description = 3;
+  repeated NotificationChannel channels = 4;
+  string trigger = 5;
+  bool customized = 6;
+  google.protobuf.Timestamp updated_at = 7;
+
+  // Content for the requested channel + locale.
+  TemplateContent content = 8;
+
+  // Available locales for this template.
+  repeated string available_locales = 9;
+
+  // Variables available for this template type.
+  repeated TemplateVariable variables = 10;
+}
+
+// Content varies by channel type.
+message TemplateContent {
+  NotificationChannel channel = 1;
+  string locale = 2;
+
+  // Email fields.
+  string subject = 3;
+  string html_body = 4;
+  string text_body = 5;
+
+  // SMS fields.
+  string sms_body = 6;
+
+  // Push fields.
+  string push_title = 7;
+  string push_body = 8;
+  string push_action_url = 9;
+}
+
+// Variable description for the template editor UI.
+message TemplateVariable {
+  string name = 1;
+  string description = 2;
+  // Example value for preview.
+  string example = 3;
+}
+
+// ── Requests / Responses ──
+
+message ListTemplatesRequest {
+  // Filter by channel.
+  NotificationChannel channel = 1;
+  // Filter: only customized templates.
+  bool customized_only = 2;
+}
+
+message ListTemplatesResponse {
+  repeated TemplateSummary templates = 1;
+}
+
+message GetTemplateRequest {
+  string template_id = 1;
+  NotificationChannel channel = 2;
+  string locale = 3;
+}
+
+message UpdateTemplateRequest {
+  string template_id = 1;
+  TemplateContent content = 2;
+}
+
+message ResetTemplateRequest {
+  string template_id = 1;
+  NotificationChannel channel = 2;
+  string locale = 3;
+}
+
+message PreviewTemplateRequest {
+  string template_id = 1;
+  NotificationChannel channel = 2;
+  string locale = 3;
+  // Optional variable overrides (JSON key-value).
+  map<string, string> sample_data = 4;
+}
+
+message PreviewTemplateResponse {
+  // Rendered subject (email only).
+  string rendered_subject = 1;
+  // Rendered body (HTML for email, plain text for SMS/push).
+  string rendered_body = 2;
+  // Plain text body (email fallback).
+  string rendered_text = 3;
+}
+
+message SendTestNotificationRequest {
+  // Template to send, as listed by ListTemplates.
+  string template_id = 1;
+  // Channel to send through; unspecified means email.
+  NotificationChannel channel = 2;
+  // Locale of the content; empty means "en".
+  string locale = 3;
+  // Address for the channel: an email address, or a phone number in E.164.
+  // Empty sends to the requesting administrator's own address on that
+  // channel, resolved by the server; without one the request is refused.
+  string recipient = 4;
+}

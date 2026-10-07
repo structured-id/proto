@@ -1,0 +1,48 @@
+// StructuredID Organization / Site Service: the site summary of a
+// single-instance deployment (one site = one organization).
+// Admin access required.
+syntax = "proto3";
+
+package sid.v1.admin;
+
+import "google/api/annotations.proto";
+
+service SiteService {
+  // Get site summary info.
+  rpc GetSiteInfo(GetSiteInfoRequest) returns (SiteInfo) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/site" };
+  }
+
+  // Update site name.
+  rpc UpdateSiteName(UpdateSiteNameRequest) returns (SiteInfo) {
+    option (google.api.http) = { patch: "/v1/admin/site/name" body: "*" };
+  }
+}
+
+// ── Messages ──
+
+message GetSiteInfoRequest {}
+
+message SiteInfo {
+  string site_name = 1;
+  string version = 2;
+  reserved 3;
+  string primary_domain = 4;
+  string admin_contact = 5;
+  // Quick stats.
+  SiteStats stats = 6;
+  // Name of the server build serving the site (InstanceInfo.edition).
+  string edition = 7;
+}
+
+message SiteStats {
+  uint64 total_users = 1;
+  uint64 active_sessions = 2;
+  uint64 applications_count = 3;
+  uint64 external_users = 4;
+}
+
+message UpdateSiteNameRequest {
+  string site_name = 1;
+}

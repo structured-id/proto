@@ -1,0 +1,828 @@
+// StructuredID Identity Service
+// Manages profiles, credentials, and user identity lifecycle.
+syntax = "proto3";
+
+package sid.v1.identity;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+// Profile represents a user identity in StructuredID: the Profile is the
+// user (there is no separate User entity).
+message Profile {
+  // Unique identifier (UUIDv7).
+  string id = 1;
+
+  // Profile type (personal or corporate).
+  ProfileType profile_type = 2;
+
+  // Username (local login handle).
+  optional string username = 3;
+
+  // Primary email (denormalized from Principal for fast lookup + OIDC claims).
+  optional string email = 4;
+  bool email_verified = 5;
+
+  // Primary phone in E.164 format (denormalized from Principal for OIDC phone_number claim).
+  optional string phone = 19;
+  bool phone_verified = 20;
+
+  // Structured name (OIDC Core 1.0 §5.1 + SCIM RFC 7643 §4.1.1).
+  // OIDC `name` claim = computed from components, not stored.
+  optional string given_name = 6;       // Given name(s) / first name(s)
+  optional string family_name = 14;     // Family name(s) / surname(s) — optional (mononyms)
+  optional string middle_name = 15;     // Middle name(s), patronymic, generational qualifier
+  optional string honorific_prefix = 16; // "Dr.", "Prof.", "Sheikh"
+  optional string honorific_suffix = 17; // "Jr.", "III", "PhD"
+  optional string formatted_name = 18;  // Computed: [prefix] given [middle] family [suffix] (read-only)
+
+  // Avatar URL.
+  optional string avatar_url = 7;
+
+  // Account status (active / suspended / closed).
+  ProfileStatus status = 8;
+
+  // Profile visibility (public / private).
+  ProfileVisibility visibility = 9;
+
+  // Timestamps.
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+
+  // Last login.
+  optional google.protobuf.Timestamp last_login_at = 12;
+
+  // Principals (login handles: email, phone, username, etc.).
+  repeated Principal principals = 13;
+}
+
+// Principal represents a verifiable login handle (always authentication-capable)
+// claimed by the Profile that lists it. If a value cannot be used for login,
+// it's a Profile Field, not a Principal.
+message Principal {
+  reserved 9, 10;
+  reserved "subject_type", "subject_id";
+
+  // Unique principal identifier (UUIDv7).
+  string id = 1;
+  // Principal type: email, phone, username, face_embedding, nfc_tag.
+  PrincipalType type = 2;
+  // The handle as sign-in resolves it, derived by the server: for an email
+  // the resolution key (case, local-part dots and +tag folded), never a
+  // delivery address; mail goes to the linked contact (source_email_id).
+  // E.164 for a phone, the lowercase name for a username.
+  string value = 3;
+  // Whether this principal has been verified (email link clicked, SMS code entered).
+  bool verified = 4;
+  // Whether this is the primary principal for its type (at most one per type per profile).
+  bool is_primary = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+  // Links Principal to the ProfilePhone/ProfileEmail it was created from.
+  optional string source_field = 8;
+  // The ProfileEmail (UUID) whose address this email handle delivers to,
+  // in the spelling given; absent for other types and for a handle whose
+  // address is not known.
+  optional string source_email_id = 11;
+  // An email handle written before the installation's email policy
+  // revisions, its address unknown: still reserved for the account, but no
+  // sign-in, code, link or reset uses it until the owner confirms the
+  // address or an administrator asserts it. Always false for other types.
+  bool needs_address_confirmation = 12;
+}
+
+enum PrincipalType {
+  PRINCIPAL_TYPE_UNSPECIFIED = 0;
+  PRINCIPAL_TYPE_EMAIL = 1;
+  PRINCIPAL_TYPE_PHONE = 2;
+  PRINCIPAL_TYPE_USERNAME = 3;        // Global ("alice") or federated ("alice#acme.corp")
+  PRINCIPAL_TYPE_FACE_EMBEDDING = 4;
+  PRINCIPAL_TYPE_NFC_TAG = 5;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Multi-valued contacts — ProfilePhone / ProfileEmail
+// ══════════════════════════════════════════════════════════════════════════
+
+// ProfilePhone represents a phone number associated with a profile.
+// E.164 format stored as uint64 (max 15 digits, no + prefix).
+message ProfilePhone {
+  string id = 1;                              // UUID
+  uint64 e164 = 2;                            // E.164 digits only (no +), max 15 digits
+  optional uint32 extension = 3;              // RFC 3966 ;ext=N
+  PhoneLabel label = 4;
+  optional string custom_label = 5;           // User-defined label when label=CUSTOM
+  bool is_primary = 6;                        // At most one per profile
+  bool can_receive_sms = 7;                   // Default: true
+  bool can_receive_fax = 8;                   // Default: false
+  bool can_receive_voice = 9;                 // Default: true
+  bool verified = 10;
+  optional google.protobuf.Timestamp verified_at = 11;
+}
+
+enum PhoneLabel {
+  PHONE_LABEL_UNSPECIFIED = 0;
+  PHONE_LABEL_MOBILE = 1;
+  PHONE_LABEL_HOME = 2;
+  PHONE_LABEL_WORK = 3;
+  PHONE_LABEL_FAX = 4;
+  PHONE_LABEL_PAGER = 5;
+  PHONE_LABEL_MAIN = 6;
+  PHONE_LABEL_OTHER = 7;
+  PHONE_LABEL_CUSTOM = 8;
+}
+
+// ProfileEmail represents an email address associated with a profile.
+// Normalized: lowercase + NFC Unicode normalization.
+message ProfileEmail {
+  string id = 1;                              // UUID
+  string email = 2;                           // Normalized email address
+  EmailLabel label = 3;
+  optional string custom_label = 4;           // User-defined label when label=CUSTOM
+  bool is_primary = 5;                        // At most one per profile
+  bool verified = 6;
+  optional google.protobuf.Timestamp verified_at = 7;
+}
+
+enum EmailLabel {
+  EMAIL_LABEL_UNSPECIFIED = 0;
+  EMAIL_LABEL_PERSONAL = 1;
+  EMAIL_LABEL_WORK = 2;
+  EMAIL_LABEL_SCHOOL = 3;
+  EMAIL_LABEL_OTHER = 4;
+  EMAIL_LABEL_CUSTOM = 5;
+}
+
+enum ProfileType {
+  PROFILE_TYPE_UNSPECIFIED = 0;
+  PROFILE_TYPE_PERSONAL = 1;
+  PROFILE_TYPE_CORPORATE = 2;
+}
+
+enum ProfileStatus {
+  PROFILE_STATUS_UNSPECIFIED = 0;
+  PROFILE_STATUS_ACTIVE = 1;
+  PROFILE_STATUS_PROVISIONED = 9;   // SCIM-provisioned, not yet claimed by its user
+  PROFILE_STATUS_SUSPENDED = 2;
+  PROFILE_STATUS_CLOSURE_REQUESTED = 3;
+  PROFILE_STATUS_EXPORT_AVAILABLE = 4;
+  PROFILE_STATUS_GRACE_PERIOD = 5;
+  PROFILE_STATUS_LEGAL_HOLD = 6;
+  PROFILE_STATUS_CLOSED = 7;
+  PROFILE_STATUS_PURGED = 8;
+}
+
+enum ProfileVisibility {
+  PROFILE_VISIBILITY_UNSPECIFIED = 0;
+  PROFILE_VISIBILITY_PUBLIC = 1;
+  PROFILE_VISIBILITY_PRIVATE = 2;
+}
+
+// Credential represents an authentication factor.
+message Credential {
+  string id = 1;
+  string profile_id = 2;
+
+  CredentialType type = 3;
+
+  // Credential-specific data (opaque blob, type-dependent).
+  // Not returned in ListCredentials responses — server-internal only.
+  bytes data = 4;
+
+  // Metadata.
+  optional string label = 5;  // User-provided label (e.g., "iPhone 15 Pro")
+  google.protobuf.Timestamp created_at = 6;
+  optional google.protobuf.Timestamp last_used_at = 7;
+
+  // Type-specific display metadata (populated by server from data blob).
+  // Safe to expose to clients — contains no cryptographic material.
+  oneof info {
+    WebAuthnCredentialInfo webauthn_info = 8;
+  }
+}
+
+// Display-safe metadata for WebAuthn/passkey credentials.
+// Extracted from the stored Passkey blob for management UI.
+message WebAuthnCredentialInfo {
+  // Transport hints reported by authenticator.
+  repeated AuthenticatorTransport transports = 1;
+
+  // Whether this credential can be backed up to cloud (iCloud Keychain, Google PM).
+  bool backup_eligible = 2;
+
+  // Whether this credential IS currently backed up.
+  bool backup_state = 3;
+
+  // Authenticator attachment: platform (Touch ID, Windows Hello) or cross-platform (USB key).
+  AuthenticatorAttachment attachment = 4;
+
+  // Attestation format (e.g., "none", "packed", "fido-u2f", "tpm").
+  // Stored; verified only by a server that verifies attestation, when its
+  // attestation policy requires it.
+  string attestation_format = 5;
+
+  // Whether user verification was performed during registration.
+  bool user_verified = 6;
+}
+
+enum AuthenticatorTransport {
+  AUTHENTICATOR_TRANSPORT_UNSPECIFIED = 0;
+  AUTHENTICATOR_TRANSPORT_USB = 1;         // External USB security key
+  AUTHENTICATOR_TRANSPORT_NFC = 2;         // NFC (YubiKey, Android)
+  AUTHENTICATOR_TRANSPORT_BLE = 3;         // Bluetooth Low Energy
+  AUTHENTICATOR_TRANSPORT_INTERNAL = 4;    // Platform authenticator (Touch ID, Face ID, Windows Hello)
+  AUTHENTICATOR_TRANSPORT_HYBRID = 5;      // Phone-as-second-device (caBLE / hybrid)
+}
+
+enum AuthenticatorAttachment {
+  AUTHENTICATOR_ATTACHMENT_UNSPECIFIED = 0;
+  AUTHENTICATOR_ATTACHMENT_PLATFORM = 1;       // Built into device (Touch ID, Windows Hello)
+  AUTHENTICATOR_ATTACHMENT_CROSS_PLATFORM = 2; // External (USB key, NFC key)
+}
+
+enum CredentialType {
+  CREDENTIAL_TYPE_UNSPECIFIED = 0;
+  CREDENTIAL_TYPE_OPAQUE = 1;      // OPAQUE password (RFC 9807)
+  CREDENTIAL_TYPE_WEBAUTHN = 2;    // Passkey / security key
+  CREDENTIAL_TYPE_TOTP = 3;        // TOTP MFA
+  CREDENTIAL_TYPE_RECOVERY = 4;    // Recovery codes
+  CREDENTIAL_TYPE_LEGACY_HASH = 5; // Legacy password hash (temporary, during migration)
+}
+
+// Session represents an active user session.
+message Session {
+  string id = 1;
+  string profile_id = 2;
+
+  // Client info.
+  string client_id = 3;
+  // Device the session was issued on (`Device.id`, UUIDv7); unset when the
+  // session is not associated with a registered device. A revocation
+  // association (removing the device ends the session), not proof of key
+  // possession.
+  optional string device_id = 4;
+
+  // Session metadata.
+  string ip_address = 5;
+  optional string user_agent = 6;
+
+  // Lifecycle.
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp expires_at = 8;
+  optional google.protobuf.Timestamp last_activity_at = 9;
+
+  // Scopes granted.
+  repeated string scopes = 10;
+}
+
+// IdentityService manages profile lifecycle.
+service IdentityService {
+  // Profile management.
+  rpc CreateProfile(CreateProfileRequest) returns (CreateProfileResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/identity/profiles" body: "*" };
+  }
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/identity/profiles/{id}" };
+  }
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/identity/profiles/{id}" body: "*" };
+  }
+  rpc DeleteProfile(DeleteProfileRequest) returns (DeleteProfileResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/identity/profiles/{id}" };
+  }
+  rpc ListProfiles(ListProfilesRequest) returns (ListProfilesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/identity/profiles" };
+  }
+
+  // Credential management.
+  rpc AddCredential(AddCredentialRequest) returns (AddCredentialResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/identity/profiles/{profile_id}/credentials" body: "*" };
+  }
+  rpc ListCredentials(ListCredentialsRequest) returns (ListCredentialsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/identity/profiles/{profile_id}/credentials" };
+  }
+  rpc UpdateCredential(UpdateCredentialRequest) returns (UpdateCredentialResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/identity/credentials/{credential_id}" body: "*" };
+  }
+  rpc RevokeCredential(RevokeCredentialRequest) returns (RevokeCredentialResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/identity/credentials/{credential_id}" };
+  }
+
+  // Principal management.
+  rpc AddPrincipal(AddPrincipalRequest) returns (AddPrincipalResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/identity/profiles/{profile_id}/principals" body: "*" };
+  }
+  rpc ListPrincipals(ListPrincipalsRequest) returns (ListPrincipalsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/identity/profiles/{profile_id}/principals" };
+  }
+  rpc RemovePrincipal(RemovePrincipalRequest) returns (RemovePrincipalResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/identity/principals/{principal_id}" };
+  }
+
+  // Session management.
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/identity/profiles/{profile_id}/sessions" };
+  }
+  rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/identity/sessions/{session_id}" };
+  }
+
+  // Passkey registration prompts.
+  rpc GetPasskeyPromptState(GetPasskeyPromptStateRequest) returns (GetPasskeyPromptStateResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/identity/passkey-prompt" };
+  }
+  rpc RecordPasskeyPromptDismissal(RecordPasskeyPromptDismissalRequest) returns (RecordPasskeyPromptDismissalResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/identity/passkey-prompt/dismiss" body: "*" };
+  }
+
+  // Revocation cascade.
+  rpc RevokeProfile(RevokeProfileRequest) returns (RevokeProfileResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/identity/profiles/{profile_id}/revoke" body: "*" };
+  }
+
+  // Account closure.
+  rpc RequestClosure(RequestClosureRequest) returns (RequestClosureResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/identity/closure" body: "*" };
+  }
+  rpc CancelClosure(CancelClosureRequest) returns (CancelClosureResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/identity/closure/cancel" body: "*" };
+  }
+  rpc GetClosureStatus(GetClosureStatusRequest) returns (GetClosureStatusResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/identity/closure" };
+  }
+
+  // Data export (GDPR Art. 20).
+  rpc PrepareExport(PrepareExportRequest) returns (PrepareExportResponse) {
+    option (google.api.http) = { post: "/v1/identity/export" body: "*" };
+  }
+  rpc GetExportStatus(GetExportStatusRequest) returns (GetExportStatusResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/identity/export" };
+  }
+  rpc DownloadExport(DownloadExportRequest) returns (stream DownloadExportChunk) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/identity/export/download" };
+  }
+  rpc AcknowledgeExport(AcknowledgeExportRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/identity/export/acknowledge" body: "*" };
+  }
+
+  // Current profile (from Bearer token subject).
+  rpc GetCurrentProfile(GetCurrentProfileRequest) returns (GetProfileResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/identity/me" };
+  }
+
+  // Device management.
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/identity/profiles/{profile_id}/devices" };
+  }
+  rpc GetDevice(GetDeviceRequest) returns (Device) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/identity/devices/{device_id}" };
+  }
+  rpc UpdateDevice(UpdateDeviceRequest) returns (Device) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/identity/devices/{device_id}" body: "*" };
+  }
+  rpc RemoveDevice(RemoveDeviceRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/identity/devices/{device_id}" };
+  }
+  rpc TrustDevice(TrustDeviceRequest) returns (Device) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/identity/devices/{device_id}/trust" body: "*" };
+  }
+  rpc RevokeDeviceTrust(RevokeDeviceTrustRequest) returns (Device) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/identity/devices/{device_id}/revoke-trust" body: "*" };
+  }
+}
+
+// Request/Response messages.
+
+message CreateProfileRequest {
+  // Primary identifier — user provides exactly ONE at signup.
+  // Additional identifiers can be added later via profile settings.
+  // Username is a valuable identity — never auto-generated.
+
+  // Login handle (no '@', no '+'). Global ('alice') or federated ('alice#acme.corp').
+  optional string username = 1;
+  // Email address. Requires OTP/magic-link verification after signup.
+  optional string email = 2;
+  // Phone number in E.164 format (+380501234567). Requires OTP verification after signup.
+  optional string phone = 17;
+
+  // Structured name components (OIDC + SCIM compliant). All optional.
+  optional string given_name = 3;
+  optional string family_name = 13;
+  optional string middle_name = 14;
+  optional string honorific_prefix = 15;
+  optional string honorific_suffix = 16;
+  ProfileType profile_type = 4;
+
+  // Enrollment fields (used during self-registration).
+  // invite_code is required when enrollment mode = InviteOnly.
+  optional string invite_code = 10;
+  // Optional referrer profile ID (tracked for analytics).
+  optional string referrer_id = 11;
+  // Optional UTM parameters captured from registration URL.
+  optional UtmParams utm = 12;
+}
+
+// UTM tracking parameters from registration URL.
+message UtmParams {
+  optional string source = 1;
+  optional string medium = 2;
+  optional string campaign = 3;
+  optional string term = 4;
+  optional string content = 5;
+}
+
+message CreateProfileResponse {
+  Profile profile = 1;
+}
+
+message GetProfileRequest {
+  oneof identifier {
+    string id = 1;
+    string username = 2;
+    string email = 3;
+  }
+}
+
+// Empty request — profile resolved from Bearer token subject.
+message GetCurrentProfileRequest {}
+
+message GetProfileResponse {
+  Profile profile = 1;
+}
+
+message UpdateProfileRequest {
+  string id = 1;
+  optional string given_name = 2;
+  optional string family_name = 4;
+  optional string middle_name = 5;
+  optional string honorific_prefix = 6;
+  optional string honorific_suffix = 7;
+  optional string avatar_url = 3;
+}
+
+message UpdateProfileResponse {
+  Profile profile = 1;
+}
+
+message DeleteProfileRequest {
+  string id = 1;
+}
+
+message DeleteProfileResponse {}
+
+message ListProfilesRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+message ListProfilesResponse {
+  repeated Profile profiles = 1;
+  string next_page_token = 2;
+}
+
+message AddCredentialRequest {
+  string profile_id = 1;
+  CredentialType type = 2;
+  bytes data = 3;
+  optional string label = 4;
+}
+
+message AddCredentialResponse {
+  Credential credential = 1;
+}
+
+message ListCredentialsRequest {
+  string profile_id = 1;
+}
+
+message ListCredentialsResponse {
+  repeated Credential credentials = 1;
+}
+
+message UpdateCredentialRequest {
+  string credential_id = 1;
+  // Currently only label can be updated.
+  // Cryptographic material is immutable after registration.
+  optional string label = 2;
+}
+
+message UpdateCredentialResponse {
+  Credential credential = 1;
+}
+
+message RevokeCredentialRequest {
+  string credential_id = 1;
+}
+
+message RevokeCredentialResponse {}
+
+message ListSessionsRequest {
+  string profile_id = 1;
+}
+
+message ListSessionsResponse {
+  repeated Session sessions = 1;
+}
+
+message RevokeSessionRequest {
+  string session_id = 1;
+}
+
+message RevokeSessionResponse {}
+
+// Principal messages.
+
+message AddPrincipalRequest {
+  string profile_id = 1;
+  PrincipalType type = 2;
+  string value = 3;
+}
+
+message AddPrincipalResponse {
+  Principal principal = 1;
+}
+
+message ListPrincipalsRequest {
+  string profile_id = 1;
+}
+
+message ListPrincipalsResponse {
+  repeated Principal principals = 1;
+}
+
+message RemovePrincipalRequest {
+  string principal_id = 1;
+}
+
+message RemovePrincipalResponse {}
+
+// Passkey registration prompt.
+
+enum PasskeyPromptMode {
+  PASSKEY_PROMPT_MODE_UNSPECIFIED = 0;
+  PASSKEY_PROMPT_MODE_ENCOURAGED = 1;
+  PASSKEY_PROMPT_MODE_REQUIRED = 2;
+  PASSKEY_PROMPT_MODE_NONE = 3;
+}
+
+message PasskeyPromptState {
+  PasskeyPromptMode mode = 1;
+  string decision = 2;          // "banner" | "modal" | "none"
+  uint32 skip_count = 3;
+  uint32 skip_limit = 4;
+  bool has_passkey = 5;
+}
+
+message GetPasskeyPromptStateRequest {}
+
+message GetPasskeyPromptStateResponse {
+  PasskeyPromptState state = 1;
+}
+
+message RecordPasskeyPromptDismissalRequest {}
+
+message RecordPasskeyPromptDismissalResponse {
+  PasskeyPromptState state = 1;
+}
+
+// ── Revocation messages ──
+
+message RevokeProfileRequest {
+  string profile_id = 1;
+  string reason = 2;           // "user_requested", "admin", "emergency", etc.
+}
+
+message RevokeProfileResponse {
+  int32 entities_revoked = 1;  // Total count of revoked entities (primary + cascade).
+}
+
+// ── Account Closure messages ──
+
+enum ClosureMode {
+  CLOSURE_MODE_UNSPECIFIED = 0;
+  CLOSURE_MODE_VOLUNTARY = 1;
+  CLOSURE_MODE_GDPR_ERASURE = 2;
+  CLOSURE_MODE_ADMIN_TERMINATION = 3;
+  CLOSURE_MODE_REGULATORY_ORDER = 4;
+}
+
+message RequestClosureRequest {
+  ClosureMode mode = 1;
+  string closure_reason = 2;       // Optional human-readable reason.
+  optional string court_reference = 3; // Required for REGULATORY_ORDER mode.
+}
+
+message RequestClosureResponse {
+  string profile_id = 1;
+  ClosureMode mode = 2;
+  google.protobuf.Timestamp grace_period_end = 3;
+}
+
+message CancelClosureRequest {}
+
+message CancelClosureResponse {}
+
+message GetClosureStatusRequest {}
+
+// Status of a data export job.
+enum ExportStatus {
+  EXPORT_STATUS_UNSPECIFIED = 0;
+  EXPORT_STATUS_NOT_STARTED = 1;   // No export requested yet
+  EXPORT_STATUS_PREPARING = 2;     // Export generation in progress
+  EXPORT_STATUS_READY = 3;         // Export ready for download
+  EXPORT_STATUS_DOWNLOADED = 4;    // Export downloaded at least once
+  EXPORT_STATUS_EXPIRED = 5;       // Download window expired (default 7 days)
+}
+
+message GetClosureStatusResponse {
+  bool has_active_closure = 1;
+  ClosureMode mode = 2;
+  // Current data export status within the closure process.
+  ExportStatus export_status = 3;
+  google.protobuf.Timestamp grace_period_end = 4;
+  google.protobuf.Timestamp requested_at = 5;
+  int32 cancel_count = 6;
+}
+
+// Data export (GDPR Art. 20).
+
+message PrepareExportRequest {
+  ExportFormat format = 1;
+}
+
+enum ExportFormat {
+  EXPORT_FORMAT_UNSPECIFIED = 0;
+  EXPORT_FORMAT_JSON = 1;      // JSON archive.
+}
+
+message PrepareExportResponse {
+  string export_id = 1;
+  google.protobuf.Timestamp estimated_ready = 2;
+}
+
+message GetExportStatusRequest {}
+
+message GetExportStatusResponse {
+  // Current export job status.
+  ExportStatus export_status = 1;
+  // Export archive size in bytes. Set when status >= READY.
+  optional int64 size_bytes = 2;
+  // SHA-256 checksum of the export archive. Set when status >= READY.
+  optional string checksum_sha256 = 3;
+  // Timestamp when the export became ready for download.
+  optional google.protobuf.Timestamp ready_at = 4;
+  // Timestamp when the download link expires (default: 7 days after ready_at).
+  optional google.protobuf.Timestamp expires_at = 5;
+}
+
+message DownloadExportRequest {}
+
+message DownloadExportChunk {
+  bytes data = 1;
+  int64 offset = 2;
+  int64 total_size = 3;
+}
+
+message AcknowledgeExportRequest {}
+
+// ── Device management ──
+
+// Device type classification.
+enum DeviceType {
+  DEVICE_TYPE_UNSPECIFIED = 0;
+  DEVICE_TYPE_DESKTOP = 1;
+  DEVICE_TYPE_MOBILE = 2;
+  DEVICE_TYPE_BROWSER = 3;
+  DEVICE_TYPE_IOT = 4;
+  DEVICE_TYPE_EMBEDDED = 5;
+}
+
+// Device assurance level.
+enum DeviceAssurance {
+  DEVICE_ASSURANCE_UNSPECIFIED = 0;
+  DEVICE_ASSURANCE_UNKNOWN = 1;
+  DEVICE_ASSURANCE_RECOGNIZED = 2;
+  DEVICE_ASSURANCE_TRUSTED = 3;
+  DEVICE_ASSURANCE_MANAGED = 4;
+}
+
+// Known device associated with a profile. A descriptive record (DTO), not an
+// identifier type and not evidence of device authority.
+message Device {
+  // Device identifier: UUIDv7 in canonical lowercase hyphenated form. Issued by
+  // SID when the device is registered in the owning Profile's scope; the same
+  // value is carried as `device_id` in session and attestation messages.
+  // Knowing it grants no authority and does not prove key possession.
+  string id = 1;
+
+  // Owning Profile identifier (UUIDv7). Internal identity; never exposed to
+  // external or federated services.
+  string profile_id = 2;
+
+  // User-given label for the device (e.g. "Work laptop"). Set by the Profile
+  // owner via UpdateDevice; unset until the user names the device.
+  optional string display_name = 3;
+
+  // Device form factor, derived by SID from registration context.
+  DeviceType device_type = 4;
+
+  // Operating system name and version as reported by the client at
+  // registration/login. Self-asserted, informational only.
+  optional string os_info = 5;
+
+  // Assurance level computed by SID from trust decision, attestation and
+  // policy; the input to device-based access policy.
+  DeviceAssurance assurance = 6;
+
+  // Explicit trust decision by the Profile owner (TrustDevice /
+  // RevokeDeviceTrust). A user label, not attestation of hardware or of any
+  // verification performed on the device.
+  bool trusted = 7;
+
+  // Whether a hardware-backed device key with verified platform attestation is
+  // registered in sid-attestation. A protected software key does not set this.
+  bool hardware_attested = 8;
+
+  // Country/region of the most recent access, derived by SID from the source
+  // IP. The exact IP address is never stored here.
+  optional string last_ip_geo = 9;
+
+  // When SID first registered the device.
+  google.protobuf.Timestamp first_seen_at = 10;
+
+  // Most recent authentication from the device; updated by SID on each auth.
+  google.protobuf.Timestamp last_seen_at = 11;
+}
+
+message ListDevicesRequest {
+  // Profile whose devices to list (UUIDv7). Must match the caller's
+  // authorized Profile scope.
+  string profile_id = 1;
+}
+
+message ListDevicesResponse {
+  // Devices registered to the requested Profile.
+  repeated Device devices = 1;
+}
+
+message GetDeviceRequest {
+  // Device to fetch (`Device.id`, UUIDv7). Must belong to the caller's
+  // authorized Profile scope.
+  string device_id = 1;
+}
+
+message UpdateDeviceRequest {
+  // Device to update (`Device.id`, UUIDv7). Must belong to the caller's
+  // authorized Profile scope.
+  string device_id = 1;
+
+  // New user-given label; unset leaves the current label unchanged.
+  optional string display_name = 2;
+}
+
+message RemoveDeviceRequest {
+  // Device to remove (`Device.id`, UUIDv7). Removal kills the device's
+  // sessions and revokes its keys in sid-attestation.
+  string device_id = 1;
+}
+
+message TrustDeviceRequest {
+  // Device the Profile owner marks as trusted (`Device.id`, UUIDv7).
+  string device_id = 1;
+}
+
+message RevokeDeviceTrustRequest {
+  // Device whose explicit trust is withdrawn (`Device.id`, UUIDv7).
+  string device_id = 1;
+}

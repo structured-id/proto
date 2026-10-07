@@ -1,0 +1,17 @@
+// StructuredID Common Pagination Types
+// Reusable pagination messages for all List* RPCs.
+syntax = "proto3";
+
+package sid.v1.common;
+
+// Embedded in every List* request.
+message PaginationRequest {
+  int32 page_size = 1;     // Max items per page (0 = server default)
+  string page_token = 2;   // Opaque cursor from previous response
+}
+
+// Embedded in every List* response.
+message PaginationResponse {
+  string next_page_token = 1;  // Empty = last page
+  int32 total_count = 2;       // Total items matching filter (may be approximate)
+}

@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+// StructuredID identifiers in their binary wire form. Each identifier kind is
+// its own message, so values of different kinds are different types in every
+// generated language even though their bytes have the same shape. Text forms
+// (hyphenated UUID) are for display in SDKs and clients only.
+//
+// This file imports nothing, so a consumer can compile it on its own.
+package sid.v1.ids;
+
+// A Profile's identity at one organization: the pairwise subject that
+// organization's services see. Opaque and unlinkable across organizations;
+// it never carries or reveals a ProfileId.
+message BindingId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// One password-installing operation (a registration, change or authorized
+// reset) from its preparation to its commit. Every step and retry of the
+// operation carries it, so a lost response resolves to the operation's one
+// outcome instead of starting another.
+message PasswordOperationId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// A non-human actor (a service, bot or agent) with its own SID credentials.
+// Not a Binding, a Profile or a device, whatever its bytes.
+message MachineUserId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// A provisioning connector: one directory source sending SCIM to an
+// organization, or one target the organization provisions, acting as its own
+// actor with its own credentials and grants. Not a machine user or a Profile.
+message ProvisioningConnectorId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// A registered protected resource: the application or API at which access is
+// enforced, in its issuer's context. Not an OAuth client and not an audience
+// string; its indicator and issuer come from its registration.
+message ResourceId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// One credential of a provisioning connector: the reference listings,
+// rotations, revocations and audit records name. Never the secret itself.
+message ProvisioningCredentialId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}

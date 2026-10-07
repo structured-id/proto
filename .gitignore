@@ -1,0 +1,12 @@
+# Generated files
+gen/
+docs/
+*.pb.go
+*.pb.ts
+*.pb.rs
+
+# Buf cache
+.buf/
+
+# OS files
+.DS_Store

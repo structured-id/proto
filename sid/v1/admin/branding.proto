@@ -1,0 +1,228 @@
+// StructuredID Branding Service
+// Per-project branding configuration: design tokens, assets, text, dark mode.
+// Admin role required for all RPCs.
+syntax = "proto3";
+
+package sid.v1.admin;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+// BrandingService manages per-project branding configurations.
+// Each project can have multiple configs (draft, published, archived).
+// Only one config per project can be published at a time.
+service BrandingService {
+  // Get the published branding config for a project.
+  // Returns NOT_FOUND if no published config exists.
+  rpc GetPublishedBranding(GetPublishedBrandingRequest) returns (BrandingConfig) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/projects/{project_id}/branding" };
+  }
+
+  // Get a specific branding config by ID.
+  rpc GetBrandingConfig(GetBrandingConfigRequest) returns (BrandingConfig) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/projects/{project_id}/branding/{config_id}" };
+  }
+
+  // List all branding configs for a project (all statuses).
+  rpc ListBrandingConfigs(ListBrandingConfigsRequest) returns (ListBrandingConfigsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/projects/{project_id}/branding/configs" };
+  }
+
+  // Create a new branding config (always starts as draft).
+  rpc CreateBrandingConfig(CreateBrandingConfigRequest) returns (BrandingConfig) {
+    option (google.api.http) = { post: "/v1/projects/{project_id}/branding/configs" body: "*" };
+  }
+
+  // Update an existing branding config (draft or published).
+  rpc UpdateBrandingConfig(UpdateBrandingConfigRequest) returns (BrandingConfig) {
+    option (google.api.http) = { patch: "/v1/projects/{project_id}/branding/{config_id}" body: "*" };
+  }
+
+  // Publish a draft config. Archives the currently published config (if any).
+  rpc PublishBrandingConfig(PublishBrandingConfigRequest) returns (BrandingConfig) {
+    option (google.api.http) = { post: "/v1/projects/{project_id}/branding/{config_id}/publish" body: "*" };
+  }
+
+  // Delete a branding config. Cannot delete a published config — archive or replace first.
+  rpc DeleteBrandingConfig(DeleteBrandingConfigRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/projects/{project_id}/branding/{config_id}" };
+  }
+
+  // Validate WCAG contrast ratios for a set of color token pairs.
+  rpc ValidateContrast(ValidateContrastRequest) returns (ValidateContrastResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/branding/validate-contrast" body: "*" };
+  }
+}
+
+// ── Messages ──
+
+message BrandingConfig {
+  string id = 1;
+  string project_id = 2;
+  BrandingStatus status = 3;
+  DesignTokens tokens = 4;
+  BrandingAssets assets = 5;
+  DarkModeConfig dark_mode = 6;
+  BrandingText text = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+enum BrandingStatus {
+  BRANDING_STATUS_UNSPECIFIED = 0;
+  BRANDING_STATUS_DRAFT = 1;
+  BRANDING_STATUS_PUBLISHED = 2;
+  BRANDING_STATUS_ARCHIVED = 3;
+}
+
+message DesignTokens {
+  string color_primary = 1;
+  string color_primary_hover = 2;
+  string color_background = 3;
+  string color_surface = 4;
+  string color_text = 5;
+  string color_error = 6;
+  string font_family = 7;
+  string font_size_base = 8;
+  string border_radius = 9;
+  string spacing_unit = 10;
+  ButtonStyle button_style = 11;
+  // Additional custom tokens.
+  map<string, string> custom = 12;
+  string color_text_secondary = 13;
+  string color_success = 14;
+  string color_warning = 15;
+}
+
+enum ButtonStyle {
+  BUTTON_STYLE_UNSPECIFIED = 0;
+  BUTTON_STYLE_ROUNDED = 1;
+  BUTTON_STYLE_SQUARE = 2;
+  BUTTON_STYLE_PILL = 3;
+}
+
+message BrandingAssets {
+  string logo_url = 1;
+  string favicon_url = 2;
+  BackgroundConfig background = 3;
+  // Optional dark mode logo (fallback to logo_url if empty).
+  string logo_dark_url = 4;
+}
+
+message BackgroundConfig {
+  oneof background {
+    string color = 1;
+    string image_url = 2;
+    string gradient = 3;
+  }
+}
+
+message DarkModeConfig {
+  bool enabled = 1;
+  DarkModeTokens tokens = 2;
+}
+
+message DarkModeTokens {
+  string color_background = 1;
+  string color_surface = 2;
+  string color_text = 3;
+  string color_primary = 4;
+  string color_primary_hover = 5;
+  string color_error = 6;
+  // Additional custom dark mode tokens.
+  map<string, string> custom = 7;
+  string color_text_secondary = 8;
+  string color_success = 9;
+  string color_warning = 10;
+}
+
+message BrandingText {
+  string login_title = 1;
+  string login_subtitle = 2;
+  string footer_text = 3;
+  string terms_url = 4;
+  string privacy_url = 5;
+  string help_url = 6;
+}
+
+// Contrast check result (returned in validation responses).
+message ContrastCheck {
+  string foreground = 1;
+  string background = 2;
+  double ratio = 3;
+  WcagLevel level = 4;
+}
+
+enum WcagLevel {
+  WCAG_LEVEL_UNSPECIFIED = 0;
+  WCAG_LEVEL_AA_NORMAL = 1;
+  WCAG_LEVEL_AA_LARGE_ONLY = 2;
+  WCAG_LEVEL_FAIL = 3;
+}
+
+// ── Request/Response ──
+
+message GetPublishedBrandingRequest {
+  string project_id = 1;
+}
+
+message GetBrandingConfigRequest {
+  string project_id = 1;
+  string config_id = 2;
+}
+
+message ListBrandingConfigsRequest {
+  string project_id = 1;
+}
+
+message ListBrandingConfigsResponse {
+  repeated BrandingConfig configs = 1;
+}
+
+message CreateBrandingConfigRequest {
+  string project_id = 1;
+  // Optional initial values. Omitted fields use SID defaults.
+  DesignTokens tokens = 2;
+  BrandingAssets assets = 3;
+  DarkModeConfig dark_mode = 4;
+  BrandingText text = 5;
+}
+
+message UpdateBrandingConfigRequest {
+  string project_id = 1;
+  string config_id = 2;
+  DesignTokens tokens = 3;
+  BrandingAssets assets = 4;
+  DarkModeConfig dark_mode = 5;
+  BrandingText text = 6;
+}
+
+message PublishBrandingConfigRequest {
+  string project_id = 1;
+  string config_id = 2;
+}
+
+message DeleteBrandingConfigRequest {
+  string project_id = 1;
+  string config_id = 2;
+}
+
+message ValidateContrastRequest {
+  // Color pairs to validate.
+  repeated ColorPair pairs = 1;
+}
+
+message ColorPair {
+  string foreground = 1;
+  string background = 2;
+}
+
+message ValidateContrastResponse {
+  repeated ContrastCheck results = 1;
+}

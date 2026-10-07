@@ -1,0 +1,469 @@
+// StructuredID SCIM 2.0 Provisioning Service
+// Implements RFC 7643 (Core Schema) + RFC 7644 (Protocol) for corporate profile provisioning.
+// SCIM operates exclusively in the corporate profile domain.
+syntax = "proto3";
+
+package sid.v1.scim;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "google/api/httpbody.proto";
+
+// ScimService implements SCIM 2.0 inbound provisioning (HR → SID).
+// Creates/updates/deactivates corporate profiles and groups. Typed gRPC
+// only: SCIM clients speak HTTP through ScimProtocolService, which reads and
+// writes the RFC 7643/7644 JSON and calls these same operations.
+service ScimService {
+  // ── Users (RFC 7644 §3.3–§3.6) ──
+
+  // Create a new corporate profile via SCIM provisioning.
+  rpc CreateUser(ScimCreateUserRequest) returns (ScimUser);
+
+  // Retrieve a user by SID profile ID.
+  rpc GetUser(ScimGetUserRequest) returns (ScimUser) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // List/search users with optional SCIM filter.
+  rpc ListUsers(ScimListUsersRequest) returns (ScimListUsersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Full replacement of user attributes.
+  rpc ReplaceUser(ScimReplaceUserRequest) returns (ScimUser);
+
+  // Partial update via SCIM PATCH operations (RFC 7644 §3.5.2).
+  rpc PatchUser(ScimPatchUserRequest) returns (ScimUser);
+
+  // Deactivate a corporate profile (soft delete).
+  rpc DeleteUser(ScimDeleteUserRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+  }
+
+  // ── Groups (RFC 7644 §3.3–§3.6) ──
+
+  // Create a new group.
+  rpc CreateGroup(ScimCreateGroupRequest) returns (ScimGroup);
+
+  // Retrieve a group by ID.
+  rpc GetGroup(ScimGetGroupRequest) returns (ScimGroup) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // List/search groups with optional SCIM filter.
+  rpc ListGroups(ScimListGroupsRequest) returns (ScimListGroupsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Partial update via SCIM PATCH operations.
+  rpc PatchGroup(ScimPatchGroupRequest) returns (ScimGroup);
+
+  // Delete a group.
+  rpc DeleteGroup(ScimDeleteGroupRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+  }
+
+  // ── Service Provider Discovery (RFC 7643 §5–§7) ──
+
+  // SCIM service provider configuration.
+  rpc GetServiceProviderConfig(ScimGetServiceProviderConfigRequest) returns (ScimServiceProviderConfig) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // SCIM resource type definitions.
+  rpc GetResourceTypes(ScimGetResourceTypesRequest) returns (ScimResourceTypesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // SCIM schema definitions.
+  rpc GetSchemas(ScimGetSchemasRequest) returns (ScimSchemasResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+// The SCIM 2.0 HTTP endpoint (RFC 7644) for independent SCIM clients. Each
+// RPC reads the request in its RFC 7643/7644 JSON (`application/scim+json`,
+// also `application/json`, RFC 7644 §3.1) and answers with the RFC's JSON,
+// status and headers: 201 and `Location` for a created resource (§3.3), 204
+// for a deletion (§3.6), the §3.12 error body for a refusal. The operations
+// are those of ScimService, with the same authentication and authorization.
+service ScimProtocolService {
+  // Create a user (RFC 7644 §3.3).
+  rpc CreateUser(ScimHttpRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = { post: "/scim/v2/Users" body: "body" };
+  }
+
+  // Read a user (RFC 7644 §3.4.1).
+  rpc GetUser(ScimHttpRequest) returns (google.api.HttpBody) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/scim/v2/Users/{id}" };
+  }
+
+  // Query users (RFC 7644 §3.4.2).
+  rpc ListUsers(ScimHttpRequest) returns (google.api.HttpBody) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/scim/v2/Users" };
+  }
+
+  // Replace a user (RFC 7644 §3.5.1).
+  rpc ReplaceUser(ScimHttpRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = { put: "/scim/v2/Users/{id}" body: "body" };
+  }
+
+  // Modify a user (RFC 7644 §3.5.2).
+  rpc PatchUser(ScimHttpRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = { patch: "/scim/v2/Users/{id}" body: "body" };
+  }
+
+  // Delete a user (RFC 7644 §3.6).
+  rpc DeleteUser(ScimHttpRequest) returns (google.api.HttpBody) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/scim/v2/Users/{id}" };
+  }
+
+  // Create a group (RFC 7644 §3.3).
+  rpc CreateGroup(ScimHttpRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = { post: "/scim/v2/Groups" body: "body" };
+  }
+
+  // Read a group (RFC 7644 §3.4.1).
+  rpc GetGroup(ScimHttpRequest) returns (google.api.HttpBody) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/scim/v2/Groups/{id}" };
+  }
+
+  // Query groups (RFC 7644 §3.4.2).
+  rpc ListGroups(ScimHttpRequest) returns (google.api.HttpBody) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/scim/v2/Groups" };
+  }
+
+  // Modify a group (RFC 7644 §3.5.2).
+  rpc PatchGroup(ScimHttpRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = { patch: "/scim/v2/Groups/{id}" body: "body" };
+  }
+
+  // Delete a group (RFC 7644 §3.6).
+  rpc DeleteGroup(ScimHttpRequest) returns (google.api.HttpBody) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/scim/v2/Groups/{id}" };
+  }
+
+  // The service provider configuration (RFC 7644 §4, RFC 7643 §5).
+  rpc GetServiceProviderConfig(ScimHttpRequest) returns (google.api.HttpBody) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/scim/v2/ServiceProviderConfig" };
+  }
+
+  // The resource types (RFC 7644 §4, RFC 7643 §6).
+  rpc GetResourceTypes(ScimHttpRequest) returns (google.api.HttpBody) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/scim/v2/ResourceTypes" };
+  }
+
+  // The schemas (RFC 7644 §4, RFC 7643 §7).
+  rpc GetSchemas(ScimHttpRequest) returns (google.api.HttpBody) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/scim/v2/Schemas" };
+  }
+}
+
+// A request to the SCIM HTTP endpoint: what its path, query and body carry.
+message ScimHttpRequest {
+  // The resource identifier from the path (`/Users/{id}`, `/Groups/{id}`);
+  // empty for an endpoint without one.
+  string id = 1;
+  // The request body as the client sent it, with its `Content-Type`; absent
+  // for a request without one (GET, DELETE).
+  google.api.HttpBody body = 2;
+  // The `filter` query parameter of a query (RFC 7644 §3.4.2.2).
+  string filter = 3;
+  // The `startIndex` query parameter: the 1-based index of the first result
+  // (RFC 7644 §3.4.2.4); 0 when absent, read as 1.
+  int32 start_index = 4;
+  // The `count` query parameter: the most results wanted (RFC 7644
+  // §3.4.2.4); absent means the service provider's default, and 0 asks for
+  // `totalResults` alone.
+  optional int32 count = 5;
+}
+
+// ── User Messages ──
+
+// SCIM User resource (RFC 7643 §4.1).
+message ScimUser {
+  // SID ProfileId (read-only, assigned by SID).
+  string id = 1;
+
+  // External identifier from the provisioning source (e.g., employee_id).
+  string external_id = 2;
+
+  // Login handle (maps to Profile.username).
+  string user_name = 3;
+
+  // Structured name components.
+  ScimName name = 4;
+
+  // Display name (maps to Profile.display_name).
+  string display_name = 5;
+
+  // Email addresses.
+  repeated ScimEmail emails = 6;
+
+  // Phone numbers.
+  repeated ScimPhoneNumber phone_numbers = 7;
+
+  // Department (resolved to SID Department entity).
+  string department = 8;
+
+  // Job title.
+  string title = 9;
+
+  // Whether the account is active (maps to ProfileStatus).
+  bool active = 10;
+
+  // Group memberships (read-only in user resource).
+  repeated ScimGroupRef groups = 11;
+
+  // SCIM resource metadata.
+  ScimMeta meta = 12;
+}
+
+// Structured name (RFC 7643 §4.1.1).
+message ScimName {
+  string formatted = 1;
+  string family_name = 2;
+  string given_name = 3;
+  string middle_name = 4;
+  string honorific_prefix = 5;
+  string honorific_suffix = 6;
+}
+
+// Email sub-attribute (RFC 7643 §4.1.2).
+message ScimEmail {
+  string value = 1;
+  string type = 2;     // "work", "home", "other"
+  bool primary = 3;
+}
+
+// Phone number sub-attribute (RFC 7643 §4.1.2).
+message ScimPhoneNumber {
+  string value = 1;
+  string type = 2;     // "work", "mobile", "home", "other"
+  bool primary = 3;
+}
+
+// Reference to a group (used in User.groups, read-only).
+message ScimGroupRef {
+  string value = 1;    // Group ID
+  string display = 2;  // Group display name
+}
+
+// SCIM resource metadata (RFC 7643 §3.1).
+message ScimMeta {
+  string resource_type = 1;   // "User" or "Group"
+  google.protobuf.Timestamp created = 2;
+  google.protobuf.Timestamp last_modified = 3;
+  string location = 4;        // Resource URL
+  string version = 5;         // ETag
+}
+
+// ── User Request/Response Messages ──
+
+message ScimCreateUserRequest {
+  string external_id = 1;
+  string user_name = 2;
+  ScimName name = 3;
+  string display_name = 4;
+  repeated ScimEmail emails = 5;
+  repeated ScimPhoneNumber phone_numbers = 6;
+  string department = 7;
+  string title = 8;
+  bool active = 9;
+}
+
+message ScimGetUserRequest {
+  string id = 1;
+}
+
+message ScimListUsersRequest {
+  // SCIM filter expression (RFC 7644 §3.4.2.2).
+  string filter = 1;
+
+  // 1-based start index for pagination.
+  int32 start_index = 2;
+
+  // Page size (default: 100, max: 1000).
+  int32 count = 3;
+}
+
+message ScimListUsersResponse {
+  repeated ScimUser resources = 1;
+  int32 total_results = 2;
+  int32 start_index = 3;
+  int32 items_per_page = 4;
+}
+
+message ScimReplaceUserRequest {
+  string id = 1;
+  string external_id = 2;
+  string user_name = 3;
+  ScimName name = 4;
+  string display_name = 5;
+  repeated ScimEmail emails = 6;
+  repeated ScimPhoneNumber phone_numbers = 7;
+  string department = 8;
+  string title = 9;
+  bool active = 10;
+}
+
+message ScimPatchUserRequest {
+  string id = 1;
+  repeated ScimPatchOp operations = 2;
+}
+
+message ScimDeleteUserRequest {
+  string id = 1;
+}
+
+// ── Group Messages ──
+
+// SCIM Group resource (RFC 7643 §4.2).
+message ScimGroup {
+  string id = 1;
+  string display_name = 2;
+  repeated ScimMemberRef members = 3;
+  ScimMeta meta = 4;
+}
+
+// Reference to a group member.
+message ScimMemberRef {
+  string value = 1;    // Profile ID
+  string display = 2;  // Display name
+}
+
+// ── Group Request/Response Messages ──
+
+message ScimCreateGroupRequest {
+  string display_name = 1;
+  repeated ScimMemberRef members = 2;
+}
+
+message ScimGetGroupRequest {
+  string id = 1;
+}
+
+message ScimListGroupsRequest {
+  string filter = 1;
+  int32 start_index = 2;
+  int32 count = 3;
+}
+
+message ScimListGroupsResponse {
+  repeated ScimGroup resources = 1;
+  int32 total_results = 2;
+  int32 start_index = 3;
+  int32 items_per_page = 4;
+}
+
+message ScimPatchGroupRequest {
+  string id = 1;
+  repeated ScimPatchOp operations = 2;
+}
+
+message ScimDeleteGroupRequest {
+  string id = 1;
+}
+
+// ── SCIM PATCH Operation (RFC 7644 §3.5.2) ──
+
+message ScimPatchOp {
+  // Operation type: "add", "remove", "replace".
+  string op = 1;
+
+  // Attribute path (e.g., "emails[type eq \"work\"].value", "members").
+  string path = 2;
+
+  // JSON-encoded value for the operation.
+  string value = 3;
+}
+
+// ── Service Provider Discovery Messages ──
+
+message ScimGetServiceProviderConfigRequest {}
+
+// Service provider configuration (RFC 7643 §5).
+message ScimServiceProviderConfig {
+  ScimMeta meta = 1;
+  string documentation_uri = 2;
+  ScimConfigSupport patch = 3;
+  ScimConfigSupport bulk = 4;
+  ScimConfigSupport filter = 5;
+  ScimConfigSupport change_password = 6;
+  ScimConfigSupport sort = 7;
+  ScimConfigSupport etag = 8;
+  repeated ScimAuthenticationScheme authentication_schemes = 9;
+  int32 max_results = 10;
+}
+
+// Feature support flag.
+message ScimConfigSupport {
+  bool supported = 1;
+  int32 max_operations = 2;   // For bulk: max operations per request
+  int32 max_payload_size = 3; // For bulk: max payload bytes
+}
+
+// Authentication scheme description.
+message ScimAuthenticationScheme {
+  string type = 1;          // "oauthbearertoken", "httpbasic"
+  string name = 2;
+  string description = 3;
+  string spec_uri = 4;
+  string documentation_uri = 5;
+  bool primary = 6;
+}
+
+message ScimGetResourceTypesRequest {}
+
+message ScimResourceTypesResponse {
+  repeated ScimResourceType resources = 1;
+}
+
+// SCIM resource type definition (RFC 7643 §6).
+message ScimResourceType {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string endpoint = 4;
+  string schema = 5;
+  ScimMeta meta = 6;
+}
+
+message ScimGetSchemasRequest {}
+
+message ScimSchemasResponse {
+  repeated ScimSchema resources = 1;
+}
+
+// SCIM schema definition (RFC 7643 §7).
+message ScimSchema {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  repeated ScimSchemaAttribute attributes = 4;
+  ScimMeta meta = 5;
+}
+
+// Schema attribute definition.
+message ScimSchemaAttribute {
+  string name = 1;
+  string type = 2;          // "string", "boolean", "complex", "reference"
+  bool multi_valued = 3;
+  string description = 4;
+  bool required = 5;
+  bool case_exact = 6;
+  string mutability = 7;    // "readOnly", "readWrite", "immutable", "writeOnly"
+  string returned = 8;      // "always", "never", "default", "request"
+  string uniqueness = 9;    // "none", "server", "global"
+  repeated ScimSchemaAttribute sub_attributes = 10;
+}

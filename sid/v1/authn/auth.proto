@@ -1,0 +1,1628 @@
+// StructuredID Authentication Service
+// Handles authentication flows (OPAQUE, OAuth2, WebAuthn).
+syntax = "proto3";
+
+package sid.v1.authn;
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "sid/v1/authn/password_history.proto";
+import "sid/v1/ids/ids.proto";
+
+// AuthService handles authentication flows.
+service AuthService {
+  // OPAQUE password authentication (RFC 9807).
+  rpc OpaqueRegistrationStart(OpaqueRegistrationStartRequest) returns (OpaqueRegistrationStartResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/auth/opaque/registration/start" body: "*" };
+  }
+  rpc OpaqueRegistrationFinish(OpaqueRegistrationFinishRequest) returns (OpaqueRegistrationFinishResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/auth/opaque/registration/finish" body: "*" };
+  }
+  rpc OpaqueLoginStart(OpaqueLoginStartRequest) returns (OpaqueLoginStartResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/auth/opaque/login/start" body: "*" };
+  }
+  rpc OpaqueLoginFinish(OpaqueLoginFinishRequest) returns (OpaqueLoginFinishResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/auth/opaque/login/finish" body: "*" };
+  }
+
+  // OPAQUE-ZKPP: OPAQUE with zero-knowledge password policy proof (Pallas curve).
+  rpc OpaqueZkppRegistrationStart(OpaqueZkppRegistrationStartRequest) returns (OpaqueZkppRegistrationStartResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/auth/opaque-zkpp/registration/start" body: "*" };
+  }
+  rpc OpaqueZkppRegistrationFinish(OpaqueZkppRegistrationFinishRequest) returns (OpaqueZkppRegistrationFinishResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/auth/opaque-zkpp/registration/finish" body: "*" };
+  }
+  rpc PasswordChangeChallenge(PasswordChangeChallengeRequest) returns (PasswordChangeChallengeResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/auth/password/change/challenge" body: "*" };
+  }
+  rpc PasswordChangeExecute(PasswordChangeExecuteRequest) returns (PasswordChangeExecuteResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/auth/password/change/execute" body: "*" };
+  }
+  rpc PasswordChangeFinish(PasswordChangeFinishRequest) returns (PasswordChangeFinishResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/auth/password/change/finish" body: "*" };
+  }
+
+  // WebAuthn (passkeys).
+  rpc WebAuthnRegistrationStart(WebAuthnRegistrationStartRequest) returns (WebAuthnRegistrationStartResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/auth/webauthn/registration/start" body: "*" };
+  }
+  rpc WebAuthnRegistrationFinish(WebAuthnRegistrationFinishRequest) returns (WebAuthnRegistrationFinishResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/auth/webauthn/registration/finish" body: "*" };
+  }
+  rpc WebAuthnAuthenticationStart(WebAuthnAuthenticationStartRequest) returns (WebAuthnAuthenticationStartResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/auth/webauthn/authentication/start" body: "*" };
+  }
+  rpc WebAuthnAuthenticationFinish(WebAuthnAuthenticationFinishRequest) returns (WebAuthnAuthenticationFinishResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/auth/webauthn/authentication/finish" body: "*" };
+  }
+
+  // OAuth2 / OIDC flows.
+  //
+  // Every OAuth client belongs to exactly one logical OIDC issuer, and these
+  // are that issuer's endpoints: `/i/{issuer_handle}/oauth2/*`, as advertised
+  // in its discovery document. There is no issuer-less OAuth surface; SID's
+  // own sign-in sessions are issued by the authentication RPCs above, not
+  // here. The sign-in UI calls OAuth2Authorize with the signed-in user's
+  // token after consent and redirects the browser itself; the issuer's
+  // browser authorization endpoint (OidcProviderService) runs the same logic.
+  rpc OAuth2Authorize(OAuth2AuthorizeRequest) returns (OAuth2AuthorizeResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+  }
+  //
+  // The token, introspection, revocation and device authorization RPCs have
+  // no HTTP binding: their HTTP form is fixed by the RFCs (form-encoded
+  // request, RFC error body and status), which OidcProviderService serves on
+  // the issuer's paths with the same logic. A refusal here is a canonical
+  // status whose ErrorInfo metadata `oauth_error` is the RFC 6749 §5.2 or
+  // RFC 8628 §3.5 error code. A confidential client authenticates with the
+  // secret in the body, or with HTTP Basic in the `authorization` metadata
+  // (RFC 6749 §2.3.1), never both.
+  rpc OAuth2Token(OAuth2TokenRequest) returns (OAuth2TokenResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+  }
+  rpc OAuth2Introspect(OAuth2IntrospectRequest) returns (OAuth2IntrospectResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc OAuth2Revoke(OAuth2RevokeRequest) returns (OAuth2RevokeResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+
+  // Device Authorization Grant (RFC 8628): the device starts here and polls
+  // OAuth2Token with the device_code grant (RFC 8628 §3.4).
+  rpc StartDeviceAuthorization(DeviceAuthorizationRequest) returns (DeviceAuthorizationResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+  }
+  rpc SubmitDeviceUserCode(SubmitDeviceUserCodeRequest) returns (SubmitDeviceUserCodeResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/oauth2/device/submit" body: "*" };
+  }
+
+  // ── Magic Link (passwordless, corporate profiles) ──
+
+  rpc RequestMagicLink(RequestMagicLinkRequest) returns (RequestMagicLinkResponse) {
+    option (google.api.http) = { post: "/v1/auth/magic-link/request" body: "*" };
+  }
+
+  rpc VerifyMagicLink(VerifyMagicLinkRequest) returns (VerifyMagicLinkResponse) {
+    option (google.api.http) = { post: "/v1/auth/magic-link/verify" body: "*" };
+  }
+
+  // Legacy password migration (on-login OPAQUE re-registration).
+  rpc LegacyMigrateStart(LegacyMigrateStartRequest) returns (LegacyMigrateStartResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/auth/legacy/migrate/start" body: "*" };
+  }
+  rpc LegacyMigrateFinish(LegacyMigrateFinishRequest) returns (LegacyMigrateFinishResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/auth/legacy/migrate/finish" body: "*" };
+  }
+
+  // Session validation.
+  rpc ValidateSession(ValidateSessionRequest) returns (ValidateSessionResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/auth/sessions/validate" body: "*" };
+  }
+
+  // Unified login flow: resolve principal → available auth methods.
+  rpc ResolvePrincipal(ResolvePrincipalRequest) returns (ResolvePrincipalResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/auth/resolve" body: "*" };
+  }
+
+  // ZKPP password policy: current policy version and parameters.
+  rpc GetZkppPolicy(GetZkppPolicyRequest) returns (GetZkppPolicyResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/auth/opaque-zkpp/policy" };
+  }
+
+  // Submit a deferred ZK proof for a credential registered without WASM.
+  // Must be called within 24h of registration from a WASM-capable device.
+  rpc SubmitDeferredZkProof(SubmitDeferredZkProofRequest) returns (SubmitDeferredZkProofResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/auth/zk-proof/deferred" body: "*" };
+  }
+
+  // ── MFA TOTP ──
+
+  rpc StartTotpEnrollment(StartTotpEnrollmentRequest) returns (TotpEnrollmentChallenge) {
+    option (google.api.http) = { post: "/v1/auth/mfa/totp/enroll/start" body: "*" };
+  }
+  rpc FinishTotpEnrollment(FinishTotpEnrollmentRequest) returns (FinishTotpEnrollmentResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { post: "/v1/auth/mfa/totp/enroll/finish" body: "*" };
+  }
+  rpc VerifyTotp(VerifyTotpRequest) returns (MfaVerifyResponse) {
+    option (google.api.http) = { post: "/v1/auth/mfa/totp/verify" body: "*" };
+  }
+
+  // ── MFA SMS ──
+
+  rpc VerifySmsMfa(VerifySmsMfaRequest) returns (MfaVerifyResponse) {
+    option (google.api.http) = { post: "/v1/auth/mfa/sms/verify" body: "*" };
+  }
+  rpc ResendSmsMfa(ResendSmsMfaRequest) returns (ResendSmsMfaResponse) {
+    option (google.api.http) = { post: "/v1/auth/mfa/sms/resend" body: "*" };
+  }
+
+  // ── MFA Recovery Codes ──
+
+  rpc GenerateRecoveryCodes(GenerateRecoveryCodesRequest) returns (GenerateRecoveryCodesResponse) {
+    option (google.api.http) = { post: "/v1/auth/mfa/recovery/generate" body: "*" };
+  }
+  rpc VerifyRecoveryCode(VerifyRecoveryCodeRequest) returns (MfaVerifyResponse) {
+    option (google.api.http) = { post: "/v1/auth/mfa/recovery/verify" body: "*" };
+  }
+
+  // ── OTP verification (email/phone, non-MFA) ──
+
+  rpc RequestOtp(RequestOtpRequest) returns (RequestOtpResponse) {
+    option (google.api.http) = { post: "/v1/auth/otp/request" body: "*" };
+  }
+  rpc VerifyOtp(VerifyOtpRequest) returns (VerifyOtpResponse) {
+    option (google.api.http) = { post: "/v1/auth/otp/verify" body: "*" };
+  }
+  rpc ResendOtp(ResendOtpRequest) returns (ResendOtpResponse) {
+    option (google.api.http) = { post: "/v1/auth/otp/resend" body: "*" };
+  }
+
+  // ── Email/Phone verification ──
+
+  rpc ResendEmailVerification(ResendEmailVerificationRequest) returns (ResendEmailVerificationResponse) {
+    option (google.api.http) = { post: "/v1/auth/email/verify/resend" body: "*" };
+  }
+  rpc VerifyPhone(VerifyPhoneRequest) returns (VerifyPhoneResponse) {
+    option (google.api.http) = { post: "/v1/auth/phone/verify" body: "*" };
+  }
+  rpc ResendPhoneVerification(ResendPhoneVerificationRequest) returns (ResendPhoneVerificationResponse) {
+    option (google.api.http) = { post: "/v1/auth/phone/verify/resend" body: "*" };
+  }
+
+  // ── IdP linking ──
+
+  rpc ConfirmIdpLink(ConfirmIdpLinkRequest) returns (ConfirmIdpLinkResponse) {
+    option (google.api.http) = { post: "/v1/auth/idp/link/confirm" body: "*" };
+  }
+
+  // ── Organization selector (multi-org login) ──
+
+  rpc ListUserOrganizations(ListUserOrganizationsRequest) returns (ListUserOrganizationsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/auth/orgs" };
+  }
+  rpc SelectOrganization(SelectOrganizationRequest) returns (SelectOrganizationResponse) {
+    option (google.api.http) = { post: "/v1/auth/orgs/select" body: "*" };
+  }
+
+  // ── Terms acceptance ──
+
+  rpc GetTerms(GetTermsRequest) returns (GetTermsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/auth/terms" };
+  }
+  rpc AcceptTerms(AcceptTermsRequest) returns (AcceptTermsResponse) {
+    option (google.api.http) = { post: "/v1/auth/terms/accept" body: "*" };
+  }
+
+  // ── CIBA consent ──
+
+  rpc ApproveCiba(ApproveCibaRequest) returns (CibaConsentResponse) {
+    option (google.api.http) = { post: "/v1/auth/ciba/approve" body: "*" };
+  }
+  rpc DenyCiba(DenyCibaRequest) returns (CibaConsentResponse) {
+    option (google.api.http) = { post: "/v1/auth/ciba/deny" body: "*" };
+  }
+
+  // ── Captcha ──
+
+  rpc VerifyCaptcha(VerifyCaptchaRequest) returns (VerifyCaptchaResponse) {
+    option (google.api.http) = { post: "/v1/auth/captcha/verify" body: "*" };
+  }
+
+  // ── Dynamic prompt (custom auth steps) ──
+
+  rpc GetDynamicPrompt(GetDynamicPromptRequest) returns (DynamicPrompt) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/auth/prompt/{prompt_id}" };
+  }
+  rpc SubmitDynamicPrompt(SubmitDynamicPromptRequest) returns (SubmitDynamicPromptResponse) {
+    option (google.api.http) = { post: "/v1/auth/prompt/{prompt_id}/submit" body: "*" };
+  }
+
+  // ── Step-up authentication ──
+
+  // Generic step-up Phase 1: request challenge (WebAuthn). Skip for TOTP/recovery.
+  rpc RequestStepUp(RequestStepUpRequest) returns (StepUpChallenge) {
+    option (google.api.http) = { post: "/v1/auth/step-up/request" body: "*" };
+  }
+
+  // Generic step-up Phase 2: submit proof → elevate session → rotate token.
+  rpc CompleteStepUp(CompleteStepUpRequest) returns (CompleteStepUpResponse) {
+    option (google.api.http) = { post: "/v1/auth/step-up/complete" body: "*" };
+  }
+
+  // ── MFA credential management ──
+
+  // Delete an MFA credential (TOTP, WebAuthn, Recovery).
+  // Requires elevated session (step-up auth) before calling.
+  rpc DeleteMfaCredential(DeleteMfaCredentialRequest) returns (DeleteMfaCredentialResponse) {
+    option (google.api.http) = { delete: "/v1/auth/mfa/credentials/{credential_id}" };
+  }
+
+  // ── Account deletion confirmation ──
+
+  rpc ConfirmAccountDeletion(ConfirmAccountDeletionRequest) returns (ConfirmAccountDeletionResponse) {
+    option (google.api.http) = { post: "/v1/auth/delete-confirm" body: "*" };
+  }
+
+  // Password reset flow (magic link → new OPAQUE credential).
+  rpc RequestPasswordReset(RequestPasswordResetRequest) returns (RequestPasswordResetResponse) {
+    option (google.api.http) = { post: "/v1/auth/password/reset/request" body: "*" };
+  }
+  rpc VerifyPasswordReset(VerifyPasswordResetRequest) returns (VerifyPasswordResetResponse) {
+    option (google.api.http) = { post: "/v1/auth/password/reset/verify" body: "*" };
+  }
+  // OPAQUE registration start of the replacement password, under the verified
+  // reset's operation.
+  rpc ExecutePasswordReset(ExecutePasswordResetRequest) returns (ExecutePasswordResetResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/auth/password/reset/execute" body: "*" };
+  }
+  rpc CompletePasswordReset(CompletePasswordResetRequest) returns (CompletePasswordResetResponse) {
+    option (google.api.http) = { post: "/v1/auth/password/reset/complete" body: "*" };
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// OPAQUE registration flow (RFC 9807, 2-step).
+//
+// Step 1 (Start): Client blinds password → server evaluates OPRF.
+// Step 2 (Finish): Client computes registration record → server stores credential.
+// Password NEVER leaves the client device. Safe over TLS or even plaintext channel.
+// ══════════════════════════════════════════════════════════════════════════
+
+message OpaqueRegistrationStartRequest {
+  // User-provided login identifier: email address, phone in E.164 format (+380...),
+  // or username. Server resolves principal type from the value and looks up or creates
+  // the profile.
+  string principal = 1;
+  // OPAQUE RegistrationRequest (blinded password). Client-generated by
+  // OpaqueClient.registrationStart(password). Contains no recoverable password
+  // material — safe to transmit. RFC 9807 §5.2.
+  bytes registration_request = 2;
+  // Instance claim token (`sidclaim_...`) the operator read from the service log.
+  // Required while the installation has no administrator: it is then the only
+  // registration accepted, and the new profile becomes the first administrator
+  // (the token is consumed with the registration). Ignored once the installation
+  // is claimed. Bearer secret: never logged or echoed.
+  optional string claim_token = 3;
+}
+
+message OpaqueRegistrationStartResponse {
+  // OPAQUE RegistrationResponse: server's OPRF evaluation of the blinded password.
+  // Client needs this to compute the final registration record. RFC 9807 §5.2.
+  // Server-generated, single-use.
+  bytes registration_response = 1;
+  // Serialized server-side OPAQUE setup state. Client echoes this back in Finish
+  // to allow stateless server (no server-side session between Start and Finish).
+  // Contains server's long-term public key + OPRF seed. Opaque to client.
+  string server_setup = 2;
+}
+
+message OpaqueRegistrationFinishRequest {
+  // Same principal as in Start. Server re-resolves to verify consistency.
+  string principal = 1;
+  // OPAQUE RegistrationRecord: client's encrypted credential envelope.
+  // Contains the password file that server stores for future login verification.
+  // Client-generated by OpaqueClient.registrationFinish(password, response, state).
+  // Safe to transmit — encrypted under server's public key. RFC 9807 §5.2.
+  bytes registration_record = 2;
+  // Echoed from OpaqueRegistrationStartResponse.server_setup.
+  // Server deserializes to recover OPRF context for storing the credential.
+  string server_setup = 3;
+}
+
+message OpaqueRegistrationFinishResponse {
+  // UUID of the newly created profile. Client stores for subsequent API calls.
+  string profile_id = 1;
+  // UUID of the OPAQUE credential stored on server. Used for password change
+  // (PasswordChangeChallenge.credential_id) and credential management.
+  string credential_id = 2;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// OPAQUE login flow (RFC 9807, 2-step).
+//
+// Step 1 (Start): Client generates credential request → server responds with
+//   credential response containing encrypted envelope.
+// Step 2 (Finish): Client decrypts envelope using password, generates finalization
+//   → server verifies and issues session + JWT.
+// AKE (Authenticated Key Exchange) establishes shared session key.
+// ══════════════════════════════════════════════════════════════════════════
+
+message OpaqueLoginStartRequest {
+  // User-provided login identifier. Server looks up the OPAQUE credential
+  // associated with this principal. If not found, server returns a fake
+  // response (timing-safe, anti-enumeration). Resolves to a Profile.
+  string principal = 1;
+  // OPAQUE CredentialRequest (KE1): client's blinded password hash + ephemeral
+  // DH public key. Client-generated by OpaqueClient.loginStart(password).
+  // Contains no recoverable password material. RFC 9807 §6.
+  bytes credential_request = 2;
+}
+
+message OpaqueLoginStartResponse {
+  // OPAQUE CredentialResponse (KE2): server's encrypted credential envelope +
+  // ephemeral DH public key + MAC. Client uses this to recover the password
+  // file and compute the session key. RFC 9807 §6.
+  bytes credential_response = 1;
+  // Serialized ServerLogin state. Client echoes this in Finish for stateless
+  // server design. Contains the server's AKE state machine (ephemeral keys,
+  // expected finalization). 5-minute TTL.
+  string server_login_state = 2;
+}
+
+message OpaqueLoginFinishRequest {
+  // Same principal as in Start. Server re-resolves for session creation.
+  string principal = 1;
+  // OPAQUE CredentialFinalization (KE3): client's proof that it recovered
+  // the correct password. Client-generated by OpaqueClient.loginFinish().
+  // If password was wrong, client-side loginFinish fails (never reaches server).
+  // RFC 9807 §6.
+  bytes credential_finalization = 2;
+  // Echoed from OpaqueLoginStartResponse.server_login_state.
+  string server_login_state = 3;
+}
+
+message OpaqueLoginFinishResponse {
+  // Server-assigned session identifier (UUIDv7). Used for session management
+  // (revoke, step-up target), stored in auth store on client.
+  string session_id = 1;
+  // Short-lived JWT access token. Contains: sub (profile ID or pairwise hash),
+  // pid (profile UUID), sid (session ID), iss, aud, exp, iat, scope, amr, acr.
+  // Default lifetime: 15 minutes. Use OAuth2Token refresh_token for renewal.
+  string access_token = 2;
+  // Token lifetime in seconds. Client uses this to schedule refresh.
+  // Server-configured per application (default 900 = 15 min).
+  int64 expires_in = 3;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// OPAQUE-ZKPP password installation: registration, change and reset share one
+// operation lifecycle (see password_history.proto):
+//
+//   prepare     registration start / change challenge / reset verification:
+//               authorizes the operation and returns its PasswordHistoryContext
+//   evaluate    PasswordHistoryEvaluatorService.EvaluatePasswordHistory
+//   OPAQUE      the OPAQUE registration request/response of the operation
+//   prove       local, on the client: policy and history over the same password
+//   finish      the final registration record with its PasswordRegistrationProof;
+//               the server verifies, checks history and commits the credential,
+//               its evidence, the accepted history entry and the audit in one step
+//
+// Registration carries its OPAQUE request in the start step, so it takes three
+// exchanges; change and reset take four. If the client cannot prove, the
+// finish carries no proof and the credential installs policy-unverified; it
+// becomes verified only through a later installation that carries its own proof.
+//
+// Reference: Prudnikov, D. (2026). "Zero-Knowledge Proof System for Password Policy
+// Verification in Asymmetric Password-Authenticated Key Exchange."
+// doi:10.5281/zenodo.19387561 — https://doi.org/10.5281/zenodo.19387561
+// ══════════════════════════════════════════════════════════════════════════
+
+message OpaqueZkppRegistrationStartRequest {
+  // User-provided login identifier (same semantics as OpaqueRegistrationStartRequest.principal).
+  string principal = 1;
+  // OPAQUE RegistrationRequest on Pallas curve, generated by the client.
+  // Same semantics as basic OPAQUE but uses Pallas-based cipher suite.
+  bytes registration_request = 2;
+  // Instance claim token; same semantics as OpaqueRegistrationStartRequest.claim_token.
+  optional string claim_token = 6;
+  // Retired field numbers.
+  reserved 3, 4, 5, 7;
+}
+
+message OpaqueZkppRegistrationStartResponse {
+  // OPAQUE RegistrationResponse on Pallas curve (same role as basic OPAQUE response).
+  bytes registration_response = 1;
+  // The history context of this registration: its operation ID, the new
+  // owner's history domain and the comparison domains to evaluate.
+  PasswordHistoryContext history = 3;
+  // Retired field number.
+  reserved 2;
+}
+
+message OpaqueZkppRegistrationFinishRequest {
+  // The registration operation (from OpaqueZkppRegistrationStartResponse.history).
+  sid.v1.ids.PasswordOperationId operation_id = 6;
+  // OPAQUE RegistrationRecord on Pallas curve (same role as basic OPAQUE record).
+  bytes registration_record = 2;
+  // The registration proof; absent when the client cannot prove.
+  PasswordRegistrationProof proof = 7;
+  // Retired field numbers.
+  reserved 1, 3, 4, 5;
+}
+
+message OpaqueZkppRegistrationFinishResponse {
+  // UUID of the newly created profile.
+  string profile_id = 1;
+  // UUID of the OPAQUE-ZKPP credential stored on server.
+  string credential_id = 2;
+}
+
+// Password change flow (3-step: challenge → execute → finish).
+// Profile is resolved from the Bearer token (session subject) — not client-provided.
+// credential_id selects which OPAQUE credential to change (profile may have multiple curves).
+
+message PasswordChangeChallengeRequest {
+  // Which OPAQUE credential to change. Required because a profile may have
+  // multiple OPAQUE credentials (different curves: Ristretto255, P-256).
+  // Client obtains this from ListCredentials filtered by type=OPAQUE.
+  // Profile resolved from Bearer token (not client-provided).
+  string credential_id = 1;
+}
+
+message PasswordChangeChallengeResponse {
+  // The history context of this change: its operation ID, the owner's history
+  // domain, the comparison domains the new password is checked in and the
+  // policy version the proof is made for.
+  PasswordHistoryContext history = 4;
+  // Retired field numbers.
+  reserved 1, 2, 3;
+}
+
+message PasswordChangeExecuteRequest {
+  // The change operation (from PasswordChangeChallengeResponse.history).
+  sid.v1.ids.PasswordOperationId operation_id = 9;
+  // Target OPAQUE credential (same as in ChallengeRequest).
+  string credential_id = 1;
+  // New OPAQUE RegistrationRequest (Pallas curve). Client-side blinded password hash
+  // for the new password. Generated by OpaqueClient.registrationStart(newPassword).
+  bytes registration_request = 5;
+  // Retired field numbers.
+  reserved 3, 4, 6, 7, 8;
+}
+
+message PasswordChangeExecuteResponse {
+  // Server's OPAQUE RegistrationResponse for the new password. Client uses this
+  // to compute the final RegistrationRecord in the Finish step.
+  bytes registration_response = 1;
+}
+
+message PasswordChangeFinishRequest {
+  // The change operation (from PasswordChangeChallengeResponse.history).
+  sid.v1.ids.PasswordOperationId operation_id = 4;
+  // Target OPAQUE credential (same as in Challenge/Execute).
+  string credential_id = 1;
+  // Final OPAQUE RegistrationRecord computed by client from RegistrationResponse.
+  // Contains the encrypted password envelope that the server stores.
+  // Generated by OpaqueClient.registrationFinish(newPassword, registrationResponse, state).
+  bytes registration_record = 3;
+  // The registration proof for the new password; absent when the client
+  // cannot prove, in which case the change installs policy-unverified.
+  PasswordRegistrationProof proof = 5;
+}
+
+message PasswordChangeFinishResponse {}
+
+// WebAuthn registration flow (2-step).
+// Profile is resolved from the Bearer token (session subject) — not client-provided.
+// Self-service: user registers passkeys on their own profile.
+
+message WebAuthnRegistrationStartRequest {
+  // User-provided label for the authenticator (e.g., "iPhone 15 Pro", "YubiKey 5C").
+  // Displayed in credential management UI. Optional — server generates default from UA.
+  // Profile resolved from Bearer token (not client-provided).
+  optional string label = 1;
+}
+
+message WebAuthnRegistrationStartResponse {
+  // WebAuthn challenge bytes. Server stores in ephemeral cache (keyed by challenge value).
+  // Client passes this to navigator.credentials.create() via options.
+  bytes challenge = 1;
+  // PublicKeyCredentialCreationOptions serialized as JSON.
+  // Contains: rp (relying party), user (profile info), pubKeyCredParams,
+  // excludeCredentials (existing passkeys), authenticatorSelection, attestation.
+  bytes options = 2;
+}
+
+message WebAuthnRegistrationFinishRequest {
+  // PublicKeyCredential JSON from navigator.credentials.create().
+  // Contains: id, rawId, response (attestationObject + clientDataJSON), type.
+  bytes credential = 1;
+  // User-provided label (may differ from Start if user updated during registration).
+  optional string label = 2;
+}
+
+message WebAuthnRegistrationFinishResponse {
+  // Server-assigned credential ID (UUID). Used for management (delete, update label).
+  string credential_id = 1;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// WebAuthn authentication flow (2-step, WebAuthn Level 2).
+//
+// Supports two modes:
+// 1. Principal-first: user enters email/phone → server returns allowCredentials
+//    filtered to that user's registered passkeys.
+// 2. Conditional UI / discoverable: no principal → browser shows all available
+//    passkeys (autofill, "Sign in with passkey" prompt). Server identifies user
+//    from the authenticator's userHandle in the assertion.
+// ══════════════════════════════════════════════════════════════════════════
+
+message WebAuthnAuthenticationStartRequest {
+  // User-provided login identifier for principal-first flow. When present,
+  // server returns allowCredentials filtered to this user's passkeys.
+  // When absent, conditional UI mode: browser shows all available credentials.
+  // Resolves to a Profile.
+  optional string principal = 1;
+}
+
+message WebAuthnAuthenticationStartResponse {
+  // WebAuthn challenge bytes for the assertion. Server stores in ephemeral cache.
+  bytes challenge = 1;
+  // PublicKeyCredentialRequestOptions serialized as JSON. Contains: challenge,
+  // rpId, allowCredentials (populated for principal-first, empty for conditional UI),
+  // userVerification, timeout.
+  bytes options = 2;
+  // Opaque state key for challenge lookup in Finish. Client echoes back.
+  // Required for conditional UI (no principal to re-resolve).
+  // Optional for principal-first (server can re-resolve, but state_key is faster).
+  string state_key = 3;
+}
+
+message WebAuthnAuthenticationFinishRequest {
+  // Same principal as in Start (principal-first) or absent (conditional UI).
+  // Server uses principal OR authenticator userHandle to identify the profile.
+  optional string principal = 1;
+  // AuthenticatorAssertionResponse serialized as JSON from navigator.credentials.get().
+  // Contains: id, rawId, response (authenticatorData + clientDataJSON + signature), type.
+  bytes credential = 2;
+  // Echoed from WebAuthnAuthenticationStartResponse.state_key.
+  // Required for conditional UI. Optional for principal-first (backward compat).
+  optional string state_key = 3;
+}
+
+message WebAuthnAuthenticationFinishResponse {
+  // Server-assigned session ID (same semantics as OpaqueLoginFinishResponse).
+  string session_id = 1;
+  // Short-lived JWT access token (same semantics as OpaqueLoginFinishResponse).
+  string access_token = 2;
+  // Token lifetime in seconds.
+  int64 expires_in = 3;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// OAuth2 / OIDC flows (RFC 6749, OpenID Connect Core 1.0).
+// ══════════════════════════════════════════════════════════════════════════
+
+message OAuth2AuthorizeRequest {
+  // OAuth2 client identifier, registered by CreateApplication or Dynamic
+  // Client Registration. Names the relying party; the issuer it belongs to is
+  // fixed by its registration, never chosen by this request.
+  string client_id = 1;
+  // Redirect URI. Must match one of the client's registered redirect_uris.
+  // Server validates exact match (RFC 6749 §3.1.2.3).
+  string redirect_uri = 2;
+  // OAuth2 response type. "code" (authorization code flow, recommended),
+  // "token" (implicit flow, discouraged for SPAs). RFC 6749 §3.1.1.
+  string response_type = 3;
+  // Space-separated OAuth2 scopes. "openid" required for OIDC.
+  // Server intersects with client's allowed scopes. RFC 6749 §3.3.
+  optional string scope = 4;
+  // Opaque CSRF protection value. Echoed in response. RFC 6749 §4.1.1.
+  optional string state = 5;
+  // PKCE code challenge. Base64url-encoded SHA-256 hash of code_verifier.
+  // Required for public clients, recommended for all. RFC 7636 §4.2.
+  optional string code_challenge = 6;
+  // PKCE challenge method. Must be "S256" (plain not supported). RFC 7636 §4.3.
+  optional string code_challenge_method = 7;
+  // OIDC nonce. Binds ID token to client session. Echoed in id_token.
+  // OpenID Connect Core §3.1.2.1.
+  optional string nonce = 8;
+  // Space-separated ACR values for step-up authentication (RFC 9470).
+  // If session doesn't meet the requested level, step-up is triggered.
+  // Values: "urn:sid:acr:basic", "urn:sid:acr:standard", "urn:sid:acr:elevated".
+  optional string acr_values = 9;
+  // Handle of the OIDC issuer whose authorization endpoint received the
+  // request: the `<handle>` in `https://<host>/i/<handle>/oauth2/authorize`,
+  // taken from that path by the protocol edge (or carried by the sign-in UI
+  // from the request it is completing). Required. An unknown handle, and a
+  // client registered under another issuer, are refused as an unknown client
+  // (never redirected), without falling back to another issuer.
+  string issuer_handle = 10;
+  // Resource indicators (RFC 8707 §2): absolute URIs without a fragment
+  // naming the registered protected resource the access token is for. At most
+  // one distinct value; repeating the same value names the same resource.
+  // Empty selects the client's configured default resource. An unknown,
+  // inactive or not permitted resource, several distinct values, or none with
+  // no default are refused with `invalid_target`. The code is bound to the
+  // selected resource.
+  repeated string resource = 11;
+  // Space-separated OIDC `prompt` values (OpenID Connect Core §3.1.2.1):
+  // `none` (no interaction; refused with `login_required`,
+  // `account_selection_required`, `consent_required` or
+  // `interaction_required` when one is needed), `login` (fresh
+  // authentication), `consent`, `select_account`. `none` with any other
+  // value is refused with `invalid_request`; an unknown value too.
+  optional string prompt = 12;
+  // OIDC `max_age` (OpenID Connect Core §3.1.2.1): the longest time in
+  // seconds since the user last actively authenticated that the request
+  // accepts; older authentication requires a new one. 0 behaves like
+  // `prompt=login`.
+  optional uint32 max_age = 13;
+  // Reference to an authorization request the server stored and continues
+  // (form of RFC 9126 §2.2), e.g. a cross-site POST resumed through a
+  // top-level GET on the issuer host. Opaque, single-issuer, short-lived;
+  // when present, every other parameter except `client_id` and
+  // `issuer_handle` comes from the stored request, and a `client_id` that
+  // differs from the stored one is refused.
+  optional string request_uri = 14;
+}
+
+message OAuth2AuthorizeResponse {
+  oneof result {
+    // Authorization code (authorization code flow). Short-lived, single-use.
+    // Client exchanges for tokens via OAuth2Token. RFC 6749 §4.1.2.
+    string authorization_code = 1;
+    // Access token (implicit flow). Returned directly in fragment. RFC 6749 §4.2.2.
+    string access_token = 2;
+    // OAuth2 error code (e.g., "access_denied", "invalid_scope"). RFC 6749 §4.1.2.1.
+    string error = 3;
+  }
+  // Echoed from request. Client validates match for CSRF protection.
+  optional string state = 4;
+}
+
+message OAuth2TokenRequest {
+  // Grant type. Determines which other fields are required. RFC 6749 §4.
+  // "authorization_code": requires code, redirect_uri, code_verifier.
+  // "refresh_token": requires refresh_token.
+  // "client_credentials": a confidential client acting for itself.
+  // "urn:ietf:params:oauth:grant-type:token-exchange": RFC 8693 token exchange.
+  // "urn:ietf:params:oauth:grant-type:device_code": RFC 8628 §3.4 device poll,
+  // requires device_code.
+  // Every grant names or authenticates the client (RFC 6749 §2.3).
+  string grant_type = 1;
+  // Authorization code from OAuth2Authorize response. Single-use, short-lived (10 min).
+  // Required for authorization_code grant. RFC 6749 §4.1.3.
+  optional string code = 2;
+  // Must match the redirect_uri from the original authorize request.
+  // Required for authorization_code grant. RFC 6749 §4.1.3.
+  optional string redirect_uri = 3;
+  // Client identifier (RFC 6749 §2.2). Required unless HTTP Basic in the
+  // `authorization` metadata names the client; when both are present they
+  // must be equal.
+  optional string client_id = 4;
+  // Client secret of a confidential client registered for
+  // `client_secret_post` (RFC 6749 §2.3.1). A client registered for
+  // `client_secret_basic` sends it in the `authorization` metadata instead.
+  // At most one authentication method per request (RFC 6749 §2.3).
+  optional string client_secret = 5;
+  // Refresh token for token renewal. Required for refresh_token grant.
+  // Long-lived, rotated on use (N-family with theft detection). RFC 6749 §6.
+  optional string refresh_token = 6;
+  // PKCE code verifier. Server computes SHA-256 and compares with stored
+  // code_challenge from authorize step. Required when code_challenge was sent.
+  // RFC 7636 §4.5.
+  optional string code_verifier = 7;
+  // DPoP proof JWT binding the token to client's ephemeral key pair.
+  // If present, server issues DPoP-bound tokens instead of Bearer. RFC 9449 §4.
+  optional string dpop_proof = 8;
+  // Requested scopes (space-separated). For refresh: must be subset of original.
+  // RFC 6749 §3.3.
+  optional string scope = 9;
+  // Signed JWT assertion for private_key_jwt client authentication.
+  // Alternative to client_secret for confidential clients. RFC 7523 §2.2.
+  optional string client_assertion = 10;
+  // Assertion type URN. Must be "urn:ietf:params:oauth:client-assertion-type:jwt-bearer".
+  // Required when client_assertion is present. RFC 7523 §2.2.
+  optional string client_assertion_type = 11;
+  // Subject token for token exchange (impersonation/delegation). The token
+  // identifying the subject of the exchange (e.g., user's access_token).
+  // Required for token-exchange grant. RFC 8693 §2.1.
+  optional string subject_token = 12;
+  // Subject token type URN. "urn:ietf:params:oauth:token-type:access_token" or
+  // "urn:ietf:params:oauth:token-type:id_token". RFC 8693 §2.1.
+  optional string subject_token_type = 13;
+  // Handle of the OIDC issuer whose token endpoint received the request,
+  // bound from the path `/i/{issuer_handle}/oauth2/token`. The client, and
+  // every code or refresh token redeemed, must belong to this issuer; anything
+  // issued in another context is refused as unknown before any side effect.
+  string issuer_handle = 14;
+  // Device code from StartDeviceAuthorization, for the device_code grant
+  // (RFC 8628 §3.4). Opaque; a code started under another issuer or client is
+  // refused as `invalid_grant`.
+  optional string device_code = 15;
+  // Resource indicators (RFC 8707 §2), at most one distinct value. For
+  // client_credentials it selects the resource as at OAuth2Authorize (empty =
+  // the client's configured default). For a code, refresh token or device
+  // code it may only repeat the resource the grant is bound to: another
+  // resource is refused with `invalid_target`, never substituted (RFC 8707
+  // §2.2). Refresh keeps the grant's resource.
+  repeated string resource = 16;
+  // Token exchange only: logical names of the target service (RFC 8693
+  // §2.1), at most one distinct value. The name is a registered resource
+  // indicator; with `resource` present both must name the same resource,
+  // otherwise the request is refused with `invalid_target`.
+  repeated string audience = 17;
+  // Token exchange only: the type of token wanted (RFC 8693 §2.1). Absent or
+  // "urn:ietf:params:oauth:token-type:access_token"; any other type is
+  // refused with `invalid_request` (§2.2.2).
+  optional string requested_token_type = 18;
+}
+
+message OAuth2TokenResponse {
+  // Access token (JWT or opaque). Bearer or DPoP-bound depending on request.
+  string access_token = 1;
+  // Token type: "Bearer" (default) or "DPoP" (when dpop_proof was in request).
+  // RFC 6749 §5.1.
+  string token_type = 2;
+  // Token lifetime in seconds. Client schedules refresh before expiry.
+  int64 expires_in = 3;
+  // Refresh token for obtaining new access tokens. Issued for authorization_code
+  // and refresh_token grants. Rotated on each use (previous token invalidated
+  // after N-family grace window). Not issued for client_credentials.
+  optional string refresh_token = 4;
+  // OIDC ID token (JWT). Issued when "openid" scope requested. Contains: sub,
+  // iss, aud, exp, iat, nonce, at_hash, auth_time, amr, acr. OpenID Connect Core §2.
+  optional string id_token = 5;
+  // Granted scopes (space-separated). May differ from requested if server
+  // reduced scope. RFC 6749 §5.1.
+  optional string scope = 6;
+  // Token exchange only: the type of the issued token (RFC 8693 §2.2.1,
+  // required there), "urn:ietf:params:oauth:token-type:access_token".
+  // Absent for every other grant.
+  optional string issued_token_type = 7;
+}
+
+message OAuth2IntrospectRequest {
+  // Token to introspect. RFC 7662 §2.1.
+  string token = 1;
+  // Handle of the OIDC issuer whose introspection endpoint received the
+  // request, bound from the path `/i/{issuer_handle}/oauth2/introspect`. The
+  // caller must be a service identity this issuer serves; a token issued by
+  // another issuer is reported inactive (RFC 7662 §2.2).
+  string issuer_handle = 2;
+  // Identifier of the calling service (RFC 6749 §2.2): a confidential OAuth
+  // client, or a machine user, which authenticates with its own credentials
+  // as at the token endpoint (RFC 7662 §2.1): HTTP Basic in the
+  // `authorization` metadata, or this field with `client_secret`. A token is
+  // reported active only to a caller holding the `oauth.token.introspect`
+  // permission (the built-in token inspector role) on the registered
+  // protected resource the token is for; the caller need not be the token's
+  // client nor in its `aud`. To any other caller it is inactive (RFC 7662
+  // §4). When the permission cannot be decided the call fails UNAVAILABLE
+  // and discloses nothing.
+  optional string client_id = 3;
+  // Client secret of a client registered for `client_secret_post`
+  // (RFC 6749 §2.3.1). At most one authentication method per request.
+  optional string client_secret = 4;
+  // Signed JWT assertion of a client registered for `private_key_jwt`
+  // (RFC 7523 §2.2), as at the token endpoint: `iss` and `sub` the client,
+  // `aud` the issuer's token endpoint, a single-use `jti`. Signed with the
+  // client's private key, which never leaves it; carries no secret.
+  optional string client_assertion = 5;
+  // Assertion type URN, "urn:ietf:params:oauth:client-assertion-type:jwt-bearer";
+  // required with `client_assertion` (RFC 7523 §2.2).
+  optional string client_assertion_type = 6;
+}
+
+message OAuth2IntrospectResponse {
+  // Whether the token is currently active (not expired, not revoked). RFC 7662 §2.2.
+  bool active = 1;
+  // Scopes associated with the token (space-separated).
+  optional string scope = 2;
+  // Client the token was issued to (RFC 7662 §2.2, RFC 9068 §2.2).
+  optional string client_id = 3;
+  // Human-readable identifier for the resource owner (may be email or username).
+  optional string username = 4;
+  // Token expiration time (Unix timestamp, seconds).
+  optional int64 exp = 5;
+  // Token issue time (Unix timestamp, seconds).
+  optional int64 iat = 6;
+  // Subject identifier exactly as the token carries it. Polymorphic: the
+  // ProfileId for an installation's own users, the opaque BindingId (UUIDv7,
+  // no prefix) for a pairwise recipient. Never parse it as a ProfileId.
+  optional string sub = 7;
+}
+
+message OAuth2RevokeRequest {
+  // Token to revoke (access or refresh). RFC 7009 §2.1. An unknown or
+  // already invalid token is not an error (RFC 7009 §2.2).
+  string token = 1;
+  // Hint to server about token type. "access_token" or "refresh_token".
+  // Server validates independently — hint is optimization, not trusted. RFC 7009 §2.1.
+  optional string token_type_hint = 2;
+  // Handle of the OIDC issuer whose revocation endpoint received the request,
+  // bound from the path `/i/{issuer_handle}/oauth2/revoke`. The caller must
+  // be a client of this issuer; a token issued by another issuer is left
+  // untouched and the answer is still success (RFC 7009 §2.2).
+  string issuer_handle = 3;
+  // Identifier of the calling client (RFC 6749 §2.2). A confidential client
+  // authenticates by its registered method, as at the token endpoint: HTTP
+  // Basic in the `authorization` metadata, or this field with
+  // `client_secret`; a public client only names itself (RFC 7009 §2.1). A
+  // token issued to another client is refused with `unauthorized_client`.
+  optional string client_id = 4;
+  // Client secret of a client registered for `client_secret_post`
+  // (RFC 6749 §2.3.1). At most one authentication method per request.
+  optional string client_secret = 5;
+  // Signed JWT assertion of a client registered for `private_key_jwt`
+  // (RFC 7523 §2.2), as at the token endpoint: `iss` and `sub` the client,
+  // `aud` the issuer's token endpoint, a single-use `jti`. Signed with the
+  // client's private key, which never leaves it; carries no secret.
+  optional string client_assertion = 6;
+  // Assertion type URN, "urn:ietf:params:oauth:client-assertion-type:jwt-bearer";
+  // required with `client_assertion` (RFC 7523 §2.2).
+  optional string client_assertion_type = 7;
+}
+
+message OAuth2RevokeResponse {}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Session validation (internal, forward-auth).
+// Used by sid-auth proxy to validate session tokens on behalf of upstream apps.
+// ══════════════════════════════════════════════════════════════════════════
+
+message ValidateSessionRequest {
+  // Session ID to validate (UUIDv7). Obtained from JWT sid claim or cookie.
+  string session_id = 1;
+}
+
+message ValidateSessionResponse {
+  // Whether the session is active and not expired.
+  bool valid = 1;
+  // Profile ID of the session owner (UUID). Set only when valid=true.
+  optional string profile_id = 2;
+  // Scopes granted to this session.
+  repeated string scopes = 3;
+  // Session expiration timestamp. Set only when valid=true.
+  optional google.protobuf.Timestamp expires_at = 4;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Device Authorization Grant (RFC 8628).
+//
+// Flow: device requests authorization → user enters code on separate device
+// (phone/laptop) → device polls for token. Used for TVs, CLIs, IoT.
+// ══════════════════════════════════════════════════════════════════════════
+
+message DeviceAuthorizationRequest {
+  // OAuth2 client identifier of the device application (RFC 8628 §3.1).
+  // Required unless HTTP Basic in the `authorization` metadata names the
+  // client.
+  optional string client_id = 1;
+  // Requested scopes (space-separated). RFC 8628 §3.1.
+  optional string scope = 2;
+  // Handle of the OIDC issuer whose device authorization endpoint received
+  // the request, bound from the path `/i/{issuer_handle}/oauth2/device`. The
+  // client must belong to this issuer; the device transaction stays bound to
+  // it.
+  string issuer_handle = 3;
+  // Client secret of a confidential client registered for
+  // `client_secret_post`, which authenticates here as at the token endpoint
+  // (RFC 8628 §3.1, RFC 6749 §2.3.1).
+  optional string client_secret = 4;
+  // Resource indicators (RFC 8707 §2), selected as at OAuth2Authorize. The
+  // device transaction is bound to the selected resource; the device code
+  // grant cannot change it.
+  repeated string resource = 5;
+  // Signed JWT assertion of a client registered for `private_key_jwt`
+  // (RFC 7523 §2.2), which authenticates here as at the token endpoint
+  // (RFC 8628 §3.1): `iss` and `sub` the client, `aud` the issuer's token
+  // endpoint, a single-use `jti`. Carries no secret.
+  optional string client_assertion = 6;
+  // Assertion type URN, "urn:ietf:params:oauth:client-assertion-type:jwt-bearer";
+  // required with `client_assertion` (RFC 7523 §2.2).
+  optional string client_assertion_type = 7;
+}
+
+message DeviceAuthorizationResponse {
+  // Opaque device verification code. Device uses this to poll for tokens.
+  // Not shown to user. RFC 8628 §3.2.
+  string device_code = 1;
+  // Short alphanumeric code displayed to user (e.g., "ABCD-1234").
+  // User enters this on the verification page. RFC 8628 §3.2.
+  string user_code = 2;
+  // URL where user enters the user_code (e.g., "https://sid.example.com/device").
+  // RFC 8628 §3.2.
+  string verification_uri = 3;
+  // Complete URL with code pre-filled (e.g., "https://sid.example.com/device?code=ABCD-1234").
+  // QR code target. RFC 8628 §3.2 RECOMMENDS inclusion.
+  string verification_uri_complete = 4;
+  // Lifetime of device_code and user_code in seconds (default 600 = 10 min).
+  int32 expires_in = 5;
+  // Minimum polling interval in seconds. Device must not poll faster. RFC 8628 §3.2.
+  int32 interval = 6;
+}
+
+message SubmitDeviceUserCodeRequest {
+  // User code entered by user on the verification page.
+  string user_code = 1;
+  // Whether user approves the device. true = grant, false = deny.
+  bool approve = 2;
+}
+
+message SubmitDeviceUserCodeResponse {
+  // Client name of the device application (for UI confirmation display).
+  string client_id = 1;
+  // Scopes requested by the device application.
+  optional string scope = 2;
+  // Whether the authorization is complete (user approved or denied).
+  bool completed = 3;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Magic Link (passwordless authentication for corporate profiles).
+//
+// Flow: user enters email → server sends magic link → user clicks →
+// server verifies token → issues session. No password involved.
+// Used for corporate SSO profiles that don't have OPAQUE credentials.
+// ══════════════════════════════════════════════════════════════════════════
+
+message RequestMagicLinkRequest {
+  // User-provided login identifier. Server sends magic link to this email/phone.
+  // Anti-enumeration: server returns success even if principal doesn't exist.
+  string principal = 1;
+  // OAuth2 client that initiated the magic link flow (determines redirect).
+  string client_id = 2;
+  // Where to redirect user after successful verification.
+  // Must match registered redirect_uris for the client.
+  string redirect_uri = 3;
+}
+
+message RequestMagicLinkResponse {
+  // Magic link session ID. Client may display "check your email" with this reference.
+  string session_id = 1;
+  // Magic link validity in seconds (default 600 = 10 min).
+  int32 expires_in = 2;
+}
+
+message VerifyMagicLinkRequest {
+  // Session ID from the magic link URL query parameter.
+  string session_id = 1;
+  // Cryptographic token from the magic link URL. Single-use, server-validated.
+  string token = 2;
+}
+
+message VerifyMagicLinkResponse {
+  // New session ID (different from magic link session — this is the auth session).
+  string session_id = 1;
+  // JWT access token (same semantics as OpaqueLoginFinishResponse.access_token).
+  string access_token = 2;
+  // Token lifetime in seconds.
+  int32 expires_in = 3;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Unified login flow (principal-first).
+//
+// Client sends identifier → server resolves available auth methods.
+// UI then presents method selector (password, passkey, magic link, etc.).
+// Anti-enumeration: returns plausible methods even for non-existent principals.
+// ══════════════════════════════════════════════════════════════════════════
+
+message ResolvePrincipalRequest {
+  // User-provided login identifier (email, phone, or username). Only its
+  // type is read; the server looks up no account.
+  string principal = 1;
+}
+
+message ResolvePrincipalResponse {
+  // Sign-in methods this installation offers for an identifier of this type,
+  // the same for every identifier of the type whether or not an account
+  // holds it (WebAuthn Level 3 §14.6.2): "opaque" when password sign-in is
+  // enabled, "webauthn" when passkeys are enabled (the discoverable flow,
+  // started without credential IDs), "magic_link" when magic links are
+  // enabled and the identifier is an email address or phone number. Whether
+  // the account can use a method is decided at that method's step, which
+  // refuses an unknown account exactly as a wrong secret.
+  repeated string available_methods = 1;
+  // Removed: a method suggested from the account's last sign-in disclosed
+  // that the account exists. A client remembers the last method locally.
+  reserved 2;
+  reserved "suggested_method";
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Legacy password migration (transparent on-login OPAQUE re-registration).
+//
+// For users imported from legacy systems (bcrypt, scrypt, PBKDF2).
+// Step 1: Client sends plaintext password (TLS REQUIRED) + OPAQUE registration request.
+//   Server verifies against legacy hash, starts OPAQUE registration.
+// Step 2: Client finishes OPAQUE registration. Server replaces legacy hash
+//   with OPAQUE credential and issues session.
+// After migration: user logs in via normal OPAQUE flow.
+// ══════════════════════════════════════════════════════════════════════════
+
+message LegacyMigrateStartRequest {
+  // User-provided login identifier.
+  string principal = 1;
+  // Plaintext password. ONLY used for legacy hash verification — server verifies
+  // against stored bcrypt/scrypt/PBKDF2 hash, then discards immediately.
+  // SECURITY: TLS REQUIRED. This is the only RPC that transmits plaintext password.
+  // After successful migration, this field is never needed again.
+  string password = 2;
+  // OPAQUE RegistrationRequest for the new credential. Client generates
+  // simultaneously with sending password — so migration is atomic.
+  bytes opaque_registration_request = 3;
+}
+
+message LegacyMigrateStartResponse {
+  // Opaque server-side migration state token. 5-minute TTL.
+  // Client echoes in Finish to complete the migration.
+  string migration_token = 1;
+  // OPAQUE RegistrationResponse for client to compute registration record.
+  bytes opaque_registration_response = 2;
+}
+
+message LegacyMigrateFinishRequest {
+  // Echoed from LegacyMigrateStartResponse.migration_token.
+  string migration_token = 1;
+  // OPAQUE RegistrationRecord computed by client. Server stores as new credential,
+  // deletes legacy hash. Migration complete.
+  bytes opaque_registration_record = 2;
+}
+
+message LegacyMigrateFinishResponse {
+  // Session ID (same semantics as OpaqueLoginFinishResponse).
+  string session_id = 1;
+  // JWT access token.
+  string access_token = 2;
+  // Token lifetime in seconds.
+  int64 expires_in = 3;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// ZKPP policy query (public endpoint, no auth required).
+//
+// Client fetches current password policy parameters to generate ZK proof.
+// Policy version is included to detect stale proofs.
+// ══════════════════════════════════════════════════════════════════════════
+
+message GetZkppPolicyRequest {}
+
+message GetZkppPolicyResponse {
+  // Policy version number. Monotonically increasing. Client includes in
+  // registration/change requests for version negotiation.
+  uint32 policy_version = 1;
+  // Minimum password length (characters, not bytes).
+  uint32 min_length = 2;
+  // Minimum number of uppercase Latin letters (A-Z).
+  uint32 min_uppercase = 3;
+  // Minimum number of lowercase Latin letters (a-z).
+  uint32 min_lowercase = 4;
+  // Minimum number of decimal digits (0-9).
+  uint32 min_digit = 5;
+  // Minimum number of symbol characters (non-alphanumeric ASCII).
+  uint32 min_symbol = 6;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Deferred ZK proof submission (no-WASM fallback).
+//
+// User registered via OPAQUE-ZKPP without ZK proof (WASM unavailable).
+// They have 24h to submit proof from a WASM-capable device.
+// If deadline expires, login is blocked until password re-registration.
+// Requires Bearer auth (proof is for the caller's own credential).
+// ══════════════════════════════════════════════════════════════════════════
+
+message SubmitDeferredZkProofRequest {
+  // Credential ID to verify (must belong to the Bearer token's profile).
+  string credential_id = 1;
+  // Halo2 password-policy proof over the credential's OPAQUE blinded element.
+  bytes zkpp_proof = 2;
+  // Public instances of the proof, each a serialized circuit field element.
+  repeated bytes instances = 3;
+  // Policy version the proof was generated against (version negotiation).
+  uint32 policy_version = 4;
+}
+
+message SubmitDeferredZkProofResponse {
+  // Whether the proof was successfully verified. If true, credential is now
+  // fully verified and the 24h deadline is cleared.
+  bool verified = 1;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// MFA TOTP enrollment and verification (RFC 6238).
+//
+// Enrollment: server generates secret → client displays QR → user scans with
+// authenticator app → client submits verification code → server confirms.
+// Verification: during MFA challenge, user enters 6-digit code from app.
+// ══════════════════════════════════════════════════════════════════════════
+
+// Empty request — profile resolved from Bearer token.
+message StartTotpEnrollmentRequest {}
+
+message TotpEnrollmentChallenge {
+  // TOTP shared secret, Base32-encoded (RFC 4648). Used by authenticator apps.
+  // 20 bytes of entropy, suitable for HMAC-SHA1 (RFC 6238 default).
+  // SECURITY: displayed to user only during enrollment, never again.
+  string secret = 1;
+  // Full otpauth:// URI for QR code generation. Encodes secret, issuer,
+  // account, algorithm, digits, period. RFC 6238 + Google Authenticator spec.
+  // Server is format authority (client should not construct this manually).
+  string qr_uri = 2;
+  // Issuer name displayed in authenticator app (e.g., "StructuredID").
+  // Server-configured (RealmSettings.display_name).
+  string issuer = 3;
+  // Account identifier displayed in authenticator app (e.g., user's email).
+  // Server resolves from profile's primary email or username.
+  string account_name = 4;
+}
+
+message FinishTotpEnrollmentRequest {
+  // 6-digit TOTP code from authenticator app. Server verifies against
+  // the secret from StartTotpEnrollment. One-time window (±1 period).
+  string code = 1;
+}
+
+message FinishTotpEnrollmentResponse {
+  // UUID of the newly created TOTP credential.
+  string credential_id = 1;
+  // 12 single-use recovery codes. Generated only if this is the user's
+  // first MFA factor (no existing TOTP, WebAuthn, or recovery codes).
+  // Client must display these once — server stores hashed, not plaintext.
+  repeated string recovery_codes = 2;
+}
+
+message VerifyTotpRequest {
+  // 6-digit TOTP code from authenticator app. Server verifies against
+  // stored secret with ±1 period tolerance (RFC 6238 §5.2).
+  string code = 1;
+}
+
+// Shared response for MFA verification (TOTP, SMS, recovery).
+// Used by VerifyTotp, VerifySmsMfa, and VerifyRecoveryCode RPCs.
+message MfaVerifyResponse {
+  // Whether the MFA code was correct.
+  bool verified = 1;
+  // New session ID after MFA elevation (session refreshed with amr updated).
+  // Set when verified=true and this was the last required MFA step.
+  optional string session_id = 2;
+  // New JWT access token with updated amr (auth methods reference) claim.
+  // Set when verified=true and authentication is now complete.
+  optional string access_token = 3;
+  // Token lifetime in seconds.
+  optional int64 expires_in = 4;
+  // Next step in the authentication flow, if any. Server determines based on
+  // policy (e.g., terms acceptance, profile completion). Empty if login is complete.
+  optional string redirect_to = 5;
+  // Number of remaining unused recovery codes. Set only for VerifyRecoveryCode
+  // responses — helps user know when to generate new codes.
+  optional int32 remaining_codes = 6;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// MFA SMS
+// ══════════════════════════════════════════════════════════════════════════
+
+message VerifySmsMfaRequest {
+  string code = 1;             // 6-digit SMS code
+}
+
+message ResendSmsMfaRequest {}
+
+message ResendSmsMfaResponse {
+  int32 expires_in = 1;        // Seconds until code expires
+  string masked_phone = 2;     // e.g. "+1 *** *** 1234"
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// MFA Recovery Codes
+// ══════════════════════════════════════════════════════════════════════════
+
+message GenerateRecoveryCodesRequest {}
+
+message GenerateRecoveryCodesResponse {
+  repeated string codes = 1;  // 12 single-use recovery codes
+}
+
+message VerifyRecoveryCodeRequest {
+  string code = 1;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// OTP verification (email/phone, non-MFA context)
+// ══════════════════════════════════════════════════════════════════════════
+
+message RequestOtpRequest {
+  string principal = 1;            // Email address
+}
+
+message RequestOtpResponse {
+  string otp_session_id = 1;      // Opaque reference for verify/resend
+  string masked_target = 2;       // "a****@example.com"
+  uint32 expires_in_seconds = 3;  // 600
+  uint32 code_length = 4;         // 8
+}
+
+message VerifyOtpRequest {
+  string code = 1;             // 8-digit OTP code
+  optional string session_id = 2;
+}
+
+message VerifyOtpResponse {
+  bool verified = 1;
+  optional string redirect_to = 2;
+  // Provisional session the verified code opened (set only when verified).
+  // Mailbox possession grants provisional scopes only: it cannot add or
+  // change a credential of an existing account.
+  optional string session_id = 3;
+  // Access token of that provisional session (same semantics as
+  // OpaqueLoginFinishResponse.access_token, restricted scopes).
+  optional string access_token = 4;
+  // Access token lifetime in seconds.
+  optional int64 expires_in = 5;
+}
+
+message ResendOtpRequest {
+  optional string session_id = 1;
+}
+
+message ResendOtpResponse {
+  int32 expires_in = 1;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Email/Phone verification
+// ══════════════════════════════════════════════════════════════════════════
+
+message ResendEmailVerificationRequest {
+  optional string email = 1;  // If absent, uses session's email
+}
+
+message ResendEmailVerificationResponse {
+  string masked_email = 1;    // e.g. "a***@example.com"
+  int32 expires_in = 2;
+}
+
+message VerifyPhoneRequest {
+  string code = 1;            // 6-digit verification code
+}
+
+message VerifyPhoneResponse {
+  bool verified = 1;
+  optional string redirect_to = 2;
+}
+
+message ResendPhoneVerificationRequest {}
+
+message ResendPhoneVerificationResponse {
+  string masked_phone = 1;
+  int32 expires_in = 2;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// IdP linking
+// ══════════════════════════════════════════════════════════════════════════
+
+message ConfirmIdpLinkRequest {
+  string link_token = 1;       // Opaque token from IdP callback
+  bool confirm = 2;            // true = link, false = cancel
+}
+
+message ConfirmIdpLinkResponse {
+  bool linked = 1;
+  optional string redirect_to = 2;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Organization selector
+// ══════════════════════════════════════════════════════════════════════════
+
+message ListUserOrganizationsRequest {}
+
+message UserOrganization {
+  string id = 1;
+  string name = 2;
+  string display_name = 3;
+  optional string logo_url = 4;
+  optional string domain = 5;
+}
+
+message ListUserOrganizationsResponse {
+  repeated UserOrganization organizations = 1;
+}
+
+message SelectOrganizationRequest {
+  string organization_id = 1;
+}
+
+message SelectOrganizationResponse {
+  optional string redirect_to = 1;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Terms acceptance
+// ══════════════════════════════════════════════════════════════════════════
+
+message GetTermsRequest {
+  optional string version = 1;   // If absent, returns latest
+  optional string locale = 2;
+}
+
+message GetTermsResponse {
+  string version = 1;
+  string title = 2;
+  string content_html = 3;       // Rendered HTML content
+  google.protobuf.Timestamp effective_date = 4;
+}
+
+message AcceptTermsRequest {
+  string version = 1;
+}
+
+message AcceptTermsResponse {
+  optional string redirect_to = 1;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// CIBA consent
+// ══════════════════════════════════════════════════════════════════════════
+
+message ApproveCibaRequest {
+  string auth_req_id = 1;
+}
+
+message DenyCibaRequest {
+  string auth_req_id = 1;
+  optional string reason = 2;
+}
+
+message CibaConsentResponse {
+  bool success = 1;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Captcha
+// ══════════════════════════════════════════════════════════════════════════
+
+message VerifyCaptchaRequest {
+  string challenge_id = 1;
+  string token = 2;            // Provider-specific response token
+}
+
+message VerifyCaptchaResponse {
+  bool verified = 1;
+  optional string redirect_to = 2;
+  // Single-use pass for the sign-in the challenge was asked of: the same
+  // profile from the same client address, within 60 seconds. Sent back as
+  // `captcha-pass` metadata on the retry; it answers the CAPTCHA requirement
+  // only, never a lockout or a block.
+  string bypass_token = 3;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Dynamic prompt (custom auth steps)
+// ══════════════════════════════════════════════════════════════════════════
+
+message GetDynamicPromptRequest {
+  string prompt_id = 1;
+}
+
+// Field type of a dynamic prompt field.
+enum DynamicPromptFieldType {
+  DYNAMIC_PROMPT_FIELD_TYPE_UNSPECIFIED = 0;
+  DYNAMIC_PROMPT_FIELD_TYPE_TEXT = 1;       // Free-text input
+  DYNAMIC_PROMPT_FIELD_TYPE_EMAIL = 2;      // Email input with validation
+  DYNAMIC_PROMPT_FIELD_TYPE_PASSWORD = 3;   // Masked password input
+  DYNAMIC_PROMPT_FIELD_TYPE_SELECT = 4;     // Dropdown (uses options field)
+  DYNAMIC_PROMPT_FIELD_TYPE_BOOLEAN = 5;    // Checkbox / toggle
+  DYNAMIC_PROMPT_FIELD_TYPE_INFO = 6;       // Read-only informational text (no input)
+}
+
+message DynamicPromptField {
+  // Machine-readable field identifier (used as key in SubmitDynamicPrompt values map).
+  string name = 1;
+  // Human-readable label displayed to the user.
+  string label = 2;
+  // Field input type. Determines UI rendering: text input, dropdown, checkbox, etc.
+  DynamicPromptFieldType field_type = 3;
+  // Whether the field must be filled before form submission.
+  bool required = 4;
+  // Available options for SELECT field type. Ignored for other types.
+  repeated DynamicPromptOption options = 5;
+}
+
+message DynamicPromptOption {
+  string label = 1;
+  string value = 2;
+}
+
+message DynamicPrompt {
+  string title = 1;
+  optional string description = 2;
+  optional string submit_label = 3;
+  bool cancelable = 4;
+  repeated DynamicPromptField fields = 5;
+}
+
+message SubmitDynamicPromptRequest {
+  string prompt_id = 1;
+  map<string, string> values = 2;
+}
+
+message SubmitDynamicPromptResponse {
+  optional string redirect_to = 1;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Step-up authentication
+//
+// 1-phase methods (TOTP, Recovery): call CompleteStepUp directly.
+// 2-phase methods (WebAuthn): RequestStepUp → challenge → CompleteStepUp.
+// ══════════════════════════════════════════════════════════════════════════
+
+// Step-up method selector.
+enum StepUpMethod {
+  STEP_UP_METHOD_UNSPECIFIED = 0;
+  STEP_UP_METHOD_TOTP = 1;           // 1-phase: CompleteStepUp only
+  STEP_UP_METHOD_WEBAUTHN = 2;       // 2-phase: RequestStepUp → CompleteStepUp
+  STEP_UP_METHOD_RECOVERY_CODE = 3;  // 1-phase: CompleteStepUp only
+}
+
+// Phase 1: Request challenge (WebAuthn). Skipped for TOTP/recovery.
+message RequestStepUpRequest {
+  string session_id = 1;
+  StepUpMethod method = 2;
+}
+
+// Challenge response from Phase 1.
+message StepUpChallenge {
+  StepUpMethod method = 1;
+  string challenge_id = 2;          // Opaque reference for CompleteStepUp
+  oneof challenge {
+    bytes webauthn_options = 3;      // PublicKeyCredentialRequestOptions (JSON)
+  }
+  // Available step-up methods at current session decay level.
+  // Populated by RequestStepUp based on enrolled methods + decay filtering.
+  // Frontend uses this to show only valid method buttons.
+  repeated StepUpMethod allowed_methods = 4;
+  // Current session decay level: "full", "high", "medium", "low".
+  string decay_level = 5;
+}
+
+// Phase 2: Submit proof → elevate session.
+message CompleteStepUpRequest {
+  string session_id = 1;
+  StepUpMethod method = 2;
+  string challenge_id = 3;          // From StepUpChallenge (empty for 1-phase)
+  oneof proof {
+    string totp_code = 4;
+    bytes webauthn_assertion = 5;    // AuthenticatorAssertionResponse (JSON)
+    string recovery_code = 6;
+  }
+}
+
+// Elevated session response.
+message CompleteStepUpResponse {
+  string new_session_token = 1;     // Rotated token with elevated assurance
+  string acr = 2;                   // New assurance level (urn:sid:acr:elevated)
+  repeated string amr = 3;          // Updated auth methods
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// MFA credential management
+// ══════════════════════════════════════════════════════════════════════════
+
+// Delete an MFA credential. Requires elevated session (step-up auth).
+message DeleteMfaCredentialRequest {
+  string credential_id = 1;  // UUID of the credential to delete
+}
+
+message DeleteMfaCredentialResponse {
+  bool deleted = 1;
+  string credential_type = 2;  // "totp", "webauthn", "recovery"
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Account deletion confirmation
+// ══════════════════════════════════════════════════════════════════════════
+
+message ConfirmAccountDeletionRequest {
+  string confirmation_text = 1;  // User types "DELETE" to confirm
+}
+
+message ConfirmAccountDeletionResponse {
+  bool accepted = 1;
+  optional string redirect_to = 2;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Password reset (credential replacement)
+// ══════════════════════════════════════════════════════════════════════════
+
+message RequestPasswordResetRequest {
+  string principal = 1;            // email, phone, or username
+  string client_id = 2;           // OAuth2 client (for redirect)
+  string redirect_uri = 3;
+  string captcha_token = 4;       // If CAPTCHA required
+}
+
+message RequestPasswordResetResponse {
+  string message = 1;             // Always "If account exists, reset email sent" (anti-enum)
+}
+
+message VerifyPasswordResetRequest {
+  string session_id = 1;
+  string token = 2;
+}
+
+message VerifyPasswordResetResponse {
+  string reset_session_id = 1;   // Authenticated reset session
+  int32 expires_in = 2;          // Reset session TTL (seconds)
+  // The history context of the replacement password: its operation ID, the
+  // owner's history domain and the comparison domains it is checked in. The
+  // reset needs no old password: the retained history is the owner's, not the client's.
+  PasswordHistoryContext history = 3;
+}
+
+message ExecutePasswordResetRequest {
+  // The reset operation (from VerifyPasswordResetResponse.history). Carries
+  // the verified reset session's authority; no bearer token is involved.
+  sid.v1.ids.PasswordOperationId operation_id = 1;
+  // OPAQUE RegistrationRequest (Pallas curve) for the replacement password.
+  // Generated by the client, as in registration.
+  bytes registration_request = 2;
+}
+
+message ExecutePasswordResetResponse {
+  // Server's OPAQUE RegistrationResponse for the replacement password. The
+  // client computes the final RegistrationRecord from it for CompletePasswordReset.
+  bytes registration_response = 1;
+}
+
+message CompletePasswordResetRequest {
+  string reset_session_id = 1;
+  // The reset operation (from VerifyPasswordResetResponse.history).
+  sid.v1.ids.PasswordOperationId operation_id = 7;
+  // Final OPAQUE RegistrationRecord of the replacement password, computed from
+  // ExecutePasswordResetResponse.registration_response.
+  bytes registration_record = 2;
+  // The registration proof for the replacement password; absent when the
+  // client cannot prove, in which case it installs policy-unverified.
+  PasswordRegistrationProof proof = 8;
+  // Retired field numbers.
+  reserved 3, 4, 5, 6;
+}
+
+message CompletePasswordResetResponse {
+  string session_id = 1;
+  string access_token = 2;
+  int32 expires_in = 3;
+}

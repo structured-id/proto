@@ -1,0 +1,135 @@
+// StructuredID Key Management Service
+// Manages signing keys, key providers, and JWKS for token signing/verification.
+// All RPCs require admin role.
+syntax = "proto3";
+
+package sid.v1.admin;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+service KeyService {
+  // ── Active Keys ──
+
+  rpc ListKeys(google.protobuf.Empty) returns (ListKeysResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/keys" };
+  }
+
+  rpc GetPublicKey(GetPublicKeyRequest) returns (PublicKeyResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/keys/{kid}/public" };
+  }
+
+  // ── Key Providers ──
+
+  rpc ListKeyProviders(google.protobuf.Empty) returns (ListKeyProvidersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/key-providers" };
+  }
+
+  rpc AddKeyProvider(AddKeyProviderRequest) returns (KeyProvider) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/admin/key-providers" body: "*" };
+  }
+
+  rpc UpdateKeyProvider(UpdateKeyProviderRequest) returns (KeyProvider) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { patch: "/v1/admin/key-providers/{provider_id}" body: "*" };
+  }
+
+  rpc DeleteKeyProvider(DeleteKeyProviderRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (google.api.http) = { delete: "/v1/admin/key-providers/{provider_id}" };
+  }
+}
+
+// ── Enums ──
+
+enum KeyStatus {
+  KEY_STATUS_UNSPECIFIED = 0;
+  KEY_STATUS_ACTIVE = 1;     // Currently used for signing new tokens
+  KEY_STATUS_PASSIVE = 2;    // Not used for new sigs, existing tokens still valid
+  KEY_STATUS_DISABLED = 3;   // Ignored entirely
+}
+
+enum KeyUse {
+  KEY_USE_UNSPECIFIED = 0;
+  KEY_USE_SIG = 1;           // Signing
+  KEY_USE_ENC = 2;           // Encryption
+}
+
+enum KeyProviderType {
+  KEY_PROVIDER_TYPE_UNSPECIFIED = 0;
+  KEY_PROVIDER_TYPE_GENERATED = 1;    // Auto-generated key pair
+  KEY_PROVIDER_TYPE_JAVA_KEYSTORE = 2; // Import from JKS
+  KEY_PROVIDER_TYPE_VAULT = 3;        // Load from an external secret store
+}
+
+// ── Messages ──
+
+message SigningKey {
+  string kid = 1;
+  string algorithm = 2;        // RS256, ES256, PS256, EdDSA
+  string key_type = 3;         // RSA, EC, OKP
+  KeyStatus status = 4;
+  KeyUse use = 5;
+  string provider_id = 6;
+  int32 key_size = 7;          // Bits (RSA: 2048/4096, EC: 256/384)
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message ListKeysResponse {
+  repeated SigningKey keys = 1;
+}
+
+message GetPublicKeyRequest {
+  string kid = 1;
+}
+
+message PublicKeyResponse {
+  string kid = 1;
+  string algorithm = 2;
+  string public_key_pem = 3;
+  string certificate_pem = 4;  // If available
+}
+
+message KeyProvider {
+  string id = 1;
+  string name = 2;
+  KeyProviderType provider_type = 3;
+  int32 priority = 4;
+  bool active = 5;
+  // Provider-specific config
+  string algorithm = 6;        // For generated: RS256, ES256, etc.
+  int32 key_size = 7;          // For generated: 2048, 4096
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message ListKeyProvidersResponse {
+  repeated KeyProvider providers = 1;
+}
+
+message AddKeyProviderRequest {
+  string name = 1;
+  KeyProviderType provider_type = 2;
+  int32 priority = 3;
+  string algorithm = 4;
+  int32 key_size = 5;
+  // For JKS import
+  bytes keystore_data = 6;
+  string keystore_password = 7;
+}
+
+message UpdateKeyProviderRequest {
+  string provider_id = 1;
+  optional string name = 2;
+  optional int32 priority = 3;
+  optional bool active = 4;
+  optional KeyStatus key_status = 5;  // Change status of keys from this provider
+}
+
+message DeleteKeyProviderRequest {
+  string provider_id = 1;
+}

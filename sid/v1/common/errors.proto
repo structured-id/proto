@@ -1,0 +1,300 @@
+// StructuredID gRPC Error Model.
+//
+// Machine-readable error reason codes for programmatic handling.
+// Used with google.rpc.ErrorInfo as status detail.
+//
+// Domain: "structured.id", the same for every installation whatever host
+// serves it. A reason is stable within its domain (AIP-193); reasons defined
+// elsewhere carry their own domain.
+
+syntax = "proto3";
+
+package sid.v1.common;
+
+// Machine-readable error reason codes.
+//
+// Each code maps to a specific gRPC status code (see comments).
+// Clients switch on `reason` field of google.rpc.ErrorInfo for
+// programmatic error handling.
+enum ErrorReason {
+  ERROR_REASON_UNSPECIFIED = 0;
+
+  // ── NOT_FOUND ──────────────────────────────────────────────
+
+  // Profile does not exist.
+  PROFILE_NOT_FOUND = 1;
+  // OAuth2 application/client not found.
+  APPLICATION_NOT_FOUND = 2;
+  // Session not found or expired.
+  SESSION_NOT_FOUND = 3;
+  // Credential not found.
+  CREDENTIAL_NOT_FOUND = 4;
+  // Role not found.
+  ROLE_NOT_FOUND = 5;
+  // Project not found.
+  PROJECT_NOT_FOUND = 6;
+  // No OIDC issuer has this handle. The request is refused before any
+  // authentication or key lookup; it never falls back to another issuer.
+  OIDC_ISSUER_NOT_FOUND = 7;
+  // Protected resource not found.
+  RESOURCE_NOT_FOUND = 8;
+  // The forward-auth route configuration has no protected application of
+  // this name; the reverse proxy's address names an application it does not
+  // protect.
+  FORWARD_AUTH_APPLICATION_NOT_FOUND = 9;
+  // No initial access token has this identifier.
+  INITIAL_ACCESS_TOKEN_NOT_FOUND = 13;
+  // No upstream identity provider has this identifier.
+  UPSTREAM_PROVIDER_NOT_FOUND = 14;
+  // No machine user (service account, bot, agent) has this identifier.
+  MACHINE_USER_NOT_FOUND = 15;
+  // The caller has no consent record for this site (OAuth2 client).
+  CONSENT_NOT_FOUND = 16;
+  // The caller's profile has no phone with this identifier.
+  PHONE_NOT_FOUND = 17;
+  // The caller's profile has no email with this identifier.
+  EMAIL_NOT_FOUND = 18;
+  // The caller has no device with this identifier (another profile's device
+  // is not found either).
+  DEVICE_NOT_FOUND = 19;
+
+  // ── UNAUTHENTICATED ────────────────────────────────────────
+
+  // Invalid credentials (password, WebAuthn assertion, etc.).
+  // Security: status.message MUST be generic ("authentication failed").
+  AUTHENTICATION_FAILED = 10;
+  // Access token expired.
+  TOKEN_EXPIRED = 11;
+  // Token malformed, invalid signature, or wrong issuer.
+  TOKEN_INVALID = 12;
+
+  // ── PERMISSION_DENIED ──────────────────────────────────────
+
+  // Caller lacks required permissions (the authorization decision denied it).
+  INSUFFICIENT_PERMISSIONS = 20;
+  // OAuth2 scope not granted for this operation.
+  SCOPE_NOT_GRANTED = 21;
+  // A sign-in policy refuses this sign-in outright (a blocked address or
+  // country, a method the policy never accepts). The refusal names no rule;
+  // retrying the same sign-in does not help.
+  SIGN_IN_REFUSED = 22;
+  // Self-registration is restricted on this installation. ErrorInfo metadata
+  // `requirement` names what is missing: `instance_claim` (the first
+  // administrator's claim token), `admin_only` (only administrators create
+  // accounts), `invite` (an invite code), `email` (an email address) or
+  // `email_domain` (an address in an allowed domain).
+  REGISTRATION_RESTRICTED = 23;
+
+  // ── ALREADY_EXISTS ─────────────────────────────────────────
+
+  // Profile with this identifier already exists.
+  PROFILE_ALREADY_EXISTS = 30;
+  // Email address already registered.
+  EMAIL_ALREADY_REGISTERED = 31;
+  // Username already taken.
+  USERNAME_ALREADY_TAKEN = 32;
+  // The operation key already names a command with a different method or
+  // inputs; a new command needs a new key.
+  OPERATION_KEY_CONFLICT = 33;
+  // The application already has a role of this kind (one client role and one
+  // resource role per application).
+  APPLICATION_ROLE_EXISTS = 34;
+  // The issuer already has, or had, a protected resource with this resource
+  // indicator; an indicator is never given to another resource.
+  RESOURCE_INDICATOR_TAKEN = 35;
+  // Phone number already registered to another account.
+  PHONE_ALREADY_REGISTERED = 36;
+  // The project already has a role with this key or display name.
+  ROLE_ALREADY_EXISTS = 37;
+  // An upstream identity provider with this name already exists.
+  UPSTREAM_PROVIDER_ALREADY_EXISTS = 38;
+  // A device login handle (an NFC tag, a face embedding) is held by another
+  // account; such a handle identifies one account only. A username has its
+  // own USERNAME_ALREADY_TAKEN.
+  PRINCIPAL_ALREADY_HELD = 39;
+
+  // ── INVALID_ARGUMENT ───────────────────────────────────────
+
+  // Field value does not pass validation.
+  INVALID_FIELD_VALUE = 40;
+  // Required field is missing.
+  REQUIRED_FIELD_MISSING = 41;
+  // The password installation's proof does not verify for its operation and
+  // request. A new operation with a fresh proof is needed; retrying the same
+  // proof cannot succeed.
+  PASSWORD_PROOF_INVALID = 42;
+
+  // ── FAILED_PRECONDITION ────────────────────────────────────
+
+  // MFA enrollment required before proceeding.
+  MFA_REQUIRED = 50;
+  // Account suspended by administrator.
+  ACCOUNT_SUSPENDED = 51;
+  // Account locked due to brute-force protection.
+  ACCOUNT_LOCKED = 52;
+  // User consent required before granting access.
+  CONSENT_REQUIRED = 53;
+  // Credential has been revoked.
+  CREDENTIAL_REVOKED = 54;
+  // Account is in closure/quarantine state.
+  ACCOUNT_CLOSED = 55;
+  // The operation completed, but its result is no longer kept; it is not
+  // executed again.
+  OPERATION_RESULT_UNAVAILABLE = 56;
+  // The operation is outside the window in which a retry is admitted.
+  OPERATION_EXPIRED = 57;
+  // The protected resource is retired with its application: it takes no
+  // changes and no access.
+  RESOURCE_RETIRED = 58;
+  // The client and the resource belong to different issuers; access is
+  // granted only within one issuer.
+  ISSUER_MISMATCH = 59;
+  // The installation's own integration is not provisioned or an
+  // administrator disabled it; its backend cannot serve until it is enabled.
+  SYSTEM_INTEGRATION_UNAVAILABLE = 61;
+  // The resource is one SID provisions and keeps (the installation's own
+  // integration or the system project): it is disabled, not deleted, and its
+  // settings are not edited by hand.
+  SYSTEM_MANAGED = 62;
+  // The new password matches one the owner's retained history holds. Which
+  // entry matched is never disclosed.
+  PASSWORD_REUSED = 63;
+  // A stronger authentication is required first. PreconditionFailure
+  // violations name it: type "acr" with the required acr value as subject,
+  // or type "amr" with each acceptable method.
+  STEP_UP_REQUIRED = 64;
+  // A CAPTCHA must be solved first; the status carries a CaptchaChallenge
+  // detail, and the solution goes back with the same request.
+  CAPTCHA_REQUIRED = 65;
+  // The account's password is stored in a legacy form and must be migrated
+  // through the migration flow before this call.
+  LEGACY_MIGRATION_REQUIRED = 66;
+  // The resource is not in a state that allows the call (a deleted machine
+  // user, a consumed reset session, a decided access request).
+  // PreconditionFailure type names the state, subject the resource.
+  INVALID_STATE = 67;
+  // The provider or capability the call needs is not configured in this
+  // deployment; an administrator can enable it.
+  FEATURE_NOT_CONFIGURED = 68;
+
+  // ── RESOURCE_EXHAUSTED ─────────────────────────────────────
+
+  // Rate limit exceeded (login attempts, API calls, etc.).
+  RATE_LIMIT_EXCEEDED = 60;
+  // A count limit is reached (for example the active tokens a user may hold);
+  // QuotaFailure names the limit. Retrying does not help until something is
+  // removed.
+  QUOTA_EXCEEDED = 69;
+
+  // ── ABORTED ────────────────────────────────────────────────
+
+  // Concurrent modification detected (optimistic locking).
+  CONCURRENT_MODIFICATION = 70;
+  // The same logical operation is still executing; retry it later with the
+  // same key.
+  OPERATION_IN_PROGRESS = 71;
+
+  // ── UNAVAILABLE ────────────────────────────────────────────
+
+  // Password history cannot be checked now (evaluator, history keys or
+  // checker capacity). Nothing was installed; retry after the RetryInfo delay.
+  // Ordinary sign-in is not affected.
+  PASSWORD_HISTORY_UNAVAILABLE = 100;
+  // The service is in maintenance mode; retry after the RetryInfo delay.
+  SERVICE_MAINTENANCE = 101;
+  // A dependency the call needs (storage, cache, revocation state, rate
+  // limiter, verification keys) cannot be reached; retry after the RetryInfo
+  // delay. Nothing was changed.
+  DEPENDENCY_UNAVAILABLE = 102;
+
+  // ── NOT_FOUND (continued) ──────────────────────────────────
+
+  // The caller holds no principal (login handle or contact) with this
+  // identifier; one held only by other accounts is not found either, except
+  // for an administrator.
+  PRINCIPAL_NOT_FOUND = 110;
+  // The caller's account has no data export to download or acknowledge.
+  EXPORT_NOT_FOUND = 111;
+  // The caller's account has no closure request to cancel.
+  CLOSURE_REQUEST_NOT_FOUND = 112;
+  // No group has this identifier, or the project has no group of this name.
+  GROUP_NOT_FOUND = 113;
+  // No authorization policy has this identifier.
+  POLICY_NOT_FOUND = 114;
+  // No access request has this identifier.
+  ACCESS_REQUEST_NOT_FOUND = 115;
+  // No notification template has this identifier, or the template has no
+  // content for the requested channel.
+  TEMPLATE_NOT_FOUND = 116;
+  // The device has no live key attestation (none was registered, or it was
+  // revoked).
+  ATTESTATION_NOT_FOUND = 117;
+  // The profile has no metadata entry with this key.
+  PROFILE_METADATA_NOT_FOUND = 118;
+  // No branding configuration has this identifier, or the project has no
+  // published branding.
+  BRANDING_NOT_FOUND = 119;
+  // The project has no saved configuration for this flow type.
+  FLOW_CONFIG_NOT_FOUND = 130;
+  // No flow action has this identifier.
+  FLOW_ACTION_NOT_FOUND = 131;
+  // No invite has this identifier.
+  INVITE_NOT_FOUND = 132;
+  // No organization has this identifier, or the caller is not a member of it
+  // (a member-only lookup does not disclose that the organization exists).
+  ORGANIZATION_NOT_FOUND = 133;
+  // The organization has no provisioning connector with this identifier.
+  PROVISIONING_CONNECTOR_NOT_FOUND = 134;
+
+  // ── ALREADY_EXISTS (continued) ─────────────────────────────
+
+  // The project already has a group of this name.
+  GROUP_ALREADY_EXISTS = 120;
+  // The project already has an authorization policy of this name.
+  POLICY_ALREADY_EXISTS = 121;
+  // The device already has a live key attestation; RotateDeviceKey replaces
+  // its key.
+  ATTESTATION_ALREADY_EXISTS = 122;
+
+  // ── UNKNOWN ────────────────────────────────────────────────
+
+  // The operation's outcome cannot be established yet; retry it with the
+  // same key, never with a new one.
+  OPERATION_OUTCOME_UNKNOWN = 95;
+
+  // ── UNIMPLEMENTED ──────────────────────────────────────────
+
+  // The feature is not part of this server build. Retrying does not help;
+  // InstanceInfo.edition names the build.
+  FEATURE_NOT_AVAILABLE = 80;
+
+  // ── INTERNAL ───────────────────────────────────────────────
+
+  // Unrecoverable internal error.
+  INTERNAL_ERROR = 90;
+}
+
+// The challenge of a CAPTCHA_REQUIRED refusal, packed as an additional status
+// detail beside ErrorInfo: no canonical google.rpc detail carries it.
+message CaptchaChallenge {
+  // Server-issued identifier of this challenge; the client sends it back with
+  // the solution. Valid only for the sign-in it was issued for.
+  string challenge_id = 1;
+  // Which solver the client runs.
+  CaptchaKind kind = 2;
+  // Public site key of a third-party widget; empty for the SID proof of work.
+  string site_key = 3;
+  // Required leading zero bits of the SID proof of work; 0 for a widget.
+  uint32 difficulty = 4;
+}
+
+// Solver of a CAPTCHA challenge.
+enum CaptchaKind {
+  CAPTCHA_KIND_UNSPECIFIED = 0;
+  // SID's own proof of work, solved without a third party.
+  CAPTCHA_KIND_SID_POW = 1;
+  // hCaptcha widget.
+  CAPTCHA_KIND_HCAPTCHA = 2;
+  // Cloudflare Turnstile widget.
+  CAPTCHA_KIND_TURNSTILE = 3;
+}

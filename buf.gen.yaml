@@ -1,0 +1,16 @@
+# TypeScript clients (protobuf-ts) generated from this module into gen/ts,
+# which is not committed. Applications generate their own clients from their
+# copy of these definitions; servers generate Rust at build time.
+version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/structured-id/proto/gen/go
+plugins:
+  # protobuf-ts for UI applications
+  - local: protoc-gen-ts
+    out: gen/ts
+    opt:
+      - client_generic
+      - generate_dependencies
