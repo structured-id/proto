@@ -22,7 +22,7 @@ proto/
     ├── events/         # CloudEvents stream
     ├── federation/     # Upstream identity providers
     ├── identity/       # Profiles, principals, credentials, sessions
-    ├── ids/            # Validated identifier messages
+    ├── ids/            # Validated identifier messages and their conformance corpus
     ├── machine/        # Machine users and personal access tokens
     ├── projects/       # Projects, applications, OAuth clients, protected resources
     ├── scim/           # SCIM provisioning
@@ -57,6 +57,14 @@ clients from these definitions in its build:
 ```bash
 buf generate
 ```
+
+### Conformance Corpus
+
+`sid/v1/ids/ids.corpus.json` is the language-neutral contract of the
+identifier messages: for every message and case, the identifier bytes, the
+binary encoding, the standard ProtoJSON and whether the checked conversion
+accepts it or why it refuses. Every implementation of these identifiers runs
+the same file; a message added to `ids.proto` comes with its cases.
 
 ### Lint & Breaking Change Detection
 

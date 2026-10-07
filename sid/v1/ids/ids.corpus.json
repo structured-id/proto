@@ -1,0 +1,665 @@
+{
+  "about": "sid.v1.ids identifier corpus: binary, ProtoJSON and checked conversion",
+  "cases": [
+    {
+      "about": "a UUIDv7 of the RFC 9562 variant",
+      "case": "valid",
+      "expect": "valid",
+      "kind": "BindingId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e8f00112233445566"
+    },
+    {
+      "about": "a present message with no bytes; ProtoJSON {} and wire empty",
+      "case": "empty",
+      "expect": "length:0",
+      "kind": "BindingId",
+      "protojson": {},
+      "value_hex": "",
+      "wire_hex": ""
+    },
+    {
+      "about": "15 bytes",
+      "case": "short",
+      "expect": "length:15",
+      "kind": "BindingId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RV"
+      },
+      "value_hex": "019290a47b3c7d2e8f001122334455",
+      "wire_hex": "0a0f019290a47b3c7d2e8f001122334455"
+    },
+    {
+      "about": "17 bytes",
+      "case": "long",
+      "expect": "length:17",
+      "kind": "BindingId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZnc="
+      },
+      "value_hex": "019290a47b3c7d2e8f0011223344556677",
+      "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
+    },
+    {
+      "about": "the nil UUID",
+      "case": "nil",
+      "expect": "nil",
+      "kind": "BindingId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAA=="
+      },
+      "value_hex": "00000000000000000000000000000000",
+      "wire_hex": "0a1000000000000000000000000000000000"
+    },
+    {
+      "about": "the max UUID",
+      "case": "max",
+      "expect": "max",
+      "kind": "BindingId",
+      "protojson": {
+        "value": "/////////////////////w=="
+      },
+      "value_hex": "ffffffffffffffffffffffffffffffff",
+      "wire_hex": "0a10ffffffffffffffffffffffffffffffff"
+    },
+    {
+      "about": "an RFC 9562 UUID of version 4",
+      "case": "version_4",
+      "expect": "version:4",
+      "kind": "BindingId",
+      "protojson": {
+        "value": "AZKQpHs8TS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c4d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c4d2e8f00112233445566"
+    },
+    {
+      "about": "variant bits 0xx: refused before the version is read",
+      "case": "variant_ncs",
+      "expect": "variant",
+      "kind": "BindingId",
+      "protojson": {
+        "value": "AZKQpHs8fS4PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e0f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e0f00112233445566"
+    },
+    {
+      "about": "variant bits 110: refused",
+      "case": "variant_microsoft",
+      "expect": "variant",
+      "kind": "BindingId",
+      "protojson": {
+        "value": "AZKQpHs8fS7PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2ecf00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2ecf00112233445566"
+    },
+    {
+      "about": "the required message is missing; distinct from an empty one",
+      "case": "absent",
+      "expect": "missing",
+      "kind": "BindingId",
+      "protojson": null,
+      "value_hex": null,
+      "wire_hex": null
+    },
+    {
+      "about": "a UUIDv7 of the RFC 9562 variant",
+      "case": "valid",
+      "expect": "valid",
+      "kind": "MachineUserId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e8f00112233445566"
+    },
+    {
+      "about": "a present message with no bytes; ProtoJSON {} and wire empty",
+      "case": "empty",
+      "expect": "length:0",
+      "kind": "MachineUserId",
+      "protojson": {},
+      "value_hex": "",
+      "wire_hex": ""
+    },
+    {
+      "about": "15 bytes",
+      "case": "short",
+      "expect": "length:15",
+      "kind": "MachineUserId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RV"
+      },
+      "value_hex": "019290a47b3c7d2e8f001122334455",
+      "wire_hex": "0a0f019290a47b3c7d2e8f001122334455"
+    },
+    {
+      "about": "17 bytes",
+      "case": "long",
+      "expect": "length:17",
+      "kind": "MachineUserId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZnc="
+      },
+      "value_hex": "019290a47b3c7d2e8f0011223344556677",
+      "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
+    },
+    {
+      "about": "the nil UUID",
+      "case": "nil",
+      "expect": "nil",
+      "kind": "MachineUserId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAA=="
+      },
+      "value_hex": "00000000000000000000000000000000",
+      "wire_hex": "0a1000000000000000000000000000000000"
+    },
+    {
+      "about": "the max UUID",
+      "case": "max",
+      "expect": "max",
+      "kind": "MachineUserId",
+      "protojson": {
+        "value": "/////////////////////w=="
+      },
+      "value_hex": "ffffffffffffffffffffffffffffffff",
+      "wire_hex": "0a10ffffffffffffffffffffffffffffffff"
+    },
+    {
+      "about": "an RFC 9562 UUID of version 4",
+      "case": "version_4",
+      "expect": "version:4",
+      "kind": "MachineUserId",
+      "protojson": {
+        "value": "AZKQpHs8TS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c4d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c4d2e8f00112233445566"
+    },
+    {
+      "about": "variant bits 0xx: refused before the version is read",
+      "case": "variant_ncs",
+      "expect": "variant",
+      "kind": "MachineUserId",
+      "protojson": {
+        "value": "AZKQpHs8fS4PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e0f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e0f00112233445566"
+    },
+    {
+      "about": "variant bits 110: refused",
+      "case": "variant_microsoft",
+      "expect": "variant",
+      "kind": "MachineUserId",
+      "protojson": {
+        "value": "AZKQpHs8fS7PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2ecf00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2ecf00112233445566"
+    },
+    {
+      "about": "the required message is missing; distinct from an empty one",
+      "case": "absent",
+      "expect": "missing",
+      "kind": "MachineUserId",
+      "protojson": null,
+      "value_hex": null,
+      "wire_hex": null
+    },
+    {
+      "about": "a UUIDv7 of the RFC 9562 variant",
+      "case": "valid",
+      "expect": "valid",
+      "kind": "PasswordOperationId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e8f00112233445566"
+    },
+    {
+      "about": "a present message with no bytes; ProtoJSON {} and wire empty",
+      "case": "empty",
+      "expect": "length:0",
+      "kind": "PasswordOperationId",
+      "protojson": {},
+      "value_hex": "",
+      "wire_hex": ""
+    },
+    {
+      "about": "15 bytes",
+      "case": "short",
+      "expect": "length:15",
+      "kind": "PasswordOperationId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RV"
+      },
+      "value_hex": "019290a47b3c7d2e8f001122334455",
+      "wire_hex": "0a0f019290a47b3c7d2e8f001122334455"
+    },
+    {
+      "about": "17 bytes",
+      "case": "long",
+      "expect": "length:17",
+      "kind": "PasswordOperationId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZnc="
+      },
+      "value_hex": "019290a47b3c7d2e8f0011223344556677",
+      "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
+    },
+    {
+      "about": "the nil UUID",
+      "case": "nil",
+      "expect": "nil",
+      "kind": "PasswordOperationId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAA=="
+      },
+      "value_hex": "00000000000000000000000000000000",
+      "wire_hex": "0a1000000000000000000000000000000000"
+    },
+    {
+      "about": "the max UUID",
+      "case": "max",
+      "expect": "max",
+      "kind": "PasswordOperationId",
+      "protojson": {
+        "value": "/////////////////////w=="
+      },
+      "value_hex": "ffffffffffffffffffffffffffffffff",
+      "wire_hex": "0a10ffffffffffffffffffffffffffffffff"
+    },
+    {
+      "about": "an RFC 9562 UUID of version 4",
+      "case": "version_4",
+      "expect": "version:4",
+      "kind": "PasswordOperationId",
+      "protojson": {
+        "value": "AZKQpHs8TS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c4d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c4d2e8f00112233445566"
+    },
+    {
+      "about": "variant bits 0xx: refused before the version is read",
+      "case": "variant_ncs",
+      "expect": "variant",
+      "kind": "PasswordOperationId",
+      "protojson": {
+        "value": "AZKQpHs8fS4PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e0f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e0f00112233445566"
+    },
+    {
+      "about": "variant bits 110: refused",
+      "case": "variant_microsoft",
+      "expect": "variant",
+      "kind": "PasswordOperationId",
+      "protojson": {
+        "value": "AZKQpHs8fS7PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2ecf00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2ecf00112233445566"
+    },
+    {
+      "about": "the required message is missing; distinct from an empty one",
+      "case": "absent",
+      "expect": "missing",
+      "kind": "PasswordOperationId",
+      "protojson": null,
+      "value_hex": null,
+      "wire_hex": null
+    },
+    {
+      "about": "a UUIDv7 of the RFC 9562 variant",
+      "case": "valid",
+      "expect": "valid",
+      "kind": "ProvisioningConnectorId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e8f00112233445566"
+    },
+    {
+      "about": "a present message with no bytes; ProtoJSON {} and wire empty",
+      "case": "empty",
+      "expect": "length:0",
+      "kind": "ProvisioningConnectorId",
+      "protojson": {},
+      "value_hex": "",
+      "wire_hex": ""
+    },
+    {
+      "about": "15 bytes",
+      "case": "short",
+      "expect": "length:15",
+      "kind": "ProvisioningConnectorId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RV"
+      },
+      "value_hex": "019290a47b3c7d2e8f001122334455",
+      "wire_hex": "0a0f019290a47b3c7d2e8f001122334455"
+    },
+    {
+      "about": "17 bytes",
+      "case": "long",
+      "expect": "length:17",
+      "kind": "ProvisioningConnectorId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZnc="
+      },
+      "value_hex": "019290a47b3c7d2e8f0011223344556677",
+      "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
+    },
+    {
+      "about": "the nil UUID",
+      "case": "nil",
+      "expect": "nil",
+      "kind": "ProvisioningConnectorId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAA=="
+      },
+      "value_hex": "00000000000000000000000000000000",
+      "wire_hex": "0a1000000000000000000000000000000000"
+    },
+    {
+      "about": "the max UUID",
+      "case": "max",
+      "expect": "max",
+      "kind": "ProvisioningConnectorId",
+      "protojson": {
+        "value": "/////////////////////w=="
+      },
+      "value_hex": "ffffffffffffffffffffffffffffffff",
+      "wire_hex": "0a10ffffffffffffffffffffffffffffffff"
+    },
+    {
+      "about": "an RFC 9562 UUID of version 4",
+      "case": "version_4",
+      "expect": "version:4",
+      "kind": "ProvisioningConnectorId",
+      "protojson": {
+        "value": "AZKQpHs8TS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c4d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c4d2e8f00112233445566"
+    },
+    {
+      "about": "variant bits 0xx: refused before the version is read",
+      "case": "variant_ncs",
+      "expect": "variant",
+      "kind": "ProvisioningConnectorId",
+      "protojson": {
+        "value": "AZKQpHs8fS4PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e0f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e0f00112233445566"
+    },
+    {
+      "about": "variant bits 110: refused",
+      "case": "variant_microsoft",
+      "expect": "variant",
+      "kind": "ProvisioningConnectorId",
+      "protojson": {
+        "value": "AZKQpHs8fS7PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2ecf00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2ecf00112233445566"
+    },
+    {
+      "about": "the required message is missing; distinct from an empty one",
+      "case": "absent",
+      "expect": "missing",
+      "kind": "ProvisioningConnectorId",
+      "protojson": null,
+      "value_hex": null,
+      "wire_hex": null
+    },
+    {
+      "about": "a UUIDv7 of the RFC 9562 variant",
+      "case": "valid",
+      "expect": "valid",
+      "kind": "ProvisioningCredentialId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e8f00112233445566"
+    },
+    {
+      "about": "a present message with no bytes; ProtoJSON {} and wire empty",
+      "case": "empty",
+      "expect": "length:0",
+      "kind": "ProvisioningCredentialId",
+      "protojson": {},
+      "value_hex": "",
+      "wire_hex": ""
+    },
+    {
+      "about": "15 bytes",
+      "case": "short",
+      "expect": "length:15",
+      "kind": "ProvisioningCredentialId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RV"
+      },
+      "value_hex": "019290a47b3c7d2e8f001122334455",
+      "wire_hex": "0a0f019290a47b3c7d2e8f001122334455"
+    },
+    {
+      "about": "17 bytes",
+      "case": "long",
+      "expect": "length:17",
+      "kind": "ProvisioningCredentialId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZnc="
+      },
+      "value_hex": "019290a47b3c7d2e8f0011223344556677",
+      "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
+    },
+    {
+      "about": "the nil UUID",
+      "case": "nil",
+      "expect": "nil",
+      "kind": "ProvisioningCredentialId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAA=="
+      },
+      "value_hex": "00000000000000000000000000000000",
+      "wire_hex": "0a1000000000000000000000000000000000"
+    },
+    {
+      "about": "the max UUID",
+      "case": "max",
+      "expect": "max",
+      "kind": "ProvisioningCredentialId",
+      "protojson": {
+        "value": "/////////////////////w=="
+      },
+      "value_hex": "ffffffffffffffffffffffffffffffff",
+      "wire_hex": "0a10ffffffffffffffffffffffffffffffff"
+    },
+    {
+      "about": "an RFC 9562 UUID of version 4",
+      "case": "version_4",
+      "expect": "version:4",
+      "kind": "ProvisioningCredentialId",
+      "protojson": {
+        "value": "AZKQpHs8TS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c4d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c4d2e8f00112233445566"
+    },
+    {
+      "about": "variant bits 0xx: refused before the version is read",
+      "case": "variant_ncs",
+      "expect": "variant",
+      "kind": "ProvisioningCredentialId",
+      "protojson": {
+        "value": "AZKQpHs8fS4PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e0f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e0f00112233445566"
+    },
+    {
+      "about": "variant bits 110: refused",
+      "case": "variant_microsoft",
+      "expect": "variant",
+      "kind": "ProvisioningCredentialId",
+      "protojson": {
+        "value": "AZKQpHs8fS7PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2ecf00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2ecf00112233445566"
+    },
+    {
+      "about": "the required message is missing; distinct from an empty one",
+      "case": "absent",
+      "expect": "missing",
+      "kind": "ProvisioningCredentialId",
+      "protojson": null,
+      "value_hex": null,
+      "wire_hex": null
+    },
+    {
+      "about": "a UUIDv7 of the RFC 9562 variant",
+      "case": "valid",
+      "expect": "valid",
+      "kind": "ResourceId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e8f00112233445566"
+    },
+    {
+      "about": "a present message with no bytes; ProtoJSON {} and wire empty",
+      "case": "empty",
+      "expect": "length:0",
+      "kind": "ResourceId",
+      "protojson": {},
+      "value_hex": "",
+      "wire_hex": ""
+    },
+    {
+      "about": "15 bytes",
+      "case": "short",
+      "expect": "length:15",
+      "kind": "ResourceId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RV"
+      },
+      "value_hex": "019290a47b3c7d2e8f001122334455",
+      "wire_hex": "0a0f019290a47b3c7d2e8f001122334455"
+    },
+    {
+      "about": "17 bytes",
+      "case": "long",
+      "expect": "length:17",
+      "kind": "ResourceId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZnc="
+      },
+      "value_hex": "019290a47b3c7d2e8f0011223344556677",
+      "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
+    },
+    {
+      "about": "the nil UUID",
+      "case": "nil",
+      "expect": "nil",
+      "kind": "ResourceId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAA=="
+      },
+      "value_hex": "00000000000000000000000000000000",
+      "wire_hex": "0a1000000000000000000000000000000000"
+    },
+    {
+      "about": "the max UUID",
+      "case": "max",
+      "expect": "max",
+      "kind": "ResourceId",
+      "protojson": {
+        "value": "/////////////////////w=="
+      },
+      "value_hex": "ffffffffffffffffffffffffffffffff",
+      "wire_hex": "0a10ffffffffffffffffffffffffffffffff"
+    },
+    {
+      "about": "an RFC 9562 UUID of version 4",
+      "case": "version_4",
+      "expect": "version:4",
+      "kind": "ResourceId",
+      "protojson": {
+        "value": "AZKQpHs8TS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c4d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c4d2e8f00112233445566"
+    },
+    {
+      "about": "variant bits 0xx: refused before the version is read",
+      "case": "variant_ncs",
+      "expect": "variant",
+      "kind": "ResourceId",
+      "protojson": {
+        "value": "AZKQpHs8fS4PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e0f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e0f00112233445566"
+    },
+    {
+      "about": "variant bits 110: refused",
+      "case": "variant_microsoft",
+      "expect": "variant",
+      "kind": "ResourceId",
+      "protojson": {
+        "value": "AZKQpHs8fS7PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2ecf00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2ecf00112233445566"
+    },
+    {
+      "about": "the required message is missing; distinct from an empty one",
+      "case": "absent",
+      "expect": "missing",
+      "kind": "ResourceId",
+      "protojson": null,
+      "value_hex": null,
+      "wire_hex": null
+    }
+  ],
+  "proto": "sid/v1/ids/ids.proto",
+  "protojson_inputs": {
+    "about": "accepted spellings of the max-UUID BindingId; all parse to wire_hex",
+    "inputs": [
+      {
+        "value": "/////////////////////w=="
+      },
+      {
+        "value": "/////////////////////w"
+      },
+      {
+        "value": "_____________________w=="
+      },
+      {
+        "value": "_____________________w"
+      }
+    ],
+    "wire_hex": "0a10ffffffffffffffffffffffffffffffff"
+  },
+  "wrapper_substitution": {
+    "about": "message SidBinding { bytes binding_id = 1; } encodes as sid.v1.ids.BindingId",
+    "binding_wire_hex": "0a10019290a47b3c7d2e8f00112233445566",
+    "legacy_wire_hex": "0a10019290a47b3c7d2e8f00112233445566"
+  }
+}
