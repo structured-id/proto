@@ -27,3 +27,5 @@ jobs:
           format: false
           breaking: false
           push: false
+          # The check result is the report; the token stays read-only.
+          pr_comment: false
