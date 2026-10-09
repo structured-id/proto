@@ -39,8 +39,10 @@ service AuthService {
     option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/auth/opaque-zkpp/registration/finish" body: "*" };
   }
+  // Counts a current-password attempt when the request carries KE1, so a
+  // retry is not free.
   rpc PasswordChangeChallenge(PasswordChangeChallengeRequest) returns (PasswordChangeChallengeResponse) {
-    option idempotency_level = NO_SIDE_EFFECTS;
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/password/change/challenge" body: "*" };
   }
   rpc PasswordChangeExecute(PasswordChangeExecuteRequest) returns (PasswordChangeExecuteResponse) {
@@ -499,7 +501,9 @@ message OpaqueZkppRegistrationFinishResponse {
 // reaches the server. Whether the proof is needed follows the password policy
 // (GetPasswordChangeRequirement); a proof sent when none is needed is accepted.
 // A change that needs the proof and lacks it is refused with FAILED_PRECONDITION,
-// ErrorInfo reason STEP_UP_REQUIRED, metadata continuation=current_password.
+// ErrorInfo reason STEP_UP_REQUIRED, metadata continuation=current_password,
+// and a PreconditionFailure violation of type "amr", subject "pwd" (the
+// password method, RFC 8176 §2).
 // A wrong current password is refused like a wrong sign-in (UNAUTHENTICATED,
 // AUTHENTICATION_FAILED) and counts toward the account's sign-in lockout.
 // Since a wrong password already fails on the client at KE2, every challenge
@@ -514,8 +518,9 @@ message PasswordChangeChallengeRequest {
   // Profile resolved from Bearer token (not client-provided).
   string credential_id = 1;
   // OPAQUE CredentialRequest (KE1) of a sign-in with the current password,
-  // made by the client exactly as for OpaqueLoginStart (RFC 9807 §6). Absent
-  // when the client does not prove the current password.
+  // made by the client exactly as for OpaqueLoginStart (RFC 9807 §6), in the
+  // credential's suite (Credential.opaque_info.suite from ListCredentials).
+  // Absent when the client does not prove the current password.
   bytes credential_request = 2;
 }
 

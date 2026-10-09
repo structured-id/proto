@@ -199,7 +199,29 @@ message Credential {
   // Safe to expose to clients — contains no cryptographic material.
   oneof info {
     WebAuthnCredentialInfo webauthn_info = 8;
+    OpaqueCredentialInfo opaque_info = 9;
   }
+}
+
+// Display-safe metadata of an OPAQUE password credential.
+message OpaqueCredentialInfo {
+  // The OPAQUE configuration the credential was registered in (RFC 9807
+  // §3.1): a client signs in with it, or proves it as the current password in
+  // a change, only in this suite.
+  OpaqueSuite suite = 1;
+}
+
+// OPAQUE configurations (RFC 9807 §4.1): the prime-order group of the OPRF
+// and key exchange; each with its own hash-to-group, KDF and KSF settings.
+enum OpaqueSuite {
+  OPAQUE_SUITE_UNSPECIFIED = 0;
+  // Pallas, with the ZKPP password proof; every password installed by
+  // registration, change or reset through this API.
+  OPAQUE_SUITE_PALLAS = 1;
+  OPAQUE_SUITE_RISTRETTO255 = 2;
+  OPAQUE_SUITE_P256 = 3;
+  OPAQUE_SUITE_P384 = 4;
+  OPAQUE_SUITE_P521 = 5;
 }
 
 // Display-safe metadata for WebAuthn/passkey credentials.
