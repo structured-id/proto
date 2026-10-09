@@ -502,6 +502,10 @@ message OpaqueZkppRegistrationFinishResponse {
 // ErrorInfo reason STEP_UP_REQUIRED, metadata continuation=current_password.
 // A wrong current password is refused like a wrong sign-in (UNAUTHENTICATED,
 // AUTHENTICATION_FAILED) and counts toward the account's sign-in lockout.
+// Since a wrong password already fails on the client at KE2, every challenge
+// that carries a credential_request counts as one attempt when its KE2 is
+// issued, whether or not execute follows; past the limit the challenge is
+// refused with RESOURCE_EXHAUSTED, RATE_LIMIT_EXCEEDED and a RetryInfo.
 
 message PasswordChangeChallengeRequest {
   // Which OPAQUE credential to change. Required because a profile may have
@@ -573,8 +577,9 @@ message PasswordChangeRequirement {
   // How long from the moment of this answer, measured on the server's clock, a
   // password change of this session may still go without proving the current
   // password. Zero: the current password is required now. A client arms a
-  // timer for exactly this duration rather than comparing wall clocks, and
-  // asks for the current password when it fires.
+  // timer rather than comparing wall clocks: this duration less the time its
+  // own request took from sending to receiving the answer, so the timer never
+  // fires late; it asks for the current password when the timer fires.
   google.protobuf.Duration current_password_required_in = 1;
 }
 
