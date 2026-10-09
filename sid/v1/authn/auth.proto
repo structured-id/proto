@@ -562,7 +562,9 @@ message PasswordChangeExecuteRequest {
   // in the challenge (RFC 9807 §6), under the change context. Required when
   // the challenge carried credential_request, absent otherwise.
   bytes credential_finalization = 10;
-  // Retired field numbers.
+  // Retired field numbers. 5 was the new password's registration request; it
+  // moved to the challenge with no second path, since a request sent here
+  // could not be covered by the current-password context already in use.
   reserved 3, 4, 5, 6, 7, 8;
 }
 
