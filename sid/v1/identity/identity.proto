@@ -224,10 +224,11 @@ enum OpaqueSuite {
   // ignored; the password zero-padded to 128 bytes, Poseidon, the first of
   // 2^8 offsets on the curve, the even root of y), hash SHA-256, KSF Argon2id
   // v1.3 with m = 19456 KiB, t = 2, p = 1 and a salt of 16 zero bytes. Its
-  // normative definition: "The Pallas OPAQUE suite" in
-  // https://github.com/structured-id/zkpp/blob/main/docs/construction.md.
-  // The ZKPP password proof covers its request. Every password installed by
-  // registration, change or reset through this API.
+  // normative definition, fixed at this revision: "The Pallas OPAQUE suite" in
+  // https://github.com/structured-id/zkpp/blob/0ee2dc51d945a6a28f4d900be5643c4ba7f680f5/docs/construction.md.
+  // Every password this API installs uses it: the OpaqueZkppRegistration*
+  // flow, password change and reset with the ZKPP password proof over its
+  // request, and the basic OpaqueRegistration* flow without that proof.
   OPAQUE_SUITE_PALLAS_V1 = 1;
   // OPRF ristretto255-SHA512 (RFC 9497 §4.1), hash SHA-512, KSF Argon2id
   // v1.3 with m = 19456 KiB, t = 2, p = 1 and a salt of 16 zero bytes.
