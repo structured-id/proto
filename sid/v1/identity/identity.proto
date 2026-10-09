@@ -211,17 +211,32 @@ message OpaqueCredentialInfo {
   OpaqueSuite suite = 1;
 }
 
-// OPAQUE configurations (RFC 9807 §4.1): the prime-order group of the OPRF
-// and key exchange; each with its own hash-to-group, KDF and KSF settings.
+// Complete OPAQUE configurations (RFC 9807 §7): each value fixes the OPRF, the
+// KDF, MAC and hash, the KSF with its parameters, the group and the context.
+// A change of any of them is a new value, never a new meaning of an old one.
+//
+// Common to every value: the key exchange is 3DH (RFC 9807 §6) on the OPRF's
+// group, with HKDF, HMAC and the hash named below; the context is empty and
+// the identities are the parties' public keys (the defaults of RFC 9807 §4).
 enum OpaqueSuite {
   OPAQUE_SUITE_UNSPECIFIED = 0;
-  // Pallas, with the ZKPP password proof; every password installed by
-  // registration, change or reset through this API.
-  OPAQUE_SUITE_PALLAS = 1;
-  OPAQUE_SUITE_RISTRETTO255 = 2;
-  OPAQUE_SUITE_P256 = 3;
-  OPAQUE_SUITE_P384 = 4;
-  OPAQUE_SUITE_P521 = 5;
+  // OPRF Pallas-Poseidon-SHA256 (the ZKPP password proof covers its request),
+  // hash SHA-256, KSF Argon2id v1.3 with m = 19456 KiB, t = 2, p = 1 and a
+  // salt of 16 zero bytes. Every password installed by registration, change
+  // or reset through this API.
+  OPAQUE_SUITE_PALLAS_V1 = 1;
+  // OPRF ristretto255-SHA512 (RFC 9497 §4.1), hash SHA-512, KSF Argon2id
+  // v1.3 with m = 19456 KiB, t = 2, p = 1 and a salt of 16 zero bytes.
+  OPAQUE_SUITE_RISTRETTO255_V1 = 2;
+  // OPRF P256-SHA256 (RFC 9497 §4.3), hash SHA-256, KSF PBKDF2-HMAC-SHA256
+  // with 600000 iterations and the salt "sid-opaque-ksf".
+  OPAQUE_SUITE_P256_V1 = 3;
+  // OPRF P384-SHA384 (RFC 9497 §4.4), hash SHA-384, KSF PBKDF2-HMAC-SHA384
+  // with 600000 iterations and the salt "sid-opaque-ksf".
+  OPAQUE_SUITE_P384_V1 = 4;
+  // OPRF P521-SHA512 (RFC 9497 §4.5), hash SHA-512, KSF PBKDF2-HMAC-SHA512
+  // with 600000 iterations and the salt "sid-opaque-ksf".
+  OPAQUE_SUITE_P521_V1 = 5;
 }
 
 // Display-safe metadata for WebAuthn/passkey credentials.

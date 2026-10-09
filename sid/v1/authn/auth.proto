@@ -504,12 +504,14 @@ message OpaqueZkppRegistrationFinishResponse {
 // ErrorInfo reason STEP_UP_REQUIRED, metadata continuation=current_password,
 // and a PreconditionFailure violation of type "amr", subject "pwd" (the
 // password method, RFC 8176 §2).
-// A wrong current password is refused like a wrong sign-in (UNAUTHENTICATED,
-// AUTHENTICATION_FAILED) and counts toward the account's sign-in lockout.
-// Since a wrong password already fails on the client at KE2, every challenge
-// that carries a credential_request counts as one attempt when its KE2 is
-// issued, whether or not execute follows; past the limit the challenge is
-// refused with RESOURCE_EXHAUSTED, RATE_LIMIT_EXCEEDED and a RetryInfo.
+// A wrong current password fails on the client: its loginFinish over KE2
+// fails (RFC 9807 §6), and the client sends nothing further. The server
+// cannot tell a wrong password from KE1, so every challenge that carries a
+// credential_request counts as one attempt when its KE2 is issued, whether
+// or not execute follows; past the limit the challenge is refused with
+// RESOURCE_EXHAUSTED, RATE_LIMIT_EXCEEDED and a RetryInfo. An execute whose
+// KE3 does not verify is refused like a failed sign-in (UNAUTHENTICATED,
+// AUTHENTICATION_FAILED).
 
 message PasswordChangeChallengeRequest {
   // Which OPAQUE credential to change. Required because a profile may have
