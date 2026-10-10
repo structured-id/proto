@@ -53,6 +53,8 @@ service AuthService {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/password/change/execute" body: "*" };
   }
+  // Answers nothing beyond success, so it returns Empty rather than an empty
+  // message of its own; this API keeps no type aliases for older clients.
   rpc PasswordChangeFinish(PasswordChangeFinishRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/auth/password/change/finish" body: "*" };
@@ -341,7 +343,14 @@ service AuthService {
 // with its length, so a password and the same one with trailing zero bytes
 // have different OPRF outputs and neither signs in to the other's credential.
 // A provable password is at most 128 bytes with no zero byte; a longer one
-// installs without the proof. Hash SHA-256; KSF Argon2id v1.3 with
+// installs without the proof. No password is longer than 65,534 bytes:
+// OPRF inputs must be smaller than 2^16 - 1 bytes (RFC 9497 §5.1), and a
+// client refuses a longer one. The proof binds the password as it enters
+// the element M, not Finalize, the KSF or the final record: a client that
+// finalizes another input than the one it proved (such as the proved
+// password with trailing zero bytes) deviates from this configuration, and
+// policy evidence does not attest the record it uploads.
+// Hash SHA-256; KSF Argon2id v1.3 with
 // m = 19456 KiB, t = 2, p = 1, a salt of 16 zero bytes and a 32-byte output.
 // Key exchange 3DH (RFC 9807 §6) on Pallas with HKDF-SHA-256 and
 // HMAC-SHA-256; the identities are the parties' public keys (RFC 9807 §4).
@@ -555,7 +564,10 @@ message OpaqueZkppRegistrationFinishResponse {
 // A change that needs the proof and lacks it is refused with FAILED_PRECONDITION,
 // ErrorInfo reason STEP_UP_REQUIRED, metadata continuation=current_password,
 // and a PreconditionFailure violation of type "amr", subject "pwd" (the
-// password method, RFC 8176 §2).
+// password method, RFC 8176 §2). The requirement is checked at the challenge
+// and again at finish, at the time of the finish: a change whose grace ran
+// out after its challenge and that carries no proof is refused at finish the
+// same way, and starts again with a challenge carrying KE1.
 // A wrong current password fails on the client: its loginFinish over KE2
 // fails (RFC 9807 §6), and the client sends nothing further. The server
 // cannot tell a wrong password from KE1, so every challenge that carries a
