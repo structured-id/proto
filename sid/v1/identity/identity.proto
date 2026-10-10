@@ -227,8 +227,14 @@ enum OpaqueSuite {
   // A custom suite, not an RFC 9497 one: OPRF Pallas-Poseidon-SHA256 (DST
   // ignored; the password zero-padded to 128 bytes, Poseidon, the first of
   // 2^8 offsets on the curve, the even root of y), hash SHA-256, KSF Argon2id
-  // v1.3 with m = 19456 KiB, t = 2, p = 1 and a salt of 16 zero bytes. Its
-  // normative definition, fixed at this revision: "The Pallas OPAQUE suite" in
+  // v1.3 with m = 19456 KiB, t = 2, p = 1 and a salt of 16 zero bytes. The
+  // zero padding applies only to the element the proof covers: Finalize (RFC
+  // 9497 §3.3.1) hashes the password as given, with its length, so a password
+  // and the same one with trailing zero bytes have different OPRF outputs and
+  // neither signs in to the other's credential. A provable password is at most
+  // 128 bytes with no zero byte; a longer one is hashed as given and installs
+  // without the proof. Its normative definition, fixed at this revision: "The
+  // Pallas OPAQUE suite" in
   // https://github.com/structured-id/zkpp/blob/235e3e966b5133cd11b41db83bbdd7dfec44dbb4/docs/construction.md.
   // Every password this API installs uses it: the OpaqueZkppRegistration*
   // flow, password change and reset with the ZKPP password proof over its
