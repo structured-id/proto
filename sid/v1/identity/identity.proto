@@ -207,7 +207,10 @@ message Credential {
 message OpaqueCredentialInfo {
   // The OPAQUE configuration the credential was registered in (RFC 9807
   // §3.1): a client signs in with it, or proves it as the current password in
-  // a change, only in this suite.
+  // a change, only in this suite. This field serves an authenticated caller
+  // managing its own credentials. It is not how a client without a session
+  // learns the configuration before its first sign-in message (KE1): that
+  // agreement is not defined by this revision of the API.
   OpaqueSuite suite = 1;
 }
 
