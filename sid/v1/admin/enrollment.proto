@@ -331,11 +331,16 @@ message CreateInviteRequest {
   uint32 max_uses = 1;
 
   // Expiration timestamp, in the future. Not set: the enrollment policy's
-  // InviteConfig.default_expiry_hours from now (no expiry when that is 0).
+  // InviteConfig.default_expiry_hours from now (no expiry when that is 0),
+  // unless never_expires asks for none.
   optional google.protobuf.Timestamp expires_at = 2;
 
   // Optional metadata to pre-fill on registration.
   map<string, string> metadata = 3;
+
+  // The invite never expires, whatever the policy's default expiry. Refused
+  // with INVALID_ARGUMENT together with expires_at.
+  bool never_expires = 4;
 }
 
 message ListInvitesRequest {
@@ -373,6 +378,9 @@ message BulkCreateInvitesRequest {
 
   // Metadata applied to all generated codes.
   map<string, string> metadata = 4;
+
+  // The codes never expire; as in CreateInviteRequest.never_expires.
+  bool never_expires = 5;
 }
 
 message BulkCreateInvitesResponse {
