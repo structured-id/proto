@@ -24,8 +24,9 @@ service EnrollmentService {
     option (google.api.http) = { get: "/v1/admin/enrollment/policy" };
   }
 
-  // Whether the installation has been claimed by its first administrator.
-  // Public: while unclaimed, the registration page asks for the claim token.
+  // Whether the installation offers a local administrator claim, and whether
+  // it was taken. Public: while the claim is open, the registration page asks
+  // for the claim token.
   rpc GetInstanceStatus(google.protobuf.Empty) returns (InstanceStatus) {
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { get: "/v1/admin/enrollment/instance-status" };
@@ -70,12 +71,33 @@ service EnrollmentService {
   }
 }
 
-// Whether the installation has its first administrator.
+// The installation's bootstrap status, as the registration page needs it.
 message InstanceStatus {
-  // False while no administrator exists: self-registration then accepts only a
-  // registration carrying the claim token from the service log, whatever the
-  // enrollment mode. The token itself is never returned.
-  bool claimed = 1;
+  reserved 1;
+  reserved "claimed";
+
+  // The local administrator claim of this installation. The token itself is
+  // never returned, nor who holds administration.
+  AdministratorClaim claim = 2;
+}
+
+// Whether an installation offers a local first-administrator claim.
+enum AdministratorClaim {
+  ADMINISTRATOR_CLAIM_UNSPECIFIED = 0;
+
+  // A self-managed installation without its first administrator: while open,
+  // self-registration accepts only a registration carrying the claim token
+  // from the service log, whatever the enrollment mode.
+  ADMINISTRATOR_CLAIM_OPEN = 1;
+
+  // A self-managed installation whose claim was taken: registration follows
+  // the enrollment policy, and the token grants nothing.
+  ADMINISTRATOR_CLAIM_CLAIMED = 2;
+
+  // A centrally managed installation: administration comes through authorized
+  // provisioning, never a local claim, so no token is accepted. Registration
+  // follows the enrollment policy whether or not a local administrator exists.
+  ADMINISTRATOR_CLAIM_UNAVAILABLE = 3;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
