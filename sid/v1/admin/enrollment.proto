@@ -327,7 +327,8 @@ message UpdateEnrollmentPolicyRequest {
 
 message CreateInviteRequest {
   // Maximum number of times this code can be used. 0: the enrollment
-  // policy's InviteConfig.default_max_uses.
+  // policy's InviteConfig.default_max_uses, unless unlimited_uses asks for
+  // no limit.
   uint32 max_uses = 1;
 
   // Expiration timestamp, in the future. Not set: the enrollment policy's
@@ -341,6 +342,10 @@ message CreateInviteRequest {
   // The invite never expires, whatever the policy's default expiry. Refused
   // with INVALID_ARGUMENT together with expires_at.
   bool never_expires = 4;
+
+  // The invite has no use limit, whatever the policy's default. Refused with
+  // INVALID_ARGUMENT together with a nonzero max_uses.
+  bool unlimited_uses = 5;
 }
 
 message ListInvitesRequest {
@@ -381,6 +386,9 @@ message BulkCreateInvitesRequest {
 
   // The codes never expire; as in CreateInviteRequest.never_expires.
   bool never_expires = 5;
+
+  // The codes have no use limit; as in CreateInviteRequest.unlimited_uses.
+  bool unlimited_uses = 6;
 }
 
 message BulkCreateInvitesResponse {
