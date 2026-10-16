@@ -18,7 +18,8 @@ import "google/api/annotations.proto";
 service EnrollmentService {
   // ── Enrollment Policy ──
 
-  // Get the current enrollment policy.
+  // The enrollment policy in force: the stored one, else the defaults, with
+  // the mode the deployment pins.
   rpc GetEnrollmentPolicy(google.protobuf.Empty) returns (EnrollmentPolicy) {
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { get: "/v1/admin/enrollment/policy" };
@@ -32,7 +33,11 @@ service EnrollmentService {
     option (google.api.http) = { get: "/v1/admin/enrollment/instance-status" };
   }
 
-  // Update the enrollment policy (mode, domains, tracking).
+  // Replace the stored enrollment policy (mode, domains, invite defaults,
+  // tracking); returns the policy in force. Administrators only. Refused with
+  // FAILED_PRECONDITION when it changes a mode the deployment pins, and with
+  // INVALID_ARGUMENT for a domain-restricted policy without a domain or an
+  // allowed domain that is no domain name.
   rpc UpdateEnrollmentPolicy(UpdateEnrollmentPolicyRequest) returns (EnrollmentPolicy) {
     option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { put: "/v1/admin/enrollment/policy" body: "*" };
@@ -182,6 +187,11 @@ message EnrollmentPolicy {
   // Whether to track registration source metadata on profiles.
   // Default: true.
   bool track_source = 4;
+
+  // Output only: the deployment pins `mode`, which then applies whatever
+  // mode an administrator stored; an update that changes it is refused.
+  // Ignored in an update request.
+  bool mode_pinned = 5;
 }
 
 // Configuration for the invite system.
