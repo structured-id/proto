@@ -482,6 +482,12 @@ message OpaqueZkppRegistrationStartRequest {
   bytes registration_request = 2;
   // Instance claim token; same semantics as OpaqueRegistrationStartRequest.claim_token.
   optional string claim_token = 6;
+  // Invite code an administrator issued. Required while the installation's
+  // enrollment mode is invite-only; the account spends one use of it when it
+  // is created, and an unknown, expired, revoked or used-up code refuses the
+  // registration (REGISTRATION_RESTRICTED, requirement `invite`). Ignored in
+  // other modes.
+  optional string invite_code = 8;
   // Retired field numbers.
   reserved 3, 4, 5, 7;
 }
