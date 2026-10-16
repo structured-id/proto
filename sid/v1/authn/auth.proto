@@ -14,6 +14,11 @@ import "sid/v1/ids/ids.proto";
 // AuthService handles authentication flows.
 service AuthService {
   // OPAQUE password authentication (RFC 9807).
+  //
+  // Plain OPAQUE registration creates no account: both registration RPCs
+  // are refused with FEATURE_NOT_AVAILABLE. Self-registration runs through
+  // OpaqueZkppRegistrationStart and OpaqueZkppRegistrationFinish, which
+  // carry the claim token and invite code the enrollment policy needs.
   rpc OpaqueRegistrationStart(OpaqueRegistrationStartRequest) returns (OpaqueRegistrationStartResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { post: "/v1/auth/opaque/registration/start" body: "*" };
@@ -482,6 +487,13 @@ message OpaqueZkppRegistrationStartRequest {
   bytes registration_request = 2;
   // Instance claim token; same semantics as OpaqueRegistrationStartRequest.claim_token.
   optional string claim_token = 6;
+  // Invite code an administrator issued. Required while the installation's
+  // enrollment mode is invite-only; the account spends one use of it when it
+  // is created, and an unknown, expired, revoked or used-up code refuses the
+  // registration (REGISTRATION_RESTRICTED, requirement `invite`). Ignored in
+  // other modes, and while the administrator claim is open: the claim token
+  // alone admits that registration, whatever the mode.
+  optional string invite_code = 8;
   // Retired field numbers.
   reserved 3, 4, 5, 7;
 }
