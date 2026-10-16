@@ -326,10 +326,12 @@ message UpdateEnrollmentPolicyRequest {
 }
 
 message CreateInviteRequest {
-  // Maximum number of times this code can be used. Default: 1.
+  // Maximum number of times this code can be used. 0: the enrollment
+  // policy's InviteConfig.default_max_uses.
   uint32 max_uses = 1;
 
-  // Expiration timestamp. Not set = no expiry.
+  // Expiration timestamp, in the future. Not set: the enrollment policy's
+  // InviteConfig.default_expiry_hours from now (no expiry when that is 0).
   optional google.protobuf.Timestamp expires_at = 2;
 
   // Optional metadata to pre-fill on registration.
@@ -362,10 +364,11 @@ message BulkCreateInvitesRequest {
   // Number of invite codes to generate.
   uint32 count = 1;
 
-  // Max uses per code. Default: 1.
+  // Max uses per code; 0 as in CreateInviteRequest.max_uses.
   uint32 max_uses = 2;
 
-  // Expiration for all generated codes.
+  // Expiration for all generated codes; not set as in
+  // CreateInviteRequest.expires_at.
   optional google.protobuf.Timestamp expires_at = 3;
 
   // Metadata applied to all generated codes.
