@@ -193,7 +193,10 @@ message HandleUpstreamCallbackResponse {
 
 message UpstreamAuthSuccess {
   string session_id = 1;
-  string access_token = 2;
+  // The session's credential is delivered as for
+  // sid.v1.OpaqueLoginFinishResponse, never in this message.
+  reserved 2;
+  reserved "access_token";
   int64 expires_in = 3;
   bool new_profile_created = 4;
 }

@@ -442,16 +442,21 @@ message OpaqueLoginFinishRequest {
   string server_login_state = 3;
 }
 
+// The session a sign-in ceremony completed. Its credential is never in the
+// message: a browser on the configured sign-in page receives it only as the
+// authority's Secure/HttpOnly session cookie (`Set-Cookie` response header);
+// a native client receives the access token in the response's `authorization`
+// metadata (`Bearer <token>`). A request whose `Origin` is not the sign-in
+// page is refused rather than answered as a native client.
 message OpaqueLoginFinishResponse {
   // Server-assigned session identifier (UUIDv7). Used for session management
-  // (revoke, step-up target), stored in auth store on client.
+  // (revoke, step-up target). Not a credential.
   string session_id = 1;
-  // Short-lived JWT access token. Contains: sub (profile ID or pairwise hash),
-  // pid (profile UUID), sid (session ID), iss, aud, exp, iat, scope, amr, acr.
-  // Default lifetime: 15 minutes. Use OAuth2Token refresh_token for renewal.
-  string access_token = 2;
-  // Token lifetime in seconds. Client uses this to schedule refresh.
-  // Server-configured per application (default 900 = 15 min).
+  // The access token is delivered in `authorization` metadata.
+  reserved 2;
+  reserved "access_token";
+  // Seconds until the delivered credential expires: the access token for a
+  // native client (default 900), the session cookie for a browser.
   int64 expires_in = 3;
 }
 
@@ -705,12 +710,15 @@ message WebAuthnAuthenticationFinishRequest {
   optional string state_key = 3;
 }
 
+// The session a passkey sign-in completed; its credential is delivered as for
+// OpaqueLoginFinishResponse.
 message WebAuthnAuthenticationFinishResponse {
   // Server-assigned session ID (same semantics as OpaqueLoginFinishResponse).
   string session_id = 1;
-  // Short-lived JWT access token (same semantics as OpaqueLoginFinishResponse).
-  string access_token = 2;
-  // Token lifetime in seconds.
+  // The access token is delivered in `authorization` metadata.
+  reserved 2;
+  reserved "access_token";
+  // Seconds until the delivered credential expires.
   int64 expires_in = 3;
 }
 
@@ -1108,12 +1116,15 @@ message VerifyMagicLinkRequest {
   string token = 2;
 }
 
+// The provisional session a magic link opened; its credential is delivered as
+// for OpaqueLoginFinishResponse.
 message VerifyMagicLinkResponse {
   // New session ID (different from magic link session — this is the auth session).
   string session_id = 1;
-  // JWT access token (same semantics as OpaqueLoginFinishResponse.access_token).
-  string access_token = 2;
-  // Token lifetime in seconds.
+  // The access token is delivered in `authorization` metadata.
+  reserved 2;
+  reserved "access_token";
+  // Seconds until the delivered credential expires.
   int32 expires_in = 3;
 }
 
@@ -1187,12 +1198,15 @@ message LegacyMigrateFinishRequest {
   bytes opaque_registration_record = 2;
 }
 
+// The session the migration signed in; its credential is delivered as for
+// OpaqueLoginFinishResponse.
 message LegacyMigrateFinishResponse {
   // Session ID (same semantics as OpaqueLoginFinishResponse).
   string session_id = 1;
-  // JWT access token.
-  string access_token = 2;
-  // Token lifetime in seconds.
+  // The access token is delivered in `authorization` metadata.
+  reserved 2;
+  reserved "access_token";
+  // Seconds until the delivered credential expires.
   int64 expires_in = 3;
 }
 
@@ -1304,10 +1318,12 @@ message MfaVerifyResponse {
   // New session ID after MFA elevation (session refreshed with amr updated).
   // Set when verified=true and this was the last required MFA step.
   optional string session_id = 2;
-  // New JWT access token with updated amr (auth methods reference) claim.
-  // Set when verified=true and authentication is now complete.
-  optional string access_token = 3;
-  // Token lifetime in seconds.
+  // The elevated session's new access token, with the updated amr claim, is
+  // delivered as for OpaqueLoginFinishResponse (`authorization` metadata).
+  reserved 3;
+  reserved "access_token";
+  // Seconds until the delivered credential expires; set when one was
+  // delivered.
   optional int64 expires_in = 4;
   // Next step in the authentication flow, if any. Server determines based on
   // policy (e.g., terms acceptance, profile completion). Empty if login is complete.
@@ -1373,10 +1389,11 @@ message VerifyOtpResponse {
   // Mailbox possession grants provisional scopes only: it cannot add or
   // change a credential of an existing account.
   optional string session_id = 3;
-  // Access token of that provisional session (same semantics as
-  // OpaqueLoginFinishResponse.access_token, restricted scopes).
-  optional string access_token = 4;
-  // Access token lifetime in seconds.
+  // The provisional session's access token (restricted scopes) is delivered
+  // as for OpaqueLoginFinishResponse (`authorization` metadata).
+  reserved 4;
+  reserved "access_token";
+  // Seconds until the delivered credential expires; set when verified.
   optional int64 expires_in = 5;
 }
 
@@ -1711,8 +1728,17 @@ message CompletePasswordResetRequest {
   reserved 3, 4, 5, 6;
 }
 
+// The replaced password, and the session it signed in when the reset may sign
+// in. An account protected by more than a password is not signed in by a
+// reset: both fields are then absent and the user signs in with the new
+// password and the account's second factor. A session's credential is
+// delivered as for OpaqueLoginFinishResponse.
 message CompletePasswordResetResponse {
-  string session_id = 1;
-  string access_token = 2;
-  int32 expires_in = 3;
+  // The session the reset signed in; absent when it signed in none.
+  optional string session_id = 1;
+  // The access token is delivered in `authorization` metadata.
+  reserved 2;
+  reserved "access_token";
+  // Seconds until the delivered credential expires; absent with session_id.
+  optional int32 expires_in = 3;
 }
