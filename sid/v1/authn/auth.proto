@@ -447,7 +447,10 @@ message OpaqueLoginFinishRequest {
 // authority's Secure/HttpOnly session cookie (`Set-Cookie` response header);
 // a native client receives the access token in the response's `authorization`
 // metadata (`Bearer <token>`). A request whose `Origin` is not the sign-in
-// page is refused rather than answered as a native client.
+// page is refused rather than answered as a native client. The sign-in page
+// is on the authority's site (same scheme and registrable domain, a server
+// configured otherwise does not start), so the cookie is first-party and a
+// page on another site completes no browser sign-in at all.
 message OpaqueLoginFinishResponse {
   // Server-assigned session identifier (UUIDv7). Used for session management
   // (revoke, step-up target). Not a credential.
