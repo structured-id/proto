@@ -25,10 +25,12 @@ service WebhookService {
 
   // Returns the created endpoint with HMAC secret (shown only once).
   rpc CreateEndpoint(CreateEndpointRequest) returns (CreateEndpointResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/admin/webhooks" body: "*" };
   }
 
   rpc UpdateEndpoint(UpdateEndpointRequest) returns (WebhookEndpoint) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { patch: "/v1/admin/webhooks/{endpoint_id}" body: "*" };
   }
 
@@ -40,18 +42,22 @@ service WebhookService {
   // ── Endpoint lifecycle ──
 
   rpc PauseEndpoint(EndpointIdRequest) returns (WebhookEndpoint) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/admin/webhooks/{endpoint_id}/pause" body: "*" };
   }
 
   rpc ResumeEndpoint(EndpointIdRequest) returns (WebhookEndpoint) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/admin/webhooks/{endpoint_id}/resume" body: "*" };
   }
 
   rpc RegenerateSecret(EndpointIdRequest) returns (RegenerateSecretResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/admin/webhooks/{endpoint_id}/regenerate-secret" body: "*" };
   }
 
   rpc VerifyEndpoint(EndpointIdRequest) returns (VerifyEndpointResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/admin/webhooks/{endpoint_id}/verify" body: "*" };
   }
 
@@ -68,6 +74,7 @@ service WebhookService {
   }
 
   rpc RedeliverEvent(RedeliverEventRequest) returns (DeliveryDetail) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/admin/webhooks/{endpoint_id}/deliveries/{delivery_id}/redeliver" body: "*" };
   }
 
@@ -92,6 +99,7 @@ service EventCatalogService {
   }
 
   rpc SendTestEvent(SendTestEventRequest) returns (SendTestEventResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/admin/events/catalog/test" body: "*" };
   }
 }
