@@ -140,13 +140,16 @@ service AccountService {
     option (google.api.http) = { get: "/v1/account/consents/{site_id}" };
   }
 
-  // Update consent for a single claim (grant or deny).
+  // Update consent for a single claim (grant or deny). A claim already as
+  // asked is left unchanged and answered the same.
   rpc UpdateClaimConsent(UpdateClaimConsentRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { patch: "/v1/account/consents/{site_id}/claims/{claim_name}" body: "*" };
   }
 
   // Disconnect site: revoke all claims + sessions + delete consent.
   rpc DisconnectSite(DisconnectSiteRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { delete: "/v1/account/consents/{site_id}" };
   }
 
@@ -167,6 +170,7 @@ service AccountService {
   // Report suspicious activity ("This wasn't me").
   // Side effects: revoke associated session, mark as disputed.
   rpc ReportSuspiciousEvent(ReportSuspiciousEventRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/account/activity/{event_id}/report" body: "*" };
   }
 
@@ -180,16 +184,19 @@ service AccountService {
 
   // Initiate linking to an upstream IdP. Returns a redirect URL.
   rpc LinkAccount(LinkAccountRequest) returns (LinkAccountResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/account/linked-accounts" body: "*" };
   }
 
   // Unlink an upstream IdP account. Blocked if this is the only login method.
   rpc UnlinkAccount(UnlinkAccountRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { delete: "/v1/account/linked-accounts/{linked_account_id}" };
   }
 
   // Force re-authentication with the upstream IdP to refresh tokens/claims.
   rpc ReauthenticateLink(ReauthenticateLinkRequest) returns (ReauthenticateLinkResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/account/linked-accounts/{linked_account_id}/reauth" body: "*" };
   }
 
@@ -203,6 +210,7 @@ service AccountService {
 
   // Launch SSO redirect to an application.
   rpc LaunchApp(LaunchAppRequest) returns (LaunchAppResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/account/apps/{app_id}/launch" body: "*" };
   }
 
@@ -217,6 +225,7 @@ service AccountService {
   // Update notification delivery preferences.
   // Security-critical categories cannot be disabled (server enforces).
   rpc UpdateNotificationPreferences(UpdateNotificationPreferencesRequest) returns (NotificationPreferences) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { put: "/v1/account/notification-preferences" body: "*" };
   }
 
@@ -231,11 +240,13 @@ service AccountService {
   // Enable passwordless mode: removes OPAQUE credential (password hash).
   // Requires step-up authentication. Blocked unless all requirements are met.
   rpc EnablePasswordless(google.protobuf.Empty) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/account/passwordless/enable" body: "*" };
   }
 
   // Disable passwordless mode: triggers password enrollment flow.
   rpc DisablePasswordless(google.protobuf.Empty) returns (DisablePasswordlessResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/account/passwordless/disable" body: "*" };
   }
 
@@ -243,21 +254,27 @@ service AccountService {
 
   // Add a phone number to the current profile.
   rpc AddPhone(AddPhoneRequest) returns (sid.v1.identity.ProfilePhone) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/account/phones" body: "*" };
   }
 
   // Remove a phone number from the current profile.
   rpc RemovePhone(RemovePhoneRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { delete: "/v1/account/phones/{phone_id}" };
   }
 
-  // Update a phone number's label or capabilities.
+  // Update a phone number's label or capabilities. Only the given settings
+  // are written, so a repetition leaves the same phone.
   rpc UpdatePhone(UpdatePhoneRequest) returns (sid.v1.identity.ProfilePhone) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { patch: "/v1/account/phones/{phone_id}" body: "*" };
   }
 
-  // Set a phone as the primary phone for this profile.
+  // Set a phone as the primary phone for this profile. A phone already
+  // primary stays so and is answered the same.
   rpc SetPrimaryPhone(SetPrimaryPhoneRequest) returns (sid.v1.identity.ProfilePhone) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/account/phones/{phone_id}/primary" body: "*" };
   }
 
@@ -271,21 +288,27 @@ service AccountService {
 
   // Add an email address to the current profile.
   rpc AddEmail(AddEmailRequest) returns (sid.v1.identity.ProfileEmail) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/account/emails" body: "*" };
   }
 
   // Remove an email address from the current profile.
   rpc RemoveEmail(RemoveEmailRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { delete: "/v1/account/emails/{email_id}" };
   }
 
-  // Update an email address's label.
+  // Update an email address's label. Only the given settings are written,
+  // so a repetition leaves the same email.
   rpc UpdateEmail(UpdateEmailRequest) returns (sid.v1.identity.ProfileEmail) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { patch: "/v1/account/emails/{email_id}" body: "*" };
   }
 
-  // Set an email as the primary email for this profile.
+  // Set an email as the primary email for this profile. An email already
+  // primary stays so and is answered the same.
   rpc SetPrimaryEmail(SetPrimaryEmailRequest) returns (sid.v1.identity.ProfileEmail) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/account/emails/{email_id}/primary" body: "*" };
   }
 
