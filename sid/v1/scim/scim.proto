@@ -17,8 +17,11 @@ import "google/api/httpbody.proto";
 service ScimService {
   // ── Users (RFC 7644 §3.3–§3.6) ──
 
-  // Create a new corporate profile via SCIM provisioning.
-  rpc CreateUser(ScimCreateUserRequest) returns (ScimUser);
+  // Create a new corporate profile via SCIM provisioning. Its userName is
+  // unique (RFC 7644 §3.3): a repeat is refused and adds nothing.
+  rpc CreateUser(ScimCreateUserRequest) returns (ScimUser) {
+    option idempotency_level = IDEMPOTENT;
+  }
 
   // Retrieve a user by SID profile ID.
   rpc GetUser(ScimGetUserRequest) returns (ScimUser) {
@@ -31,10 +34,14 @@ service ScimService {
   }
 
   // Full replacement of user attributes.
-  rpc ReplaceUser(ScimReplaceUserRequest) returns (ScimUser);
+  rpc ReplaceUser(ScimReplaceUserRequest) returns (ScimUser) {
+    option idempotency_level = IDEMPOTENT;
+  }
 
   // Partial update via SCIM PATCH operations (RFC 7644 §3.5.2).
-  rpc PatchUser(ScimPatchUserRequest) returns (ScimUser);
+  rpc PatchUser(ScimPatchUserRequest) returns (ScimUser) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+  }
 
   // Deactivate a corporate profile (soft delete).
   rpc DeleteUser(ScimDeleteUserRequest) returns (google.protobuf.Empty) {
@@ -44,7 +51,9 @@ service ScimService {
   // ── Groups (RFC 7644 §3.3–§3.6) ──
 
   // Create a new group.
-  rpc CreateGroup(ScimCreateGroupRequest) returns (ScimGroup);
+  rpc CreateGroup(ScimCreateGroupRequest) returns (ScimGroup) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+  }
 
   // Retrieve a group by ID.
   rpc GetGroup(ScimGetGroupRequest) returns (ScimGroup) {
@@ -57,7 +66,9 @@ service ScimService {
   }
 
   // Partial update via SCIM PATCH operations.
-  rpc PatchGroup(ScimPatchGroupRequest) returns (ScimGroup);
+  rpc PatchGroup(ScimPatchGroupRequest) returns (ScimGroup) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+  }
 
   // Delete a group.
   rpc DeleteGroup(ScimDeleteGroupRequest) returns (google.protobuf.Empty) {
@@ -91,6 +102,7 @@ service ScimService {
 service ScimProtocolService {
   // Create a user (RFC 7644 §3.3).
   rpc CreateUser(ScimHttpRequest) returns (google.api.HttpBody) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/scim/v2/Users" body: "body" };
   }
 
@@ -108,11 +120,13 @@ service ScimProtocolService {
 
   // Replace a user (RFC 7644 §3.5.1).
   rpc ReplaceUser(ScimHttpRequest) returns (google.api.HttpBody) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { put: "/scim/v2/Users/{id}" body: "body" };
   }
 
   // Modify a user (RFC 7644 §3.5.2).
   rpc PatchUser(ScimHttpRequest) returns (google.api.HttpBody) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { patch: "/scim/v2/Users/{id}" body: "body" };
   }
 
@@ -124,6 +138,7 @@ service ScimProtocolService {
 
   // Create a group (RFC 7644 §3.3).
   rpc CreateGroup(ScimHttpRequest) returns (google.api.HttpBody) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/scim/v2/Groups" body: "body" };
   }
 
@@ -141,6 +156,7 @@ service ScimProtocolService {
 
   // Modify a group (RFC 7644 §3.5.2).
   rpc PatchGroup(ScimHttpRequest) returns (google.api.HttpBody) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { patch: "/scim/v2/Groups/{id}" body: "body" };
   }
 

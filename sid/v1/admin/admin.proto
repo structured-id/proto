@@ -19,11 +19,13 @@ service AdminService {
   // consumed in the same transaction. FAILED_PRECONDITION once the installation
   // is claimed; PERMISSION_DENIED for a token that does not match.
   rpc ClaimInstance(ClaimInstanceRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/admin/claim" body: "*" };
   }
 
   // Update a profile with admin-only fields (status, roles, email verification).
   rpc AdminUpdateProfile(AdminUpdateProfileRequest) returns (AdminUpdateProfileResponse) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { patch: "/v1/admin/profiles/{profile_id}" body: "*" };
   }
 

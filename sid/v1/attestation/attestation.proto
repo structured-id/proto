@@ -65,28 +65,34 @@ message DeviceAttestation {
 service AttestationService {
   // Register a device key with platform attestation: stores the attestation
   // data and marks the device as hardware_attested; a server that verifies
-  // attestation also checks the chain and the AAGUID policy.
+  // attestation also checks the chain and the AAGUID policy. A device that
+  // already has a live attestation is refused (ATTESTATION_ALREADY_EXISTS).
   rpc RegisterDeviceKey(RegisterDeviceKeyRequest) returns (DeviceAttestation) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/attestation/devices/{device_id}/keys" body: "*" };
   }
 
   // Get attestation details for a device.
   rpc GetDeviceAttestation(GetDeviceAttestationRequest) returns (DeviceAttestation) {
+    option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { get: "/v1/attestation/devices/{device_id}" };
   }
 
   // Rotate a device key (triggered by OS update or manual re-attestation).
   rpc RotateDeviceKey(RotateDeviceKeyRequest) returns (DeviceAttestation) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/attestation/devices/{device_id}/rotate" body: "*" };
   }
 
   // Revoke a device key (device removed or compromised).
   rpc RevokeDeviceKey(RevokeDeviceKeyRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/attestation/devices/{device_id}/revoke" body: "*" };
   }
 
   // List all attestations for a profile.
   rpc ListDeviceAttestations(ListDeviceAttestationsRequest) returns (ListDeviceAttestationsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { get: "/v1/attestation/profiles/{profile_id}/devices" };
   }
 }

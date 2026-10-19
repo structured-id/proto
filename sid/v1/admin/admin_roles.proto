@@ -31,6 +31,7 @@ service AdminRoleService {
   }
 
   rpc AssignRole(AssignRoleRequest) returns (AdminAssignment) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/admin/admin-roles/assignments" body: "*" };
   }
 
@@ -53,6 +54,7 @@ service AdminRoleService {
   }
 
   rpc UpdateAdminSessionPolicy(AdminSessionPolicy) returns (AdminSessionPolicy) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { put: "/v1/admin/admin-roles/session-policy" body: "*" };
   }
 
@@ -67,6 +69,7 @@ service AdminRoleService {
   }
 
   rpc RevokeAllAdminSessions(google.protobuf.Empty) returns (RevokeAllAdminSessionsResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/admin/admin-roles/active-sessions/revoke-all" body: "*" };
   }
 }

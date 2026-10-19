@@ -16,6 +16,7 @@ service UserProfileService {
 
   // Replace the entire schema (full replace).
   rpc UpdateSchema(UpdateSchemaRequest) returns (ProfileSchema) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { put: "/v1/admin/user-profile/schema" body: "*" };
   }
 }

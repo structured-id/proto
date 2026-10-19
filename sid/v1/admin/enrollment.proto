@@ -47,6 +47,7 @@ service EnrollmentService {
 
   // Create a new invite code.
   rpc CreateInvite(CreateInviteRequest) returns (Invite) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/admin/enrollment/invites" body: "*" };
   }
 
@@ -64,6 +65,7 @@ service EnrollmentService {
 
   // Bulk-generate invite codes.
   rpc BulkCreateInvites(BulkCreateInvitesRequest) returns (BulkCreateInvitesResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/admin/enrollment/invites/bulk" body: "*" };
   }
 

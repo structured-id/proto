@@ -15,26 +15,31 @@ service TestService {
 
   // Simulates OPAQUE registration start (server-side state creation).
   rpc PerfRegistrationStart(PerfTestRequest) returns (PerfTestResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/test/perf/registration/start" body: "*" };
   }
 
   // Simulates OPAQUE registration finish (consume ephemeral state).
   rpc PerfRegistrationFinish(PerfTestFinishRequest) returns (PerfTestResponse) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/test/perf/registration/finish" body: "*" };
   }
 
   // Simulates OPAQUE login start (credential lookup + state creation).
   rpc PerfLoginStart(PerfTestRequest) returns (PerfTestResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/test/perf/login/start" body: "*" };
   }
 
   // Simulates OPAQUE login finish (consume ephemeral state, session creation).
   rpc PerfLoginFinish(PerfTestFinishRequest) returns (PerfTestResponse) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/test/perf/login/finish" body: "*" };
   }
 
   // Simulates envelope verification (CPU-bound crypto check).
   rpc PerfVerifyEnvelope(PerfTestRequest) returns (PerfTestResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { post: "/v1/test/perf/verify-envelope" body: "*" };
   }
 
@@ -42,36 +47,43 @@ service TestService {
 
   // Register a test user with username + password. Enforces password policy.
   rpc AuthTestRegister(AuthTestRequest) returns (AuthTestResponse) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/test/auth/register" body: "*" };
   }
 
   // Login with username + password. Returns error if wrong password or user not found.
   rpc AuthTestLogin(AuthTestRequest) returns (AuthTestResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { post: "/v1/test/auth/login" body: "*" };
   }
 
   // Change password for an existing user. Verifies old password, enforces policy on new.
   rpc AuthTestChangePassword(AuthTestChangePasswordRequest) returns (AuthTestResponse) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/test/auth/change-password" body: "*" };
   }
 
   // Check if a password satisfies the policy without registration.
   rpc AuthTestCheckPolicy(AuthTestCheckPolicyRequest) returns (AuthTestCheckPolicyResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { post: "/v1/test/auth/check-policy" body: "*" };
   }
 
   // Reset all test user state (clean slate for new test run).
   rpc AuthTestReset(AuthTestResetRequest) returns (AuthTestResetResponse) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/test/auth/reset" body: "*" };
   }
 
   // Set the active password policy. Affects all subsequent register/change operations.
   rpc AuthTestSetPolicy(AuthTestSetPolicyRequest) returns (AuthTestSetPolicyResponse) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { put: "/v1/test/auth/policy" body: "*" };
   }
 
   // Get the current active password policy.
   rpc AuthTestGetPolicy(AuthTestGetPolicyRequest) returns (AuthTestGetPolicyResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { get: "/v1/test/auth/policy" };
   }
 }

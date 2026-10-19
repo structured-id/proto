@@ -16,6 +16,7 @@ service SiteService {
 
   // Update site name.
   rpc UpdateSiteName(UpdateSiteNameRequest) returns (SiteInfo) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { patch: "/v1/admin/site/name" body: "*" };
   }
 }

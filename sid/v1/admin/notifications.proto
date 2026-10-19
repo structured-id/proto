@@ -25,11 +25,13 @@ service NotificationTemplateService {
 
   // Update template content for a specific channel and locale.
   rpc UpdateTemplate(UpdateTemplateRequest) returns (NotificationTemplate) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { patch: "/v1/admin/notification-templates/{template_id}" body: "*" };
   }
 
   // Reset template to default from sid-i18n (per channel + locale).
   rpc ResetTemplate(ResetTemplateRequest) returns (NotificationTemplate) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/admin/notification-templates/{template_id}/reset" body: "*" };
   }
 
@@ -44,6 +46,7 @@ service NotificationTemplateService {
   // that is not enabled is FEATURE_NOT_CONFIGURED; a channel that did not
   // accept it is DEPENDENCY_UNAVAILABLE with a RetryInfo delay.
   rpc SendTestNotification(SendTestNotificationRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/admin/notification-templates/{template_id}/test" body: "*" };
   }
 }

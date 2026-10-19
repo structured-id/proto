@@ -18,6 +18,7 @@ service MigrationService {
   }
 
   rpc ImportBlueprint(ImportBlueprintRequest) returns (ImportBlueprintResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/admin/migration/blueprints/import" body: "*" };
   }
 
@@ -29,10 +30,12 @@ service MigrationService {
   // ── Migration Wizard ──
 
   rpc ParseMigrationFile(ParseMigrationFileRequest) returns (ParseMigrationFileResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/admin/migration/parse" body: "*" };
   }
 
   rpc ExecuteMigration(ExecuteMigrationRequest) returns (ExecuteMigrationResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/admin/migration/execute" body: "*" };
   }
 

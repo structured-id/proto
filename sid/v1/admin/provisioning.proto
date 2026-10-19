@@ -30,6 +30,7 @@ service ProvisioningService {
   // Keyed: a retry with the same idempotency key returns the connector the
   // first attempt created.
   rpc CreateInboundConnector(CreateInboundConnectorRequest) returns (ProvisioningConnector) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/admin/provisioning/connectors" body: "*" };
   }
 
@@ -42,6 +43,7 @@ service ProvisioningService {
   // A changed connector is ABORTED (CONCURRENT_MODIFICATION), a retired one
   // FAILED_PRECONDITION.
   rpc RenameProvisioningConnector(RenameProvisioningConnectorRequest) returns (ProvisioningConnector) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/admin/provisioning/connectors:rename" body: "*" };
   }
 
@@ -75,6 +77,7 @@ service ProvisioningService {
   // key returns the credential the first attempt created, without its
   // secret; a lost secret is replaced through RotateConnectorCredential.
   rpc CreateConnectorCredential(CreateConnectorCredentialRequest) returns (IssuedConnectorCredential) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/admin/provisioning/credentials" body: "*" };
   }
 
@@ -83,6 +86,7 @@ service ProvisioningService {
   // period, so the client can switch without an outage. Keyed like
   // CreateConnectorCredential.
   rpc RotateConnectorCredential(RotateConnectorCredentialRequest) returns (IssuedConnectorCredential) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/admin/provisioning/credentials:rotate" body: "*" };
   }
 

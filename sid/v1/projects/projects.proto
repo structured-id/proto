@@ -240,6 +240,7 @@ service ProjectService {
   // Applications within a project. Creating one registers the roles it
   // starts with in one step.
   rpc CreateApplication(CreateApplicationRequest) returns (CreateApplicationResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/projects/{project_id}/applications" body: "*" };
   }
   rpc GetApplication(GetApplicationRequest) returns (Application) {
@@ -261,8 +262,11 @@ service ProjectService {
     option (google.api.http) = { delete: "/v1/applications/{id}" };
   }
 
-  // Client role.
+  // Client role. An application has at most one: a repeat is refused
+  // (APPLICATION_ROLE_EXISTS) and adds nothing; the secret is in the first
+  // response only.
   rpc AddClientRole(AddClientRoleRequest) returns (CreateApplicationResponse) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/applications/{application_id}/client" body: "*" };
   }
   rpc UpdateClientRole(UpdateClientRoleRequest) returns (Application) {
@@ -270,8 +274,10 @@ service ProjectService {
     option (google.api.http) = { patch: "/v1/clients/{client_id}" body: "*" };
   }
 
-  // Protected-resource role.
+  // Protected-resource role. Its indicator is unique: a repeat is refused and
+  // adds nothing.
   rpc AddResourceRole(AddResourceRoleRequest) returns (Application) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/applications/{application_id}/resource" body: "*" };
   }
   rpc UpdateResourceRole(UpdateResourceRoleRequest) returns (ProtectedResource) {
@@ -313,7 +319,9 @@ service ProjectService {
   // RegisterClient creates a new client on every call; it is not advertised
   // as safely retryable. A registration creates a client, never a resource or
   // access to one.
-  rpc RegisterClient(RegisterClientRequest) returns (RegisterClientResponse);
+  rpc RegisterClient(RegisterClientRequest) returns (RegisterClientResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+  }
   rpc GetRegisteredClient(GetRegisteredClientRequest) returns (OAuthClient) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }

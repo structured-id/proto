@@ -32,11 +32,13 @@ service SessionService {
 
   // Revoke all sessions for a specific application.
   rpc RevokeApplicationSessions(RevokeApplicationSessionsRequest) returns (RevokeSessionsResult) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/admin/sessions/revoke-by-app" body: "*" };
   }
 
   // Revoke ALL sessions in the realm (emergency).
   rpc RevokeRealmSessions(RevokeRealmSessionsRequest) returns (RevokeSessionsResult) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/admin/sessions/revoke-all" body: "*" };
   }
 }

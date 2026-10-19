@@ -36,6 +36,7 @@ service LoginExperienceService {
 
   // Update text overrides for a screen in a specific locale.
   rpc UpdateTextOverrides(UpdateTextOverridesRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { put: "/v1/admin/login-experience/screens/{screen_id}/text/{locale}" body: "*" };
   }
 
@@ -49,11 +50,13 @@ service LoginExperienceService {
 
   // Start an interactive test flow (for "Try it" API explorer).
   rpc StartTestFlow(StartTestFlowRequest) returns (TestFlowResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/admin/login-experience/headless/test" body: "*" };
   }
 
   // Submit a step in the interactive test flow.
   rpc SubmitTestFlowStep(SubmitTestFlowStepRequest) returns (TestFlowResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/admin/login-experience/headless/test/{flow_id}/step" body: "*" };
   }
 }
