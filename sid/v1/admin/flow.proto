@@ -77,9 +77,10 @@ service FlowActionService {
     };
   }
 
-  // Delete an action.
+  // Delete an action. A repetition removes nothing more and answers
+  // NOT_FOUND; idempotency is the effect, not the answer (RFC 9110 §9.2.2).
   rpc DeleteFlowAction(DeleteFlowActionRequest) returns (google.protobuf.Empty) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = {
       delete: "/v1/projects/{project_id}/flows/{flow_type}/actions/{action_id}"
     };

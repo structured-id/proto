@@ -147,9 +147,11 @@ service AccountService {
     option (google.api.http) = { patch: "/v1/account/consents/{site_id}/claims/{claim_name}" body: "*" };
   }
 
-  // Disconnect site: revoke all claims + sessions + delete consent.
+  // Disconnect site: revoke all claims + sessions + delete consent. A
+  // repetition removes nothing more and answers NOT_FOUND; idempotency is
+  // the effect, not the answer (RFC 9110 §9.2.2).
   rpc DisconnectSite(DisconnectSiteRequest) returns (google.protobuf.Empty) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { delete: "/v1/account/consents/{site_id}" };
   }
 
@@ -258,9 +260,10 @@ service AccountService {
     option (google.api.http) = { post: "/v1/account/phones" body: "*" };
   }
 
-  // Remove a phone number from the current profile.
+  // Remove a phone number from the current profile. A repetition removes
+  // nothing more and answers NOT_FOUND (RFC 9110 §9.2.2).
   rpc RemovePhone(RemovePhoneRequest) returns (google.protobuf.Empty) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { delete: "/v1/account/phones/{phone_id}" };
   }
 
@@ -292,9 +295,10 @@ service AccountService {
     option (google.api.http) = { post: "/v1/account/emails" body: "*" };
   }
 
-  // Remove an email address from the current profile.
+  // Remove an email address from the current profile. A repetition removes
+  // nothing more and answers NOT_FOUND (RFC 9110 §9.2.2).
   rpc RemoveEmail(RemoveEmailRequest) returns (google.protobuf.Empty) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { delete: "/v1/account/emails/{email_id}" };
   }
 
