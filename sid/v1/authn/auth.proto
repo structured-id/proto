@@ -138,10 +138,12 @@ service AuthService {
   // ── Magic Link (passwordless, corporate profiles) ──
 
   rpc RequestMagicLink(RequestMagicLinkRequest) returns (RequestMagicLinkResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/magic-link/request" body: "*" };
   }
 
   rpc VerifyMagicLink(VerifyMagicLinkRequest) returns (VerifyMagicLinkResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/magic-link/verify" body: "*" };
   }
 
@@ -183,6 +185,7 @@ service AuthService {
   // ── MFA TOTP ──
 
   rpc StartTotpEnrollment(StartTotpEnrollmentRequest) returns (TotpEnrollmentChallenge) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/mfa/totp/enroll/start" body: "*" };
   }
   rpc FinishTotpEnrollment(FinishTotpEnrollmentRequest) returns (FinishTotpEnrollmentResponse) {
@@ -190,54 +193,66 @@ service AuthService {
     option (google.api.http) = { post: "/v1/auth/mfa/totp/enroll/finish" body: "*" };
   }
   rpc VerifyTotp(VerifyTotpRequest) returns (MfaVerifyResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/mfa/totp/verify" body: "*" };
   }
 
   // ── MFA SMS ──
 
   rpc VerifySmsMfa(VerifySmsMfaRequest) returns (MfaVerifyResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/mfa/sms/verify" body: "*" };
   }
   rpc ResendSmsMfa(ResendSmsMfaRequest) returns (ResendSmsMfaResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/mfa/sms/resend" body: "*" };
   }
 
   // ── MFA Recovery Codes ──
 
   rpc GenerateRecoveryCodes(GenerateRecoveryCodesRequest) returns (GenerateRecoveryCodesResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/mfa/recovery/generate" body: "*" };
   }
   rpc VerifyRecoveryCode(VerifyRecoveryCodeRequest) returns (MfaVerifyResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/mfa/recovery/verify" body: "*" };
   }
 
   // ── OTP verification (email/phone, non-MFA) ──
 
   rpc RequestOtp(RequestOtpRequest) returns (RequestOtpResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/otp/request" body: "*" };
   }
   rpc VerifyOtp(VerifyOtpRequest) returns (VerifyOtpResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/otp/verify" body: "*" };
   }
   rpc ResendOtp(ResendOtpRequest) returns (ResendOtpResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/otp/resend" body: "*" };
   }
 
   // ── Email/Phone verification ──
 
   rpc ResendEmailVerification(ResendEmailVerificationRequest) returns (ResendEmailVerificationResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/email/verify/resend" body: "*" };
   }
   rpc VerifyPhone(VerifyPhoneRequest) returns (VerifyPhoneResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/phone/verify" body: "*" };
   }
   rpc ResendPhoneVerification(ResendPhoneVerificationRequest) returns (ResendPhoneVerificationResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/phone/verify/resend" body: "*" };
   }
 
   // ── IdP linking ──
 
   rpc ConfirmIdpLink(ConfirmIdpLinkRequest) returns (ConfirmIdpLinkResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/idp/link/confirm" body: "*" };
   }
 
@@ -248,6 +263,7 @@ service AuthService {
     option (google.api.http) = { get: "/v1/auth/orgs" };
   }
   rpc SelectOrganization(SelectOrganizationRequest) returns (SelectOrganizationResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/orgs/select" body: "*" };
   }
 
@@ -258,21 +274,25 @@ service AuthService {
     option (google.api.http) = { get: "/v1/auth/terms" };
   }
   rpc AcceptTerms(AcceptTermsRequest) returns (AcceptTermsResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/terms/accept" body: "*" };
   }
 
   // ── CIBA consent ──
 
   rpc ApproveCiba(ApproveCibaRequest) returns (CibaConsentResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/ciba/approve" body: "*" };
   }
   rpc DenyCiba(DenyCibaRequest) returns (CibaConsentResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/ciba/deny" body: "*" };
   }
 
   // ── Captcha ──
 
   rpc VerifyCaptcha(VerifyCaptchaRequest) returns (VerifyCaptchaResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/captcha/verify" body: "*" };
   }
 
@@ -283,6 +303,7 @@ service AuthService {
     option (google.api.http) = { get: "/v1/auth/prompt/{prompt_id}" };
   }
   rpc SubmitDynamicPrompt(SubmitDynamicPromptRequest) returns (SubmitDynamicPromptResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/prompt/{prompt_id}/submit" body: "*" };
   }
 
@@ -290,33 +311,40 @@ service AuthService {
 
   // Generic step-up Phase 1: request challenge (WebAuthn). Skip for TOTP/recovery.
   rpc RequestStepUp(RequestStepUpRequest) returns (StepUpChallenge) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/step-up/request" body: "*" };
   }
 
   // Generic step-up Phase 2: submit proof → elevate session → rotate token.
   rpc CompleteStepUp(CompleteStepUpRequest) returns (CompleteStepUpResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/step-up/complete" body: "*" };
   }
 
   // ── MFA credential management ──
 
   // Delete an MFA credential (TOTP, WebAuthn, Recovery).
-  // Requires elevated session (step-up auth) before calling.
+  // Requires elevated session (step-up auth) before calling. A credential
+  // already revoked is revoked again with no change and the same answer.
   rpc DeleteMfaCredential(DeleteMfaCredentialRequest) returns (DeleteMfaCredentialResponse) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { delete: "/v1/auth/mfa/credentials/{credential_id}" };
   }
 
   // ── Account deletion confirmation ──
 
   rpc ConfirmAccountDeletion(ConfirmAccountDeletionRequest) returns (ConfirmAccountDeletionResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/delete-confirm" body: "*" };
   }
 
   // Password reset flow (magic link → new OPAQUE credential).
   rpc RequestPasswordReset(RequestPasswordResetRequest) returns (RequestPasswordResetResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/password/reset/request" body: "*" };
   }
   rpc VerifyPasswordReset(VerifyPasswordResetRequest) returns (VerifyPasswordResetResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/password/reset/verify" body: "*" };
   }
   // OPAQUE registration start of the replacement password, under the verified
@@ -325,7 +353,10 @@ service AuthService {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/auth/password/reset/execute" body: "*" };
   }
+  // The completion's result is recorded with it, keyed by the reset's
+  // operation and its final record: a retry gets the recorded answer.
   rpc CompletePasswordReset(CompletePasswordResetRequest) returns (CompletePasswordResetResponse) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/auth/password/reset/complete" body: "*" };
   }
 }
