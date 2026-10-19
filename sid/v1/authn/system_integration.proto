@@ -23,7 +23,9 @@ service SystemIntegrationService {
   // an administrator disabled, is FAILED_PRECONDITION
   // (SYSTEM_INTEGRATION_UNAVAILABLE): the BFF is not ready and serves no
   // sign-in until it is.
-  rpc GetAccountConnection(GetAccountConnectionRequest) returns (AccountConnection);
+  rpc GetAccountConnection(GetAccountConnectionRequest) returns (AccountConnection) {
+    option idempotency_level = IDEMPOTENT;
+  }
 }
 
 message GetAccountConnectionRequest {

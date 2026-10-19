@@ -14,10 +14,14 @@ import "google/protobuf/timestamp.proto";
 service EventStreamService {
   // Subscribe to real-time event stream.
   // Client specifies event types + optional filters.
-  rpc Subscribe(SubscribeRequest) returns (stream CloudEvent) {}
+  rpc Subscribe(SubscribeRequest) returns (stream CloudEvent) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
   // Replay events from a point in time (catch-up after disconnect).
-  rpc Replay(ReplayRequest) returns (stream CloudEvent) {}
+  rpc Replay(ReplayRequest) returns (stream CloudEvent) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════

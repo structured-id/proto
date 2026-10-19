@@ -444,6 +444,7 @@ service IdentityService {
 
   // Data export (GDPR Art. 20).
   rpc PrepareExport(PrepareExportRequest) returns (PrepareExportResponse) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/identity/export" body: "*" };
   }
   rpc GetExportStatus(GetExportStatusRequest) returns (GetExportStatusResponse) {

@@ -34,16 +34,20 @@ service BrandingService {
 
   // Create a new branding config (always starts as draft).
   rpc CreateBrandingConfig(CreateBrandingConfigRequest) returns (BrandingConfig) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (google.api.http) = { post: "/v1/projects/{project_id}/branding/configs" body: "*" };
   }
 
   // Update an existing branding config (draft or published).
   rpc UpdateBrandingConfig(UpdateBrandingConfigRequest) returns (BrandingConfig) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { patch: "/v1/projects/{project_id}/branding/{config_id}" body: "*" };
   }
 
   // Publish a draft config. Archives the currently published config (if any).
+  // A repeat finds the config no longer a draft and changes nothing.
   rpc PublishBrandingConfig(PublishBrandingConfigRequest) returns (BrandingConfig) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/projects/{project_id}/branding/{config_id}/publish" body: "*" };
   }
 

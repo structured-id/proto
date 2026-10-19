@@ -145,13 +145,16 @@ service SecurityService {
     option (google.api.http) = { get: "/v1/admin/security/ip-allowlist" };
   }
 
-  // Add an IP or CIDR to the allowlist.
+  // Add an IP or CIDR to the allowlist; adding one already listed replaces
+  // its description.
   rpc AddIpAllowlistEntry(AddIpAllowlistEntryRequest) returns (IpAllowlistResponse) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/admin/security/ip-allowlist" body: "*" };
   }
 
   // Remove an IP or CIDR from the allowlist.
   rpc RemoveIpAllowlistEntry(RemoveIpAllowlistEntryRequest) returns (IpAllowlistResponse) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { delete: "/v1/admin/security/ip-allowlist/{cidr}" };
   }
 }

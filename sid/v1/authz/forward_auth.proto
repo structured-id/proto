@@ -40,6 +40,7 @@ service ForwardAuthService {
   // registry or revocation check that cannot be answered is UNAVAILABLE. The
   // proxy denies on both.
   rpc Verify(VerifyRequest) returns (google.api.HttpBody) {
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = {
       custom: {kind: "*", path: "/auth/verify/{application}"}
     };
