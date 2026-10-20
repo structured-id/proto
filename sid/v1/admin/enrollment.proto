@@ -3,6 +3,9 @@
 // source analytics. Controls who can register and how registration is tracked.
 // Admin role required for every RPC except GetEnrollmentPolicy and
 // GetInstanceStatus, which the registration page reads before anyone signs in.
+// The invite RPCs also admit a service authenticated with its own token for
+// the enrollment API that holds the invite action on that resource (built-in
+// role `invite-issuer`); a user's sign-in token never takes that path.
 //
 // Arch doc: auth/enrollment-policy.md
 syntax = "proto3";
@@ -55,6 +58,13 @@ service EnrollmentService {
   rpc ListInvites(ListInvitesRequest) returns (ListInvitesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { get: "/v1/admin/enrollment/invites" };
+  }
+
+  // One invite with the registrations that used it. NOT_FOUND for an
+  // unknown id.
+  rpc GetInvite(GetInviteRequest) returns (Invite) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/enrollment/invites/{invite_id}" };
   }
 
   // Revoke an invite code (deactivate, cannot be used anymore).
@@ -218,10 +228,12 @@ message Invite {
   // Cryptographically random, URL-safe, 8-character alphanumeric (case-insensitive).
   string code = 2;
 
-  // Profile ID of the admin who created this invite.
+  // ID of the creator: a Profile ID or a machine user ID, as
+  // created_by_kind says.
   string created_by = 3;
 
-  // Display name of the creator (for admin-ui).
+  // Display name of the creator (for admin-ui): the Profile's name, or the
+  // machine user's.
   string created_by_name = 4;
 
   // Optional: pre-fill profile fields on registration.
@@ -245,6 +257,33 @@ message Invite {
   InviteStatus status = 10;
 
   google.protobuf.Timestamp created_at = 11;
+
+  // What kind of principal created_by names.
+  InviteCreatorKind created_by_kind = 12;
+
+  // The registrations that used this invite, oldest first: one per use.
+  // Filled by GetInvite; empty in listings.
+  repeated InviteRedemption redemptions = 13;
+}
+
+// Who created an invite.
+enum InviteCreatorKind {
+  INVITE_CREATOR_KIND_UNSPECIFIED = 0;
+
+  // An administrator Profile.
+  INVITE_CREATOR_KIND_PROFILE = 1;
+
+  // A machine user holding the invite action on the enrollment API.
+  INVITE_CREATOR_KIND_MACHINE_USER = 2;
+}
+
+// One registration that used an invite.
+message InviteRedemption {
+  // The Profile the registration created.
+  string profile_id = 1;
+
+  // When the registration committed.
+  google.protobuf.Timestamp redeemed_at = 2;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -369,6 +408,11 @@ message ListInvitesResponse {
 }
 
 message RevokeInviteRequest {
+  string invite_id = 1;
+}
+
+message GetInviteRequest {
+  // The invite's ID (UUID).
   string invite_id = 1;
 }
 
