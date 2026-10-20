@@ -60,11 +60,17 @@ service EnrollmentService {
     option (google.api.http) = { get: "/v1/admin/enrollment/invites" };
   }
 
-  // One invite with the registrations that used it. NOT_FOUND for an
-  // unknown id.
+  // One invite. NOT_FOUND for an unknown id.
   rpc GetInvite(GetInviteRequest) returns (Invite) {
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { get: "/v1/admin/enrollment/invites/{invite_id}" };
+  }
+
+  // The registrations that used an invite, oldest first, a page at a time.
+  // NOT_FOUND for an unknown invite.
+  rpc ListInviteRedemptions(ListInviteRedemptionsRequest) returns (ListInviteRedemptionsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/admin/enrollment/invites/{invite_id}/redemptions" };
   }
 
   // Revoke an invite code (deactivate, cannot be used anymore).
@@ -228,8 +234,8 @@ message Invite {
   // Cryptographically random, URL-safe, 8-character alphanumeric (case-insensitive).
   string code = 2;
 
-  // ID of the creator: a Profile ID or a machine user ID, as
-  // created_by_kind says.
+  // Profile ID of the admin who created this invite; empty when a machine
+  // user created it (created_by_machine_user_id).
   string created_by = 3;
 
   // Display name of the creator (for admin-ui): the Profile's name, or the
@@ -258,23 +264,10 @@ message Invite {
 
   google.protobuf.Timestamp created_at = 11;
 
-  // What kind of principal created_by names.
-  InviteCreatorKind created_by_kind = 12;
-
-  // The registrations that used this invite, oldest first: one per use.
-  // Filled by GetInvite; empty in listings.
-  repeated InviteRedemption redemptions = 13;
-}
-
-// Who created an invite.
-enum InviteCreatorKind {
-  INVITE_CREATOR_KIND_UNSPECIFIED = 0;
-
-  // An administrator Profile.
-  INVITE_CREATOR_KIND_PROFILE = 1;
-
-  // A machine user holding the invite action on the enrollment API.
-  INVITE_CREATOR_KIND_MACHINE_USER = 2;
+  // Machine user ID of the service that created this invite, holding the
+  // invite action on the enrollment API; empty when a Profile created it.
+  // Exactly one of created_by and this is set.
+  string created_by_machine_user_id = 12;
 }
 
 // One registration that used an invite.
@@ -414,6 +407,24 @@ message RevokeInviteRequest {
 message GetInviteRequest {
   // The invite's ID (UUID).
   string invite_id = 1;
+}
+
+message ListInviteRedemptionsRequest {
+  // The invite's ID (UUID).
+  string invite_id = 1;
+
+  // Redemptions per page: 0 is the default (50), more than 500 is 500.
+  uint32 page_size = 2;
+
+  // The next_page_token of the previous page; empty for the first.
+  string page_token = 3;
+}
+
+message ListInviteRedemptionsResponse {
+  repeated InviteRedemption redemptions = 1;
+
+  // The token of the next page; empty after the last.
+  string next_page_token = 2;
 }
 
 message BulkCreateInvitesRequest {
