@@ -1,0 +1,57 @@
+// StructuredID public UI settings
+// The installation settings a browser UI needs before anyone signs in, as a
+// public projection its UI host reads and serves with the deployment's own
+// browser configuration. An administrator changes the settings through the
+// owning installation's authorized API; the UI is not redeployed.
+//
+// Arch doc: ux/quasar-platform-strategy.md#live-public-ui-settings
+syntax = "proto3";
+
+package sid.v1.ui;
+
+import "google/protobuf/empty.proto";
+import "google/api/annotations.proto";
+import "sid/v1/identity/identity.proto";
+
+// PublicUiSettingsService answers the public projection of the installation's
+// UI settings. Public: it carries only effective choices, never policy
+// internals, account data or authority to enroll. Server policy stays
+// authoritative; a UI holding an older projection is refused at the operation.
+service PublicUiSettingsService {
+  // The current projection.
+  rpc GetPublicUiSettings(google.protobuf.Empty) returns (PublicUiSettings) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/ui/settings" };
+  }
+
+  // The current projection, then each newer one as it is committed. The first
+  // message is the state at subscription, so no change between reading and
+  // subscribing is lost; a reconnect starts again from the current state. A
+  // reader that falls behind receives the latest state, not every
+  // intermediate one. No HTTP mapping: UI hosts read it over gRPC.
+  rpc WatchPublicUiSettings(google.protobuf.Empty) returns (stream PublicUiSettings) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+// The public projection of the installation's UI settings.
+message PublicUiSettings {
+  // Grows with every committed change of the projected settings. A reader
+  // ignores a message whose revision is not greater than the one it holds.
+  uint64 revision = 1;
+
+  // The principal types a self-registration may use, in the order the UI
+  // names them. Empty: this installation offers no self-registration.
+  repeated sid.v1.identity.PrincipalType registration_principal_types = 2;
+
+  // The fewest characters (code points of the display spelling's NFC form) an
+  // ordinary registration admits for a username. Set when
+  // registration_principal_types holds PRINCIPAL_TYPE_USERNAME, 0 otherwise.
+  // It is not the sign-in minimum: an assigned shorter name still signs in.
+  uint32 registration_username_min_length = 3;
+
+  // The principal types an existing holder signs in and recovers with.
+  // Separate from registration: closing a type to registration leaves it
+  // here while its holders still sign in with it.
+  repeated sid.v1.identity.PrincipalType sign_in_principal_types = 4;
+}
