@@ -208,17 +208,6 @@ service AuthzService {
     option (google.api.http) = { post: "/v1/authz/check/batch" body: "*" };
   }
 
-  // List objects accessible by subject.
-  rpc ListObjects(ListObjectsRequest) returns (ListObjectsResponse) {
-    option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { post: "/v1/authz/objects" body: "*" };
-  }
-  // List subjects that can access an object.
-  rpc ListSubjects(ListSubjectsRequest) returns (ListSubjectsResponse) {
-    option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { post: "/v1/authz/subjects" body: "*" };
-  }
-
   // Role management.
   rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse) {
     option idempotency_level = IDEMPOTENT;
@@ -519,29 +508,6 @@ message BatchCheckPermissionRequest {
 message BatchCheckPermissionResponse {
   // One answer per question, in the order asked.
   repeated CheckPermissionResponse results = 1;
-}
-
-// ── List objects/subjects ────────────────────────────────────────────
-
-message ListObjectsRequest {
-  string subject = 1;         // e.g., "user:alice"
-  string action = 2;          // e.g., "view"
-  string resource_type = 3;   // e.g., "document"
-  Consistency consistency = 4;
-}
-
-message ListObjectsResponse {
-  repeated string objects = 1;  // e.g., ["document:123", "document:456"]
-}
-
-message ListSubjectsRequest {
-  string resource = 1;        // e.g., "document:123"
-  string action = 2;          // e.g., "edit"
-  Consistency consistency = 3;
-}
-
-message ListSubjectsResponse {
-  repeated string subjects = 1;  // e.g., ["user:alice", "user:bob"]
 }
 
 // ── Role management ──────────────────────────────────────────────────
