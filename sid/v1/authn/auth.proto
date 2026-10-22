@@ -559,8 +559,10 @@ message OpaqueZkppRegistrationFinishRequest {
 }
 
 message OpaqueZkppRegistrationFinishResponse {
-  // UUID of the newly created profile.
-  string profile_id = 1;
+  // UUID of the first Profile the registration created. Absent when the
+  // registration completed before its first Profile exists (the Profile is
+  // completed later in the same onboarding); never an empty or substitute id.
+  optional string profile_id = 1;
   // UUID of the OPAQUE-ZKPP credential stored on server.
   string credential_id = 2;
 }
