@@ -559,8 +559,6 @@ message OpaqueZkppRegistrationFinishRequest {
 }
 
 message OpaqueZkppRegistrationFinishResponse {
-  // UUID of the newly created profile.
-  string profile_id = 1;
   // UUID of the OPAQUE-ZKPP credential stored on server.
   string credential_id = 2;
 }
