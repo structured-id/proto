@@ -422,8 +422,6 @@ message OpaqueRegistrationFinishRequest {
 }
 
 message OpaqueRegistrationFinishResponse {
-  // UUID of the newly created profile. Client stores for subsequent API calls.
-  string profile_id = 1;
   // UUID of the OPAQUE credential stored on server. Used for password change
   // (PasswordChangeChallenge.credential_id) and credential management.
   string credential_id = 2;
