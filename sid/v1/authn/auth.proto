@@ -559,15 +559,6 @@ message OpaqueZkppRegistrationFinishRequest {
 }
 
 message OpaqueZkppRegistrationFinishResponse {
-  // LOCAL ONLY. The ProfileId of the Profile this registration created, in
-  // the registering installation's own namespace: set only when a
-  // self-hosted installation registers its own local account, outside
-  // federation. A federated account's registration never sets it: a
-  // ProfileId is internal to its installation and never leaves it
-  // (federated identities are recipient-scoped). Not a subject, not a
-  // federation identifier, never an empty or substitute value. Named
-  // `local_` so it is never taken for any other Profile reference.
-  optional string local_profile_id = 1;
   // UUID of the OPAQUE-ZKPP credential stored on server.
   string credential_id = 2;
 }
