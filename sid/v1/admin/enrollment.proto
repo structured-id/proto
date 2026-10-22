@@ -277,6 +277,11 @@ message InviteRedemption {
 
   // When the registration committed.
   google.protobuf.Timestamp redeemed_at = 2;
+
+  // The credential the registration installed; empty when it installed none.
+  // The client that ran the registration recognizes its own redemption by the
+  // credential id its registration finish returned.
+  string credential_id = 3;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
