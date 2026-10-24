@@ -84,6 +84,10 @@ enum ErrorReason {
   // accounts), `invite` (an invite code), `email` (an email address) or
   // `email_domain` (an address in an allowed domain).
   REGISTRATION_RESTRICTED = 23;
+  // A state-changing browser call did not echo its session's CSRF token in
+  // `x-csrf-token` (absent, repeated or another session's). The session is
+  // left as it was; the page reads the token again with the session.
+  CSRF_TOKEN_INVALID = 24;
 
   // ── ALREADY_EXISTS ─────────────────────────────────────────
 

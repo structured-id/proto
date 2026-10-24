@@ -1,0 +1,151 @@
+// StructuredID application session: the browser adapter (BFF) of an
+// application that signs its users in at a SID issuer as a registered
+// confidential web client. The adapter keeps the issuer's tokens server-side
+// and gives the browser only an HttpOnly session cookie and a CSRF token.
+//
+// The application session is the application's own, distinct from the
+// issuer's sign-in (SSO) session: ending one does not end the other.
+syntax = "proto3";
+
+package sid.v1.authn;
+
+import "google/api/annotations.proto";
+import "google/api/httpbody.proto";
+
+service ApplicationSessionService {
+  // Start a sign-in: redirect the browser to the issuer's authorization
+  // endpoint (RFC 6749 §4.1.1) with the code flow, S256 PKCE (RFC 7636
+  // §4.3), the application's resource (RFC 8707 §2) and a fresh `state` and
+  // `nonce`, recorded server-side for the callback.
+  //
+  // A browser navigation, so the answer is HTTP: `x-http-code` 302 with
+  // `location` in the response metadata and an empty body. Before the
+  // installation has provisioned the application's client the answer is 503
+  // and nothing is recorded.
+  //
+  // Records a single-use sign-in on every call, so a repeat is another
+  // sign-in.
+  rpc StartSignIn(StartSignInRequest) returns (google.api.HttpBody) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = {get: "/auth/login"};
+  }
+
+  // Complete a sign-in from the issuer's authorization response (RFC 6749
+  // §4.1.2): take the recorded sign-in its `state` names, exactly once, check
+  // that the issuer answered (RFC 9207 §2.4), redeem the code with the
+  // client's key (`private_key_jwt`, RFC 7523 §2.2), validate the access
+  // token for the application's resource (RFC 9068 §4) and the ID token for
+  // this client and nonce (OIDC Core 1.0 §3.1.3.7), and open the session.
+  //
+  // A browser navigation, so the answer is HTTP: `x-http-code` 302 to the
+  // local path the sign-in started from, with the session cookie in
+  // `set-cookie` (host-only, `Secure`, `HttpOnly`, `SameSite=Lax`). An
+  // unknown, used or expired `state`, or an answer from another issuer, is
+  // 400; an authorization error is 403; a redemption or token the issuer
+  // got wrong is 502; a session store that cannot be reached is 503.
+  //
+  // Consumes the sign-in its `state` names, so a repeat is refused.
+  rpc CompleteSignIn(CompleteSignInRequest) returns (google.api.HttpBody) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = {get: "/auth/callback"};
+  }
+
+  // The signed-in user of the session the request's cookie names, and the
+  // session's CSRF token, which every state-changing call echoes in
+  // `x-csrf-token`. The application's page calls it over gRPC-Web on its own
+  // origin; the cookie travels in the request metadata.
+  //
+  // No cookie, or one naming no live session of this application's
+  // connection, is UNAUTHENTICATED (TOKEN_INVALID). A session whose issuer
+  // session was ended elsewhere is ended here too and is UNAUTHENTICATED. A
+  // session store or revocation check that cannot be answered is UNAVAILABLE
+  // with RetryInfo: an outage never reads as a signed-out user.
+  //
+  // Extends the session's idle window; repeating it does nothing more.
+  rpc GetApplicationSession(GetApplicationSessionRequest) returns (ApplicationSession) {
+    option idempotency_level = IDEMPOTENT;
+  }
+
+  // End the application session the request's cookie names and revoke the
+  // grant behind it at the issuer (RFC 7009 §2.1); the response metadata
+  // carries a `set-cookie` that clears the cookie. Requires the session's
+  // CSRF token in `x-csrf-token` (a mismatch is PERMISSION_DENIED,
+  // CSRF_TOKEN_INVALID). Ends the application session only: the issuer's
+  // sign-in session and other applications are not touched.
+  //
+  // Without a cookie the answer is UNAUTHENTICATED. A session store that
+  // cannot be reached is UNAVAILABLE and nothing is cleared.
+  //
+  // A repeat finds no session and answers GRANT_OUTCOME_UNKNOWN; nothing more
+  // is ended.
+  rpc EndApplicationSession(EndApplicationSessionRequest) returns (EndApplicationSessionResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+}
+
+message StartSignInRequest {
+  // Where on the application's origin to return after sign-in: a local path
+  // starting with a single `/`. Anything else (another origin, `//host`,
+  // `/\host`, control characters) returns to `/` (RFC 9700 §4.11). Supplied
+  // by the page that sends the browser here.
+  string rd = 1;
+}
+
+message CompleteSignInRequest {
+  // The `state` the sign-in sent, as the issuer returned it (RFC 6749
+  // §4.1.2). Names the recorded sign-in; anything but a value this adapter
+  // issued is refused.
+  string state = 1;
+  // The authorization code, absent when the issuer answered an error.
+  optional string code = 2;
+  // The issuer's error code (RFC 6749 §4.1.2.1), when it refused.
+  optional string error = 3;
+  // The issuer that answered (RFC 9207 §2); must be the connection's issuer.
+  optional string iss = 4;
+}
+
+message GetApplicationSessionRequest {}
+
+// The signed-in user as this application's issuer names it, and the session's
+// CSRF token.
+message ApplicationSession {
+  // The user's subject at this application (`sub` of the issuer's tokens for
+  // it): recipient-scoped and opaque; its shape does not say what kind of
+  // identifier it is.
+  string sub = 1;
+  // Email address from the sign-in's ID token, when disclosed to this
+  // application.
+  optional string email = 2;
+  // Display name from the sign-in's ID token, when disclosed.
+  optional string name = 3;
+  // Username from the sign-in's ID token, when disclosed.
+  optional string preferred_username = 4;
+  // Authentication context class of the sign-in (`acr`, OIDC Core 1.0 §2).
+  string acr = 5;
+  // The session's synchronizer token: echoed in `x-csrf-token` on every
+  // state-changing call of this session. Bound to this session only; not a
+  // credential by itself.
+  string csrf_token = 6;
+}
+
+message EndApplicationSessionRequest {}
+
+message EndApplicationSessionResponse {
+  // What became of the issuer's grant behind the ended session.
+  GrantOutcome grant = 1;
+}
+
+// What became of the grant behind an ended application session.
+enum GrantOutcome {
+  GRANT_OUTCOME_UNSPECIFIED = 0;
+  // The issuer revoked it: its refresh token no longer works.
+  GRANT_OUTCOME_REVOKED = 1;
+  // A grant stood behind the session and the issuer did not revoke it; it
+  // lives until it expires, though nobody holds its token any more.
+  GRANT_OUTCOME_NOT_REVOKED = 2;
+  // No grant stood behind the session.
+  GRANT_OUTCOME_NONE = 3;
+  // Not known: the session was already gone, or the revocation's answer was
+  // lost after it may have taken effect.
+  GRANT_OUTCOME_UNKNOWN = 4;
+}
