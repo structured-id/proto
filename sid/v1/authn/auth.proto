@@ -106,6 +106,18 @@ service AuthService {
   rpc OAuth2Authorize(OAuth2AuthorizeRequest) returns (OAuth2AuthorizeResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
   }
+  // The context of the authorization request a sign-in page was sent to
+  // complete: the server checks the request against its saved state (the
+  // addressed issuer, a client registered under it, the client's exact
+  // registered redirect URI) and answers where the page runs its ceremonies.
+  // Nothing is consumed or changed, so showing or reloading the page reads it
+  // again. A request that does not match saved state is refused before the
+  // page asks for any credential: INVALID_ARGUMENT, ErrorInfo reason
+  // INVALID_FIELD_VALUE, BadRequest field `authorization_request`.
+  rpc GetSignInContext(GetSignInContextRequest) returns (SignInContext) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { post: "/v1/auth/sign-in/context" body: "*" };
+  }
   //
   // The token, introspection, revocation and device authorization RPCs have
   // no HTTP binding: their HTTP form is fixed by the RFCs (form-encoded
@@ -832,6 +844,25 @@ message OAuth2AuthorizeResponse {
   }
   // Echoed from request. Client validates match for CSRF protection.
   optional string state = 4;
+}
+
+message GetSignInContextRequest {
+  // The authorization request the page was redirected with (its `rd`): the
+  // issuer's authorization endpoint URL with the request's query, as
+  // `https://<host>/i/<handle>/oauth2/authorize?client_id=...`. Only its
+  // issuer handle, `client_id` and `redirect_uri` are checked here; the full
+  // request is checked again when the page completes it.
+  string authorization_request = 1;
+}
+
+// Where and for whom a sign-in page completes an authorization request.
+message SignInContext {
+  // The canonical URL of the issuer the request addressed (OIDC Discovery
+  // §4.3 Issuer Identifier). The page's ceremony calls go to `<issuer>/grpc`.
+  string issuer = 1;
+  // The requesting client's display name, as registered; empty when the
+  // registration names none.
+  string client_name = 2;
 }
 
 message OAuth2TokenRequest {
