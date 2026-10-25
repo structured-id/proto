@@ -848,10 +848,12 @@ message OAuth2AuthorizeResponse {
 
 message GetSignInContextRequest {
   // The authorization request the page was redirected with (its `rd`): the
-  // issuer's authorization endpoint URL with the request's query, as
-  // `https://<host>/i/<handle>/oauth2/authorize?client_id=...`. Only its
-  // issuer handle, `client_id` and `redirect_uri` are checked here; the full
-  // request is checked again when the page completes it.
+  // issuer's authorization endpoint URL continuing the request the issuer
+  // kept, `https://<host>/i/<handle>/oauth2/authorize?client_id=...&request_uri=...`.
+  // The kept request is read, not taken: it must exist, belong to that
+  // issuer and client, and the client must be active with the request's
+  // redirect URI registered. The full request is checked again when the page
+  // completes it.
   string authorization_request = 1;
 }
 
