@@ -298,7 +298,8 @@ message IssuerHandleRequest {
 
 // OpenID Provider / Authorization Server metadata of one issuer. JSON member
 // names are the registered metadata names (OIDC Discovery 1.0 §3, RFC 8414 §2);
-// every endpoint is under the issuer URL.
+// every endpoint is under the issuer URL. An endpoint the issuer does not
+// serve is absent from the document, never an empty string.
 message ProviderMetadata {
   // The issuer identifier, the stored canonical URL byte for byte: the `iss`
   // of every token this issuer signs (OIDC Discovery 1.0 §4.3, RFC 8414 §3.3).
@@ -307,18 +308,23 @@ message ProviderMetadata {
   string authorization_endpoint = 2 [json_name = "authorization_endpoint"];
   // Token endpoint (RFC 6749 §3.2).
   string token_endpoint = 3 [json_name = "token_endpoint"];
-  // UserInfo endpoint (OIDC Core 1.0 §5.3).
-  string userinfo_endpoint = 4 [json_name = "userinfo_endpoint"];
+  // UserInfo endpoint (OIDC Core 1.0 §5.3); absent when the issuer serves
+  // none (OIDC Discovery 1.0 §3: RECOMMENDED).
+  optional string userinfo_endpoint = 4 [json_name = "userinfo_endpoint"];
   // The issuer's JSON Web Key Set (RFC 7517 §5).
   string jwks_uri = 5 [json_name = "jwks_uri"];
-  // RP-Initiated Logout endpoint (OIDC RP-Initiated Logout 1.0 §2.1).
-  string end_session_endpoint = 6 [json_name = "end_session_endpoint"];
-  // Token introspection endpoint (RFC 7662 §2, RFC 8414 §2).
-  string introspection_endpoint = 7 [json_name = "introspection_endpoint"];
-  // Token revocation endpoint (RFC 7009 §2, RFC 8414 §2).
-  string revocation_endpoint = 8 [json_name = "revocation_endpoint"];
-  // Device authorization endpoint (RFC 8628 §4).
-  string device_authorization_endpoint = 9 [json_name = "device_authorization_endpoint"];
+  // RP-Initiated Logout endpoint (OIDC RP-Initiated Logout 1.0 §2.1); absent
+  // when the issuer serves none.
+  optional string end_session_endpoint = 6 [json_name = "end_session_endpoint"];
+  // Token introspection endpoint (RFC 7662 §2, RFC 8414 §2); absent when the
+  // issuer serves none.
+  optional string introspection_endpoint = 7 [json_name = "introspection_endpoint"];
+  // Token revocation endpoint (RFC 7009 §2, RFC 8414 §2); absent when the
+  // issuer serves none.
+  optional string revocation_endpoint = 8 [json_name = "revocation_endpoint"];
+  // Device authorization endpoint (RFC 8628 §4); absent when the issuer
+  // serves none.
+  optional string device_authorization_endpoint = 9 [json_name = "device_authorization_endpoint"];
   // Supported `response_type` values; only the authorization code flow.
   repeated string response_types_supported = 10 [json_name = "response_types_supported"];
   // Supported grant types (RFC 8414 §2).
@@ -345,8 +351,8 @@ message ProviderMetadata {
   // Every authorization response names its issuer in `iss` (RFC 9207 §3).
   bool authorization_response_iss_parameter_supported = 20 [json_name = "authorization_response_iss_parameter_supported"];
   // Dynamic client registration endpoint (RFC 7591 §3, OIDC Discovery 1.0 §3,
-  // RFC 8414 §2).
-  string registration_endpoint = 21 [json_name = "registration_endpoint"];
+  // RFC 8414 §2); absent when the issuer accepts no dynamic registration.
+  optional string registration_endpoint = 21 [json_name = "registration_endpoint"];
   // JWS algorithms a `private_key_jwt` client may sign its token endpoint
   // assertion with (RFC 8414 §2: present whenever that method is listed in
   // `token_endpoint_auth_methods_supported`). Asymmetric only; never `none`.
