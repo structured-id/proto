@@ -502,6 +502,18 @@ message OpaqueLoginFinishResponse {
   // Seconds until the delivered credential expires: the access token for a
   // native client (default 900), the session cookie for a browser.
   int64 expires_in = 3;
+  // Set by the server when the login requirements need a second factor
+  // beyond the one this ceremony proved and the account has one of these
+  // enrolled. The delivered credential is then a pending context: it
+  // authorizes only completing the sign-in with one of these methods
+  // (VerifyTotp for STEP_UP_METHOD_TOTP), which returns the session. Empty
+  // when the session is complete.
+  repeated StepUpMethod second_factors = 4;
+  // The CSRF token a browser sends in `X-CSRF-Token` when it completes the
+  // pending context with its cookie; set only with `second_factors` on a
+  // browser delivery, in this response to the configured sign-in page's
+  // origin. It authenticates nothing by itself.
+  optional string browser_csrf = 5;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -762,6 +774,10 @@ message WebAuthnAuthenticationFinishResponse {
   reserved "access_token";
   // Seconds until the delivered credential expires.
   int64 expires_in = 3;
+  // Same semantics as OpaqueLoginFinishResponse.second_factors.
+  repeated StepUpMethod second_factors = 4;
+  // Same semantics as OpaqueLoginFinishResponse.browser_csrf.
+  optional string browser_csrf = 5;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -1271,6 +1287,10 @@ message LegacyMigrateFinishResponse {
   reserved "access_token";
   // Seconds until the delivered credential expires.
   int64 expires_in = 3;
+  // Same semantics as OpaqueLoginFinishResponse.second_factors.
+  repeated StepUpMethod second_factors = 4;
+  // Same semantics as OpaqueLoginFinishResponse.browser_csrf.
+  optional string browser_csrf = 5;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
