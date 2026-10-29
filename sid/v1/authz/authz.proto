@@ -785,8 +785,8 @@ message EvaluatePolicyRequest {
   string action = 2;
   string resource = 3;
   map<string, string> context = 4;
-  // Evaluate only the policies this scope owns; every scope's when absent.
-  optional PolicyScope scope = 6;
+  // The scope whose own policies are evaluated; required.
+  PolicyScope scope = 6;
 }
 
 message EvaluatePolicyResponse {
