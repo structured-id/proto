@@ -4,6 +4,7 @@ syntax = "proto3";
 package sid.v1.authz;
 
 import "google/protobuf/duration.proto";
+import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
 import "sid/v1/ids/ids.proto";
@@ -173,11 +174,27 @@ message AssignmentProvenance {
   repeated string approved_ceiling = 4;
 }
 
+// What a policy applies to within its installation. A decision on a
+// protected resource applies the installation's, its parent project's and
+// its own policies; a decision on a project, the installation's and the
+// project's. A prohibition at any of them denies.
+message PolicyScope {
+  oneof scope {
+    // Every decision of this installation.
+    google.protobuf.Empty installation = 1;
+    // Decisions on one project of this installation and on the protected
+    // resources of its applications (UUID text).
+    string project_id = 2;
+    // Decisions on one registered protected resource of this installation.
+    sid.v1.ids.ResourceId resource = 3;
+  }
+}
+
 // Policy represents a Cedar policy (ABAC).
-// Scoped to a project.
 message Policy {
   string id = 1;
-  string project_id = 2;
+  // What the policy applies to; set by its creation and never changed.
+  PolicyScope scope = 10;
   string name = 3;
   optional string description = 4;
 
@@ -192,6 +209,9 @@ message Policy {
 
   google.protobuf.Timestamp created_at = 8;
   google.protobuf.Timestamp updated_at = 9;
+
+  // Stored revision: 0 when created, moved on by every change.
+  uint64 revision = 11;
 }
 
 // ── Service ──────────────────────────────────────────────────────────
@@ -707,7 +727,8 @@ message ListGroupMembersResponse {
 // ── Policy management (Cedar) ────────────────────────────────────────
 
 message CreatePolicyRequest {
-  string project_id = 1;
+  // What the new policy applies to; required.
+  PolicyScope scope = 7;
   string name = 2;
   optional string description = 3;
   string policy_text = 4;
@@ -746,7 +767,8 @@ message DeletePolicyRequest {
 message DeletePolicyResponse {}
 
 message ListPoliciesRequest {
-  string project_id = 1;
+  // The scope whose own policies are listed; required.
+  PolicyScope scope = 4;
   int32 page_size = 2;
   string page_token = 3;
 }
@@ -763,8 +785,8 @@ message EvaluatePolicyRequest {
   string action = 2;
   string resource = 3;
   map<string, string> context = 4;
-  // Evaluate only policies in this project.
-  optional string project_id = 5;
+  // Evaluate only the policies this scope owns; every scope's when absent.
+  optional PolicyScope scope = 6;
 }
 
 message EvaluatePolicyResponse {
