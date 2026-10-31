@@ -42,10 +42,18 @@ enum AdminOperation {
   ADMIN_OPERATION_EDIT_ROLE = 3;
   // Grant administrative assignments narrower than the holder's own.
   ADMIN_OPERATION_REDELEGATE = 4;
-  // Add, read and remove `forbid` policies of the protected resource the
-  // assignment is scoped to. A forbid only narrows access, so this enlarges
-  // nothing; permits and wider policy scopes stay with the administrator.
-  ADMIN_OPERATION_EDIT_POLICY = 5;
+}
+
+// A policy administration operation an assignment may permit on the policies
+// of its own protected resource. None implies another.
+enum PolicyOperation {
+  POLICY_OPERATION_UNSPECIFIED = 0;
+  // Read the resource's policies.
+  POLICY_OPERATION_READ = 1;
+  // Create, change, disable and remove them.
+  POLICY_OPERATION_EDIT = 2;
+  // Grant this authority, narrower or equal, to another holder.
+  POLICY_OPERATION_REDELEGATE = 3;
 }
 
 // A kind of principal an administrative assignment lets its holder assign
@@ -126,6 +134,17 @@ message RoleAssignment {
   // Who granted the assignment and on what authority, recorded by the
   // server; absent on assignments that predate provenance.
   optional AssignmentProvenance provenance = 12;
+
+  // Present when the assignment administers the policies of the protected
+  // resource `scope` names. Independent of `admin`: neither implies the other.
+  optional PolicyAuthority policy_admin = 13;
+}
+
+// What an assignment may do with the policies of its protected resource.
+message PolicyAuthority {
+  // The permitted operations, at least one. An assignment scoped to anything
+  // but one protected resource cannot carry them.
+  repeated PolicyOperation operations = 1;
 }
 
 // What an administrative assignment may administer. Every field is an
@@ -625,6 +644,11 @@ message AssignRoleRequest {
   // a redelegated one needs `expires_at` within that right's validity.
   // A malformed envelope is INVALID_ARGUMENT naming the field.
   optional AdminEnvelope admin = 9;
+  // Makes the assignment administer the policies of the protected resource
+  // `scope` names. Granting it requires the root of the scope, or an
+  // assignment of the same role holding POLICY_OPERATION_REDELEGATE and every
+  // operation granted here, with `expires_at` no later than its own.
+  optional PolicyAuthority policy_admin = 10;
 }
 
 message AssignRoleResponse {
