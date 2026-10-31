@@ -42,6 +42,10 @@ enum AdminOperation {
   ADMIN_OPERATION_EDIT_ROLE = 3;
   // Grant administrative assignments narrower than the holder's own.
   ADMIN_OPERATION_REDELEGATE = 4;
+  // Add, read and remove `forbid` policies of the protected resource the
+  // assignment is scoped to. A forbid only narrows access, so this enlarges
+  // nothing; permits and wider policy scopes stay with the administrator.
+  ADMIN_OPERATION_EDIT_POLICY = 5;
 }
 
 // A kind of principal an administrative assignment lets its holder assign
