@@ -514,6 +514,14 @@ message OpaqueLoginFinishResponse {
   // browser delivery, in this response to the configured sign-in page's
   // origin. It authenticates nothing by itself.
   optional string browser_csrf = 5;
+  // Set by the server when this sign-in owes a second factor, the account has
+  // never enrolled one and it may enroll one of these first. The delivered
+  // credential is then a pending context, which authorizes only that first
+  // enrollment (StartTotpEnrollment and FinishTotpEnrollment for
+  // STEP_UP_METHOD_TOTP) and then completing the sign-in with the new factor.
+  // Empty on an account with established protection, whose lost factor goes
+  // through recovery instead.
+  repeated StepUpMethod enrollable_factors = 6;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -778,6 +786,8 @@ message WebAuthnAuthenticationFinishResponse {
   repeated StepUpMethod second_factors = 4;
   // Same semantics as OpaqueLoginFinishResponse.browser_csrf.
   optional string browser_csrf = 5;
+  // Same semantics as OpaqueLoginFinishResponse.enrollable_factors.
+  repeated StepUpMethod enrollable_factors = 6;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -1291,6 +1301,8 @@ message LegacyMigrateFinishResponse {
   repeated StepUpMethod second_factors = 4;
   // Same semantics as OpaqueLoginFinishResponse.browser_csrf.
   optional string browser_csrf = 5;
+  // Same semantics as OpaqueLoginFinishResponse.enrollable_factors.
+  repeated StepUpMethod enrollable_factors = 6;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
