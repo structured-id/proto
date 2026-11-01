@@ -54,4 +54,10 @@ message PublicUiSettings {
   // Separate from registration: closing a type to registration leaves it
   // here while its holders still sign in with it.
   repeated sid.v1.identity.PrincipalType sign_in_principal_types = 4;
+
+  // Whether a self-registration may start now, computed by the server from
+  // its stored switch and current restrictions. False shows the page closed
+  // before anything is typed; it never grants anything, and the server still
+  // decides each registration. A claim's continuation is not governed by it.
+  bool registration_open = 5;
 }
