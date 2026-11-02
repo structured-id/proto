@@ -432,8 +432,8 @@ service OidcIssuerService {
   // same `request_id` with the same token, method, URI and resource) within
   // the confirmation's window answers OK again without extending the
   // admission; the proof presented for any other request, or with any of
-  // these changed, is UNAUTHENTICATED with ErrorInfo reason
-  // INVALID_FIELD_VALUE and `oauthError` `invalid_dpop_proof`. When the
+  // these changed, is UNAUTHENTICATED with ErrorInfo reason TOKEN_INVALID
+  // and `oauthError` `invalid_dpop_proof`. When the
   // admission cannot be decided the call is UNAVAILABLE, and the verifier
   // refuses the original request; it never admits it on its own.
   rpc AdmitSenderProof(AdmitSenderProofRequest) returns (google.protobuf.Empty) {
