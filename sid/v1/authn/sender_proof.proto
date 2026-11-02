@@ -1,0 +1,63 @@
+// StructuredID sender proofs: what a verifier at a resource boundary checked
+// about one original request's sender proof, as the issuer of the request's
+// token receives it.
+syntax = "proto3";
+
+package sid.v1.authn;
+
+import "google/protobuf/timestamp.proto";
+
+// What the verifier at the resource boundary confirmed about one original
+// request. It is bound to that request, its token and the resource it was
+// made to; it is the verifier's testimony, not a new proof. The proof itself
+// is not resent: its identity is admitted once by the token's issuer for this
+// request (RFC 9449 §11.1), and a later question about the same request
+// confirms that admission rather than consuming the proof again.
+message RequestConfirmation {
+  // Which kind of sender proof was verified.
+  SenderProofProfile profile = 1;
+
+  // The original request's HTTP method, as received at the resource.
+  string method = 2;
+
+  // The original request's external URI without query and fragment, as
+  // reconstructed from authenticated ingress context (the DPoP `htu`,
+  // RFC 9449 §4.2).
+  string uri = 3;
+
+  // The verifier's identifier of the original request, created by the
+  // verifier for each request it receives, never taken from the client, the
+  // proof or a business idempotency key: a retry of the same pending request
+  // carries the same value, a new request a new one. 16 random bytes.
+  bytes request_id = 4;
+
+  // The JWK SHA-256 thumbprint (RFC 7638) of the key the proof was verified
+  // with; it must equal the token's `cnf.jkt` (RFC 9449 §6.1).
+  string jkt = 5;
+
+  // When the verifier checked the proof.
+  google.protobuf.Timestamp verified_at = 6;
+
+  // Until when the confirmation may be used for this request; never beyond
+  // the token's expiry. It bounds retries of this request only: the
+  // issuer keeps the proof's admission for the proof's whole acceptance
+  // window, however short this is.
+  google.protobuf.Timestamp valid_until = 7;
+
+  // The verified proof's `jti` (RFC 9449 §4.2), as the proof carries it. With
+  // the issuer, the resource and `jkt` it identifies the proof the issuer
+  // admits once.
+  string proof_jti = 8;
+
+  // The verified proof's `iat` (RFC 9449 §4.2), as the proof carries it. The
+  // issuer keeps the admission until the proof can no longer be accepted:
+  // its own proof age and clock allowance past this instant.
+  google.protobuf.Timestamp proof_iat = 9;
+}
+
+// The kind of sender proof a confirmation reports.
+enum SenderProofProfile {
+  SENDER_PROOF_PROFILE_UNSPECIFIED = 0;
+  // A DPoP proof (RFC 9449).
+  SENDER_PROOF_PROFILE_DPOP = 1;
+}

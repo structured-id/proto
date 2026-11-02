@@ -7,6 +7,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/authn/sender_proof.proto";
 import "sid/v1/ids/ids.proto";
 
 // ── Enums ────────────────────────────────────────────────────────────
@@ -441,48 +442,11 @@ message RequestEvaluation {
 
   // Checks of the original request made at the resource boundary by the
   // caller, when the caller is trusted to make them. Absent when the request
-  // carried no sender proof or nobody trusted to verify it did.
-  RequestConfirmation confirmation = 2;
-}
-
-// What the verifier at the resource boundary confirmed about one original
-// request. It is bound to that request, its token and this query's target;
-// it is the verifier's testimony, not a new proof, and the original sender
-// proof is never sent or consumed again here.
-message RequestConfirmation {
-  // Which kind of sender proof was verified.
-  SenderProofProfile profile = 1;
-
-  // The original request's HTTP method, as received at the resource.
-  string method = 2;
-
-  // The original request's external URI without query and fragment, as
-  // reconstructed from authenticated ingress context (the DPoP `htu`,
-  // RFC 9449 §4.2).
-  string uri = 3;
-
-  // The verifier's identifier of the original request: a retry of the same
-  // pending request carries the same value, a new request a new one.
-  // 16 random bytes.
-  bytes request_id = 4;
-
-  // The JWK SHA-256 thumbprint (RFC 7638) of the key the proof was verified
-  // with; it must equal the token's `cnf.jkt` (RFC 9449 §6.1).
-  string jkt = 5;
-
-  // When the verifier checked the proof.
-  google.protobuf.Timestamp verified_at = 6;
-
-  // Until when the confirmation may be used for this request; never beyond
-  // the token's expiry.
-  google.protobuf.Timestamp valid_until = 7;
-}
-
-// The kind of sender proof a confirmation reports.
-enum SenderProofProfile {
-  SENDER_PROOF_PROFILE_UNSPECIFIED = 0;
-  // A DPoP proof (RFC 9449).
-  SENDER_PROOF_PROFILE_DPOP = 1;
+  // carried no sender proof or nobody trusted to verify it did. A DPoP
+  // confirmation is admitted at the token's issuer within this exchange, as
+  // OidcIssuerService.AdmitSenderProof admits it, so a question about a
+  // request whose proof was already admitted for another request is refused.
+  sid.v1.authn.RequestConfirmation confirmation = 2;
 }
 
 // A subject named for abstract evaluation.
