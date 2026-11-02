@@ -242,13 +242,18 @@ message Policy {
 
 // AuthzService handles authorization, RBAC, and policy evaluation.
 service AuthzService {
-  // Permission check (primary authorization API).
+  // Permission check (primary authorization API). A request-bound question
+  // with a DPoP confirmation admits the request's proof at the issuer, so
+  // the call is not free of effects; a repeat about the same request
+  // confirms that admission.
   rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse) {
-    option idempotency_level = NO_SIDE_EFFECTS;
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/authz/check" body: "*" };
   }
+  // Several permission checks at once, each with the effects of
+  // CheckPermission.
   rpc BatchCheckPermission(BatchCheckPermissionRequest) returns (BatchCheckPermissionResponse) {
-    option idempotency_level = NO_SIDE_EFFECTS;
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/authz/check/batch" body: "*" };
   }
 

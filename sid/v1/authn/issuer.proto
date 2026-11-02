@@ -446,7 +446,8 @@ service OidcIssuerService {
 // to admit.
 message AdmitSenderProofRequest {
   // The access token exactly as the original request presented it (JWS
-  // compact serialization), unchanged. Never logged or echoed.
+  // compact serialization or an opaque access token), unchanged. Never
+  // logged or echoed.
   string access_token = 1;
 
   // The registered resource the original request was made to: the token's
