@@ -180,6 +180,9 @@ enum ErrorReason {
   // The provider or capability the call needs is not configured in this
   // deployment; an administrator can enable it.
   FEATURE_NOT_CONFIGURED = 68;
+  // Self-registration was deliberately closed. Not a store that cannot answer,
+  // nor a setting never initialized.
+  REGISTRATION_DISABLED = 72;
 
   // ── RESOURCE_EXHAUSTED ─────────────────────────────────────
 
