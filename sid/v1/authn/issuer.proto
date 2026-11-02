@@ -7,7 +7,9 @@ package sid.v1.authn;
 
 import "google/api/annotations.proto";
 import "google/api/httpbody.proto";
+import "google/protobuf/empty.proto";
 import "sid/v1/authn/auth.proto";
+import "sid/v1/authn/sender_proof.proto";
 import "sid/v1/ids/ids.proto";
 
 // OidcProviderService publishes one issuer's metadata and signing keys to its
@@ -417,6 +419,43 @@ service OidcIssuerService {
   rpc GetProtectedResource(GetProtectedResourceRequest) returns (ProtectedResourceTarget) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // Admit one original request's sender proof at the issuer of its token
+  // (RFC 9449 §11.1), for a request the verifier answers without a
+  // permission question. The caller authenticates with its own client
+  // credential and must be configured as the verifier of the resource for
+  // the proof's kind; anyone else is PERMISSION_DENIED with ErrorInfo
+  // reason INSUFFICIENT_PERMISSIONS. The token must be this issuer's, for the
+  // resource, and bound to the confirmed key.
+  //
+  // A proof is admitted for one request. A repeat of the same request (the
+  // same `request_id` with the same token, method, URI and resource) within
+  // the confirmation's window answers OK again without extending the
+  // admission; the proof presented for any other request, or with any of
+  // these changed, is UNAUTHENTICATED with ErrorInfo reason TOKEN_INVALID
+  // and `oauthError` `invalid_dpop_proof`. When the
+  // admission cannot be decided the call is UNAVAILABLE, and the verifier
+  // refuses the original request; it never admits it on its own.
+  rpc AdmitSenderProof(AdmitSenderProofRequest) returns (google.protobuf.Empty) {
+    // A repeat of the same request confirms the first answer.
+    option idempotency_level = IDEMPOTENT;
+  }
+}
+
+// One original request whose sender proof a verifier asks the token's issuer
+// to admit.
+message AdmitSenderProofRequest {
+  // The access token exactly as the original request presented it (JWS
+  // compact serialization or an opaque access token), unchanged. Never
+  // logged or echoed.
+  string access_token = 1;
+
+  // The registered resource the original request was made to: the token's
+  // audience, as GetProtectedResource resolved it.
+  sid.v1.ids.ResourceId resource = 2;
+
+  // What the verifier checked about the request and its proof.
+  RequestConfirmation confirmation = 3;
 }
 
 message GetOidcIssuerRequest {
