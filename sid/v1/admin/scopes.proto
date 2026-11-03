@@ -7,6 +7,7 @@ package sid.v1.admin;
 
 import "google/protobuf/empty.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 
 service ScopeService {
   // ── Scope CRUD ──
@@ -22,17 +23,20 @@ service ScopeService {
   }
 
   rpc CreateScope(CreateScopeRequest) returns (Scope) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/scopes" body: "*" };
   }
 
   rpc UpdateScope(UpdateScopeRequest) returns (Scope) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/scopes/{scope_id}" body: "*" };
   }
 
   rpc DeleteScope(DeleteScopeRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/admin/scopes/{scope_id}" };
   }
 
@@ -45,6 +49,7 @@ service ScopeService {
 
   rpc UpdateRealmDefaults(RealmScopeDefaults) returns (RealmScopeDefaults) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/scopes/defaults" body: "*" };
   }
 
@@ -56,17 +61,20 @@ service ScopeService {
   }
 
   rpc AddClaimMapping(AddClaimMappingRequest) returns (ClaimMapping) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/scopes/{scope_id}/claims" body: "*" };
   }
 
   rpc UpdateClaimMapping(UpdateClaimMappingRequest) returns (ClaimMapping) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/scopes/{scope_id}/claims/{mapping_id}" body: "*" };
   }
 
   rpc DeleteClaimMapping(DeleteClaimMappingRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/admin/scopes/{scope_id}/claims/{mapping_id}" };
   }
 }

@@ -9,6 +9,7 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
 import "google/api/httpbody.proto";
+import "sid/v1/common/operation.proto";
 
 // ScimService implements SCIM 2.0 inbound provisioning (HR → SID).
 // Creates/updates/deactivates corporate profiles and groups. Typed gRPC
@@ -21,6 +22,9 @@ service ScimService {
   // unique (RFC 7644 §3.3): a repeat is refused and adds nothing.
   rpc CreateUser(ScimCreateUserRequest) returns (ScimUser) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 7644 §3.3: userName is unique, so a repeat is refused with uniqueness (409) and creates nothing"
+    };
   }
 
   // Retrieve a user by SID profile ID.
@@ -36,16 +40,25 @@ service ScimService {
   // Full replacement of user attributes.
   rpc ReplaceUser(ScimReplaceUserRequest) returns (ScimUser) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 7644 §3.5.1: the request carries the whole resource and replaces it, so a repeat leaves the same user; the directory orders its own writes (RFC 7644 §3.14)"
+    };
   }
 
   // Partial update via SCIM PATCH operations (RFC 7644 §3.5.2).
   rpc PatchUser(ScimPatchUserRequest) returns (ScimUser) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 7644 §3.5.2 (RFC 5789 §2): a patch is applied as received each time; the directory client reads the resource before resending one (RFC 7644 §3.14)"
+    };
   }
 
   // Deactivate a corporate profile (soft delete).
   rpc DeleteUser(ScimDeleteUserRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "RFC 7644 §3.6: a deactivated profile stays deactivated; a repeat deactivates nothing more and answers not found"
+    };
   }
 
   // ── Groups (RFC 7644 §3.3–§3.6) ──
@@ -53,6 +66,9 @@ service ScimService {
   // Create a new group.
   rpc CreateGroup(ScimCreateGroupRequest) returns (ScimGroup) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 7644 §3.3: a group's displayName is unique in the directory, so a repeat is refused with uniqueness (409) and creates nothing"
+    };
   }
 
   // Retrieve a group by ID.
@@ -68,11 +84,17 @@ service ScimService {
   // Partial update via SCIM PATCH operations.
   rpc PatchGroup(ScimPatchGroupRequest) returns (ScimGroup) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 7644 §3.5.2 (RFC 5789 §2): a patch is applied as received each time; the directory client reads the resource before resending one (RFC 7644 §3.14)"
+    };
   }
 
   // Delete a group.
   rpc DeleteGroup(ScimDeleteGroupRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "RFC 7644 §3.6: a group id is never reused, so a deleted group stays deleted; a repeat deletes nothing and answers not found"
+    };
   }
 
   // ── Service Provider Discovery (RFC 7643 §5–§7) ──
@@ -103,6 +125,9 @@ service ScimProtocolService {
   // Create a user (RFC 7644 §3.3).
   rpc CreateUser(ScimHttpRequest) returns (google.api.HttpBody) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 7644 §3.3: userName is unique, so a repeat is refused with uniqueness (409) and creates nothing"
+    };
     option (google.api.http) = { post: "/scim/v2/Users" body: "body" };
   }
 
@@ -121,24 +146,36 @@ service ScimProtocolService {
   // Replace a user (RFC 7644 §3.5.1).
   rpc ReplaceUser(ScimHttpRequest) returns (google.api.HttpBody) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 7644 §3.5.1: the request carries the whole resource and replaces it, so a repeat leaves the same user; the directory orders its own writes (RFC 7644 §3.14)"
+    };
     option (google.api.http) = { put: "/scim/v2/Users/{id}" body: "body" };
   }
 
   // Modify a user (RFC 7644 §3.5.2).
   rpc PatchUser(ScimHttpRequest) returns (google.api.HttpBody) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 7644 §3.5.2 (RFC 5789 §2): a patch is applied as received each time; the directory client reads the resource before resending one (RFC 7644 §3.14)"
+    };
     option (google.api.http) = { patch: "/scim/v2/Users/{id}" body: "body" };
   }
 
   // Delete a user (RFC 7644 §3.6).
   rpc DeleteUser(ScimHttpRequest) returns (google.api.HttpBody) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "RFC 7644 §3.6: a deactivated profile stays deactivated; a repeat deactivates nothing more and answers 404"
+    };
     option (google.api.http) = { delete: "/scim/v2/Users/{id}" };
   }
 
   // Create a group (RFC 7644 §3.3).
   rpc CreateGroup(ScimHttpRequest) returns (google.api.HttpBody) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 7644 §3.3: a group's displayName is unique in the directory, so a repeat is refused with uniqueness (409) and creates nothing"
+    };
     option (google.api.http) = { post: "/scim/v2/Groups" body: "body" };
   }
 
@@ -157,12 +194,18 @@ service ScimProtocolService {
   // Modify a group (RFC 7644 §3.5.2).
   rpc PatchGroup(ScimHttpRequest) returns (google.api.HttpBody) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 7644 §3.5.2 (RFC 5789 §2): a patch is applied as received each time; the directory client reads the resource before resending one (RFC 7644 §3.14)"
+    };
     option (google.api.http) = { patch: "/scim/v2/Groups/{id}" body: "body" };
   }
 
   // Delete a group (RFC 7644 §3.6).
   rpc DeleteGroup(ScimHttpRequest) returns (google.api.HttpBody) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "RFC 7644 §3.6: a group id is never reused, so a deleted group stays deleted; a repeat deletes nothing and answers 404"
+    };
     option (google.api.http) = { delete: "/scim/v2/Groups/{id}" };
   }
 

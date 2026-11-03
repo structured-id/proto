@@ -6,6 +6,7 @@ package sid.v1.admin;
 
 import "google/protobuf/empty.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 
 // ══════════════════════════════════════════════════════════════════════════
 // Login Experience — screen catalog, text overrides, headless API docs
@@ -36,7 +37,8 @@ service LoginExperienceService {
 
   // Update text overrides for a screen in a specific locale.
   rpc UpdateTextOverrides(UpdateTextOverridesRequest) returns (google.protobuf.Empty) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/login-experience/screens/{screen_id}/text/{locale}" body: "*" };
   }
 
@@ -51,12 +53,18 @@ service LoginExperienceService {
   // Start an interactive test flow (for "Try it" API explorer).
   rpc StartTestFlow(StartTestFlowRequest) returns (TestFlowResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "each start opens its own test flow session; nothing outside that session changes"
+    };
     option (google.api.http) = { post: "/v1/admin/login-experience/headless/test" body: "*" };
   }
 
   // Submit a step in the interactive test flow.
   rpc SubmitTestFlowStep(SubmitTestFlowStepRequest) returns (TestFlowResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "a test flow step is consumed by its first submission: a repeat finds it answered and advances nothing"
+    };
     option (google.api.http) = { post: "/v1/admin/login-experience/headless/test/{flow_id}/step" body: "*" };
   }
 }

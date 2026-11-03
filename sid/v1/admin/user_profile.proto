@@ -6,6 +6,7 @@ syntax = "proto3";
 package sid.v1.admin;
 
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 
 service UserProfileService {
   // Get the full profile schema.
@@ -16,7 +17,8 @@ service UserProfileService {
 
   // Replace the entire schema (full replace).
   rpc UpdateSchema(UpdateSchemaRequest) returns (ProfileSchema) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/user-profile/schema" body: "*" };
   }
 }

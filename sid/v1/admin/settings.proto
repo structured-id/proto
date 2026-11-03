@@ -7,6 +7,7 @@ package sid.v1.admin;
 
 import "google/protobuf/empty.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 
 // ────────────────────────────────────────────────────────────────────────────
 // RealmService — General instance settings, login config, session & token config
@@ -21,6 +22,7 @@ service RealmService {
   }
   rpc UpdateRealm(UpdateRealmRequest) returns (RealmSettings) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/realm" body: "*" };
   }
 
@@ -32,6 +34,7 @@ service RealmService {
   }
   rpc UpdateLoginSettings(UpdateLoginSettingsRequest) returns (LoginSettings) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/realm/login" body: "*" };
   }
 
@@ -43,6 +46,7 @@ service RealmService {
   }
   rpc UpdateEmailSettings(EmailSettings) returns (EmailSettings) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/realm/email" body: "*" };
   }
   // Connect to the configured email provider and authenticate, sending
@@ -51,7 +55,10 @@ service RealmService {
   // be used is INVALID_STATE; a provider that refuses or does not answer is
   // DEPENDENCY_UNAVAILABLE with a RetryInfo delay.
   rpc TestEmailConnection(google.protobuf.Empty) returns (google.protobuf.Empty) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "the test stores and sends nothing: each call opens one connection to the provider and reports whether it was accepted"
+    };
     option (google.api.http) = { post: "/v1/admin/realm/email/test" body: "*" };
   }
 
@@ -63,6 +70,7 @@ service RealmService {
   }
   rpc UpdateLocalizationSettings(LocalizationSettings) returns (LocalizationSettings) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/realm/localization" body: "*" };
   }
   rpc ListTranslationOverrides(ListTranslationOverridesRequest) returns (ListTranslationOverridesResponse) {
@@ -70,11 +78,13 @@ service RealmService {
     option (google.api.http) = { get: "/v1/admin/realm/localization/overrides" };
   }
   rpc SetTranslationOverride(SetTranslationOverrideRequest) returns (TranslationOverride) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/realm/localization/overrides/{locale}/{key}" body: "*" };
   }
   rpc DeleteTranslationOverride(DeleteTranslationOverrideRequest) returns (google.protobuf.Empty) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/admin/realm/localization/overrides/{locale}/{key}" };
   }
 
@@ -85,7 +95,8 @@ service RealmService {
     option (google.api.http) = { get: "/v1/admin/realm/export" };
   }
   rpc ImportRealm(ImportRealmRequest) returns (ImportRealmResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/realm/import" body: "*" };
   }
   rpc PreviewImport(ImportRealmRequest) returns (ImportPreviewResponse) {
@@ -101,6 +112,7 @@ service RealmService {
   }
   rpc UpdateSessionConfig(SessionConfig) returns (SessionConfig) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/realm/sessions" body: "*" };
   }
 
@@ -112,6 +124,7 @@ service RealmService {
   }
   rpc UpdateTokenConfig(TokenConfig) returns (TokenConfig) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/realm/tokens" body: "*" };
   }
 }
@@ -127,6 +140,7 @@ service FeatureService {
   }
   rpc SetFeature(SetFeatureRequest) returns (Feature) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/features/{key}" body: "*" };
   }
 }

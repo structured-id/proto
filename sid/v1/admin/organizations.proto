@@ -6,6 +6,7 @@ syntax = "proto3";
 package sid.v1.admin;
 
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 
 service SiteService {
   // Get site summary info.
@@ -16,7 +17,8 @@ service SiteService {
 
   // Update site name.
   rpc UpdateSiteName(UpdateSiteNameRequest) returns (SiteInfo) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/site/name" body: "*" };
   }
 }

@@ -8,6 +8,7 @@ package sid.v1.authz;
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 import "sid/v1/common/pagination.proto";
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -18,7 +19,8 @@ import "sid/v1/common/pagination.proto";
 service GovernanceService {
   // Request access to a role/permission.
   rpc RequestAccess(AccessRequestMessage) returns (AccessRequestResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/governance/access-requests" body: "*" };
   }
 
@@ -31,12 +33,14 @@ service GovernanceService {
   // Approve or deny an access request.
   rpc DecideRequest(DecideRequestRequest) returns (DecideRequestResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/governance/access-requests/{request_id}/decide" body: "*" };
   }
 
   // Grant temporary role with auto-expiry.
   rpc GrantTemporaryRole(GrantTemporaryRoleRequest) returns (GrantTemporaryRoleResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/governance/temporary-roles" body: "*" };
   }
 }

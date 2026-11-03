@@ -8,6 +8,7 @@ package sid.v1.admin;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 
 service KeyService {
   // ── Active Keys ──
@@ -30,17 +31,20 @@ service KeyService {
   }
 
   rpc AddKeyProvider(AddKeyProviderRequest) returns (KeyProvider) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/key-providers" body: "*" };
   }
 
   rpc UpdateKeyProvider(UpdateKeyProviderRequest) returns (KeyProvider) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/key-providers/{provider_id}" body: "*" };
   }
 
   rpc DeleteKeyProvider(DeleteKeyProviderRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/admin/key-providers/{provider_id}" };
   }
 }
