@@ -8,6 +8,7 @@ package sid.v1.account;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
 import "sid/v1/identity/identity.proto";
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -140,16 +141,15 @@ service AccountService {
     option (google.api.http) = { get: "/v1/account/consents/{site_id}" };
   }
 
-  // Update consent for a single claim (grant or deny). A claim already as
-  // asked is left unchanged and answered the same.
+  // Update consent for a single claim (grant or deny).
   rpc UpdateClaimConsent(UpdateClaimConsentRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { patch: "/v1/account/consents/{site_id}/claims/{claim_name}" body: "*" };
   }
 
-  // Disconnect site: revoke all claims + sessions + delete consent. A
-  // repetition removes nothing more and answers NOT_FOUND; idempotency is
-  // the effect, not the answer (RFC 9110 §9.2.2).
+  // Disconnect site: revoke all claims + sessions + delete consent. A retry
+  // answers as the first disconnection; a new one of a disconnected site is
+  // NOT_FOUND.
   rpc DisconnectSite(DisconnectSiteRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { delete: "/v1/account/consents/{site_id}" };
@@ -256,26 +256,25 @@ service AccountService {
 
   // Add a phone number to the current profile.
   rpc AddPhone(AddPhoneRequest) returns (sid.v1.identity.ProfilePhone) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/account/phones" body: "*" };
   }
 
-  // Remove a phone number from the current profile. A repetition removes
-  // nothing more and answers NOT_FOUND (RFC 9110 §9.2.2).
+  // Remove a phone number from the current profile. A retry answers as the
+  // first removal; a new removal of a removed phone is NOT_FOUND.
   rpc RemovePhone(RemovePhoneRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { delete: "/v1/account/phones/{phone_id}" };
   }
 
   // Update a phone number's label or capabilities. Only the given settings
-  // are written, so a repetition leaves the same phone.
+  // are written.
   rpc UpdatePhone(UpdatePhoneRequest) returns (sid.v1.identity.ProfilePhone) {
     option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { patch: "/v1/account/phones/{phone_id}" body: "*" };
   }
 
-  // Set a phone as the primary phone for this profile. A phone already
-  // primary stays so and is answered the same.
+  // Set a phone as the primary phone for this profile.
   rpc SetPrimaryPhone(SetPrimaryPhoneRequest) returns (sid.v1.identity.ProfilePhone) {
     option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/account/phones/{phone_id}/primary" body: "*" };
@@ -291,26 +290,24 @@ service AccountService {
 
   // Add an email address to the current profile.
   rpc AddEmail(AddEmailRequest) returns (sid.v1.identity.ProfileEmail) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/account/emails" body: "*" };
   }
 
-  // Remove an email address from the current profile. A repetition removes
-  // nothing more and answers NOT_FOUND (RFC 9110 §9.2.2).
+  // Remove an email address from the current profile. A retry answers as the
+  // first removal; a new removal of a removed address is NOT_FOUND.
   rpc RemoveEmail(RemoveEmailRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { delete: "/v1/account/emails/{email_id}" };
   }
 
-  // Update an email address's label. Only the given settings are written,
-  // so a repetition leaves the same email.
+  // Update an email address's label. Only the given settings are written.
   rpc UpdateEmail(UpdateEmailRequest) returns (sid.v1.identity.ProfileEmail) {
     option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { patch: "/v1/account/emails/{email_id}" body: "*" };
   }
 
-  // Set an email as the primary email for this profile. An email already
-  // primary stays so and is answered the same.
+  // Set an email as the primary email for this profile.
   rpc SetPrimaryEmail(SetPrimaryEmailRequest) returns (sid.v1.identity.ProfileEmail) {
     option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/account/emails/{email_id}/primary" body: "*" };
@@ -348,10 +345,23 @@ message UpdateClaimConsentRequest {
   string site_id = 1;
   string claim_name = 2;
   bool grant = 3;  // true = grant, false = deny
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result and never writes over a later
+  // decision.
+  string request_id = 4 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message DisconnectSiteRequest {
   string site_id = 1;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result.
+  string request_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 // ── Activity messages ──
@@ -482,10 +492,22 @@ message AddPhoneRequest {
   bool can_receive_sms = 6;
   bool can_receive_fax = 7;
   bool can_receive_voice = 8;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the phone the first call added.
+  string request_id = 9 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message RemovePhoneRequest {
   string phone_id = 1;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result.
+  string request_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message UpdatePhoneRequest {
@@ -495,10 +517,24 @@ message UpdatePhoneRequest {
   optional bool can_receive_sms = 4;
   optional bool can_receive_fax = 5;
   optional bool can_receive_voice = 6;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result and never writes over a later
+  // edit.
+  string request_id = 7 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message SetPrimaryPhoneRequest {
   string phone_id = 1;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result and never makes the phone primary
+  // again after a later choice.
+  string request_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message ListPhonesResponse {
@@ -512,20 +548,46 @@ message AddEmailRequest {
   sid.v1.identity.EmailLabel label = 2;
   optional string custom_label = 3;
   bool is_primary = 4;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the address the first call added.
+  string request_id = 5 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message RemoveEmailRequest {
   string email_id = 1;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result.
+  string request_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message UpdateEmailRequest {
   string email_id = 1;
   optional sid.v1.identity.EmailLabel label = 2;
   optional string custom_label = 3;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result and never writes over a later
+  // edit.
+  string request_id = 4 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message SetPrimaryEmailRequest {
   string email_id = 1;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result and never makes the address
+  // primary again after a later choice.
+  string request_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message ListEmailsResponse {

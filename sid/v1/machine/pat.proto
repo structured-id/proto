@@ -10,12 +10,13 @@ package sid.v1.machine;
 
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
 
 // PatService manages personal access tokens for programmatic API access.
 service PatService {
   // User-facing CRUD.
   rpc CreatePat(CreatePatRequest) returns (CreatePatResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/pats" body: "*" };
   }
   rpc ListPats(ListPatsRequest) returns (ListPatsResponse) {
@@ -82,6 +83,13 @@ message CreatePatRequest {
   google.protobuf.Timestamp expires_at = 3;
   string description = 4;
   repeated string ip_allowlist = 5;  // Client addresses the token is restricted to.
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the token the first call created and an empty `token`:
+  // the value is shown once and never stored.
+  string request_id = 6 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message CreatePatResponse {

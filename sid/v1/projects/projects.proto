@@ -9,6 +9,7 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 import "sid/v1/authz/authz.proto";
 import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
 
 // Project is a container for related applications that share authorization scope.
 message Project {
@@ -240,7 +241,7 @@ service ProjectService {
   // Applications within a project. Creating one registers the roles it
   // starts with in one step.
   rpc CreateApplication(CreateApplicationRequest) returns (CreateApplicationResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/projects/{project_id}/applications" body: "*" };
   }
   rpc GetApplication(GetApplicationRequest) returns (Application) {
@@ -353,6 +354,12 @@ message CreateProjectRequest {
   string name = 1;
   string description = 2;
   string owner_profile_id = 3;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result.
+  string request_id = 4 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message GetProjectRequest {
@@ -373,10 +380,23 @@ message UpdateProjectRequest {
   string id = 1;
   optional string name = 2;
   optional string description = 3;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result and never writes over a later
+  // edit.
+  string request_id = 4 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message DeleteProjectRequest {
   string id = 1;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result.
+  string request_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 // ── Application messages ──
@@ -430,6 +450,14 @@ message CreateApplicationRequest {
   // Recipient organization (UUIDv7). Empty means the installation's
   // organization; naming any other organization is refused.
   optional string org_id = 5;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the application the first call created and an empty
+  // `client_secret`: the secret is shown once and never stored in
+  // plaintext.
+  string request_id = 6 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 // The application, and the client secret when a client role that holds a
@@ -458,16 +486,36 @@ message ListApplicationsResponse {
 message UpdateApplicationRequest {
   string id = 1;
   optional string name = 2;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result and never writes over a later
+  // edit.
+  string request_id = 3 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message DeleteApplicationRequest {
   string id = 1;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result.
+  string request_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message AddClientRoleRequest {
   // Application (UUIDv7) without a client role yet; ALREADY_EXISTS otherwise.
   string application_id = 1;
   ClientRoleSettings settings = 2;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result, without a secret the first call
+  // showed once.
+  string request_id = 3 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message UpdateClientRoleRequest {
@@ -493,12 +541,25 @@ message UpdateClientRoleRequest {
   // Replaces the post-logout redirect URIs (see ClientRoleSettings); left out,
   // they are unchanged.
   optional UriList post_logout_redirect_uris = 9;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result and never writes over a later
+  // edit.
+  string request_id = 10 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message AddResourceRoleRequest {
   // Application (UUIDv7) without a resource role yet; ALREADY_EXISTS otherwise.
   string application_id = 1;
   ResourceRoleSettings settings = 2;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result.
+  string request_id = 3 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 // A replacement list of scopes, set as a whole.
@@ -515,6 +576,13 @@ message UpdateResourceRoleRequest {
   // application; RETIRED here, or any change of a retired resource, is
   // FAILED_PRECONDITION.
   optional ResourceState state = 3;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result and never writes over a later
+  // edit.
+  string request_id = 4 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message SetResourceAccessRequest {
@@ -529,6 +597,13 @@ message SetResourceAccessRequest {
   // the same issuer (FAILED_PRECONDITION, ISSUER_MISMATCH), and a retired
   // resource accepts no access (FAILED_PRECONDITION, RESOURCE_RETIRED).
   repeated string scopes = 3;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result and never writes over a later
+  // change of this access.
+  string request_id = 4 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message RemoveResourceAccessRequest {
@@ -536,6 +611,13 @@ message RemoveResourceAccessRequest {
   string client_id = 1;
   // The resource (ProtectedResource.id, UUIDv7).
   string resource_id = 2;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result and never removes access granted
+  // again later.
+  string request_id = 3 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message ListResourceAccessRequest {
@@ -559,11 +641,23 @@ message AddRoleRequest {
   optional string description = 4;
   optional string group = 5;
   repeated string permissions = 6;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result.
+  string request_id = 7 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message RemoveRoleRequest {
   string project_id = 1;
   string role_id = 2;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result.
+  string request_id = 3 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 // ── Dynamic Client Registration messages (RFC 7591/7592) ──
@@ -664,6 +758,13 @@ message CreateInitialAccessTokenRequest {
   repeated string allowed_redirect_patterns = 5;
   // Token lifetime in seconds.
   int64 expires_in_seconds = 6;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the token the first call created and an empty
+  // `token_value`: the bearer value is shown once and never stored.
+  string request_id = 7 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 // Returns the plaintext token, only on creation.
@@ -683,4 +784,10 @@ message ListInitialAccessTokensResponse {
 
 message RevokeInitialAccessTokenRequest {
   string id = 1;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result.
+  string request_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }

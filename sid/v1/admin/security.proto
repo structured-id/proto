@@ -8,6 +8,7 @@ package sid.v1.admin;
 
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
 
 service SecurityService {
   // ── Password Policy ──
@@ -562,12 +563,26 @@ message AddIpAllowlistEntryRequest {
   string cidr = 1;
   // Optional human-readable description (e.g., "Office VPN", "CI/CD runner").
   string description = 2;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the allowlist as the first call left it and never adds
+  // the entry back after a later removal.
+  string request_id = 3 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 // Remove an IP address or CIDR from the global allowlist.
 message RemoveIpAllowlistEntryRequest {
   // Exact CIDR to remove (must match stored value).
   string cidr = 1;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the allowlist as the first call left it and never removes
+  // an entry added again later.
+  string request_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 // Current state of the IP allowlist.

@@ -7,6 +7,7 @@ package sid.v1.federation;
 
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
 
 // UpstreamService manages upstream identity providers and auth flows.
 service UpstreamService {
@@ -119,6 +120,12 @@ message CreateUpstreamProviderRequest {
   bool show_on_login = 11;
   int32 display_order = 12;
   string logo_url = 13;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the provider the first call created.
+  string request_id = 14 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message UpstreamProviderResponse {
@@ -145,6 +152,13 @@ message UpdateUpstreamProviderRequest {
   optional bool show_on_login = 13;
   optional int32 display_order = 14;
   optional string logo_url = 15;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result and never writes over a later
+  // edit.
+  string request_id = 16 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message DeleteUpstreamProviderRequest {

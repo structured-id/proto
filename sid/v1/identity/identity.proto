@@ -7,6 +7,7 @@ package sid.v1.identity;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
 
 // Profile represents a user identity in StructuredID: the Profile is the
 // user (there is no separate User entity).
@@ -418,7 +419,7 @@ service IdentityService {
     option (google.api.http) = { get: "/v1/identity/passkey-prompt" };
   }
   rpc RecordPasskeyPromptDismissal(RecordPasskeyPromptDismissalRequest) returns (RecordPasskeyPromptDismissalResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/identity/passkey-prompt/dismiss" body: "*" };
   }
 
@@ -444,7 +445,7 @@ service IdentityService {
 
   // Data export (GDPR Art. 20).
   rpc PrepareExport(PrepareExportRequest) returns (PrepareExportResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/identity/export" body: "*" };
   }
   rpc GetExportStatus(GetExportStatusRequest) returns (GetExportStatusResponse) {
@@ -522,6 +523,12 @@ message CreateProfileRequest {
   optional string referrer_id = 11;
   // Optional UTM parameters captured from registration URL.
   optional UtmParams utm = 12;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the profile the first call created.
+  string request_id = 18 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 // UTM tracking parameters from registration URL.
@@ -560,6 +567,13 @@ message UpdateProfileRequest {
   optional string honorific_prefix = 6;
   optional string honorific_suffix = 7;
   optional string avatar_url = 3;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result and never writes over a later
+  // edit.
+  string request_id = 8 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message UpdateProfileResponse {
@@ -568,6 +582,12 @@ message UpdateProfileResponse {
 
 message DeleteProfileRequest {
   string id = 1;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result.
+  string request_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message DeleteProfileResponse {}
@@ -606,6 +626,13 @@ message UpdateCredentialRequest {
   // Currently only label can be updated.
   // Cryptographic material is immutable after registration.
   optional string label = 2;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result and never writes over a later
+  // edit.
+  string request_id = 3 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message UpdateCredentialResponse {
@@ -614,6 +641,12 @@ message UpdateCredentialResponse {
 
 message RevokeCredentialRequest {
   string credential_id = 1;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result.
+  string request_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message RevokeCredentialResponse {}
@@ -638,6 +671,12 @@ message AddPrincipalRequest {
   string profile_id = 1;
   PrincipalType type = 2;
   string value = 3;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the principal the first call added.
+  string request_id = 4 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message AddPrincipalResponse {
@@ -654,6 +693,12 @@ message ListPrincipalsResponse {
 
 message RemovePrincipalRequest {
   string principal_id = 1;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result.
+  string request_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message RemovePrincipalResponse {}
@@ -681,7 +726,14 @@ message GetPasskeyPromptStateResponse {
   PasskeyPromptState state = 1;
 }
 
-message RecordPasskeyPromptDismissalRequest {}
+message RecordPasskeyPromptDismissalRequest {
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result and counts no second dismissal.
+  string request_id = 1 [
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
 
 message RecordPasskeyPromptDismissalResponse {
   PasskeyPromptState state = 1;
@@ -712,6 +764,12 @@ message RequestClosureRequest {
   ClosureMode mode = 1;
   string closure_reason = 2;       // Optional human-readable reason.
   optional string court_reference = 3; // Required for REGULATORY_ORDER mode.
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result.
+  string request_id = 4 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message RequestClosureResponse {
@@ -720,7 +778,14 @@ message RequestClosureResponse {
   google.protobuf.Timestamp grace_period_end = 3;
 }
 
-message CancelClosureRequest {}
+message CancelClosureRequest {
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result and cancels no later closure.
+  string request_id = 1 [
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
 
 message CancelClosureResponse {}
 
@@ -750,6 +815,12 @@ message GetClosureStatusResponse {
 
 message PrepareExportRequest {
   ExportFormat format = 1;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the export the first call started.
+  string request_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 enum ExportFormat {
@@ -785,7 +856,14 @@ message DownloadExportChunk {
   int64 total_size = 3;
 }
 
-message AcknowledgeExportRequest {}
+message AcknowledgeExportRequest {
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result.
+  string request_id = 1 [
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
 
 // ── Device management ──
 
@@ -880,20 +958,47 @@ message UpdateDeviceRequest {
 
   // New user-given label; unset leaves the current label unchanged.
   optional string display_name = 2;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the device as the first call left it and never writes over
+  // a later edit.
+  string request_id = 3 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message RemoveDeviceRequest {
   // Device to remove (`Device.id`, UUIDv7). Removal kills the device's
   // sessions and revokes its keys in sid-attestation.
   string device_id = 1;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result.
+  string request_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message TrustDeviceRequest {
   // Device the Profile owner marks as trusted (`Device.id`, UUIDv7).
   string device_id = 1;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the device as the first call left it and never trusts it
+  // again after a later withdrawal.
+  string request_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message RevokeDeviceTrustRequest {
   // Device whose explicit trust is withdrawn (`Device.id`, UUIDv7).
   string device_id = 1;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the device as the first call left it and never withdraws
+  // trust given again later.
+  string request_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }

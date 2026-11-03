@@ -15,6 +15,7 @@ package sid.v1.admin;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
 
 // EnrollmentService manages registration gating policies, invite codes,
 // and registration source analytics.
@@ -50,7 +51,7 @@ service EnrollmentService {
 
   // Create a new invite code.
   rpc CreateInvite(CreateInviteRequest) returns (Invite) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/admin/enrollment/invites" body: "*" };
   }
 
@@ -81,7 +82,7 @@ service EnrollmentService {
 
   // Bulk-generate invite codes.
   rpc BulkCreateInvites(BulkCreateInvitesRequest) returns (BulkCreateInvitesResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/admin/enrollment/invites/bulk" body: "*" };
   }
 
@@ -362,6 +363,13 @@ message ReferrerEntry {
 
 message UpdateEnrollmentPolicyRequest {
   EnrollmentPolicy policy = 1;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result and never writes over a later
+  // policy.
+  string request_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message CreateInviteRequest {
@@ -385,6 +393,13 @@ message CreateInviteRequest {
   // The invite has no use limit, whatever the policy's default. Refused with
   // INVALID_ARGUMENT together with a nonzero max_uses.
   bool unlimited_uses = 5;
+
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the invite the first call created.
+  string request_id = 6 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message ListInvitesRequest {
@@ -451,6 +466,14 @@ message BulkCreateInvitesRequest {
 
   // The codes have no use limit; as in CreateInviteRequest.unlimited_uses.
   bool unlimited_uses = 6;
+
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the invites the first call created, all of them in one
+  // commit.
+  string request_id = 7 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message BulkCreateInvitesResponse {

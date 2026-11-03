@@ -8,7 +8,9 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
 import "sid/v1/authn/password_history.proto";
+import "sid/v1/common/operation.proto";
 import "sid/v1/ids/ids.proto";
 
 // AuthService handles authentication flows.
@@ -25,6 +27,9 @@ service AuthService {
   }
   rpc OpaqueRegistrationFinish(OpaqueRegistrationFinishRequest) returns (OpaqueRegistrationFinishResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "plain registration creates no account: every call is refused with FEATURE_NOT_AVAILABLE before any effect"
+    };
     option (google.api.http) = { post: "/v1/auth/opaque/registration/finish" body: "*" };
   }
   rpc OpaqueLoginStart(OpaqueLoginStartRequest) returns (OpaqueLoginStartResponse) {
@@ -33,6 +38,9 @@ service AuthService {
   }
   rpc OpaqueLoginFinish(OpaqueLoginFinishRequest) returns (OpaqueLoginFinishResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 9807 §6: the login state is consumed by its finish; a repeat finds none and creates no session"
+    };
     option (google.api.http) = { post: "/v1/auth/opaque/login/finish" body: "*" };
   }
 
@@ -42,10 +50,16 @@ service AuthService {
   // operation, not the same answer.
   rpc OpaqueZkppRegistrationStart(OpaqueZkppRegistrationStartRequest) returns (OpaqueZkppRegistrationStartResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 9807 §5: each start opens its own pending registration; nothing is registered before its finish"
+    };
     option (google.api.http) = { post: "/v1/auth/opaque-zkpp/registration/start" body: "*" };
   }
   rpc OpaqueZkppRegistrationFinish(OpaqueZkppRegistrationFinishRequest) returns (OpaqueZkppRegistrationFinishResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 9807 §5: the registration's pending operation is consumed by its commit, which records its own outcome for a retry of the same operation"
+    };
     option (google.api.http) = { post: "/v1/auth/opaque-zkpp/registration/finish" body: "*" };
   }
   // Counts a current-password attempt when the request carries KE1, so a
@@ -130,8 +144,10 @@ service AuthService {
   rpc OAuth2Token(OAuth2TokenRequest) returns (OAuth2TokenResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
   }
+  // A client assertion is recorded against replay, so the call is not free
+  // of effects (as OidcProviderService.Introspect).
   rpc OAuth2Introspect(OAuth2IntrospectRequest) returns (OAuth2IntrospectResponse) {
-    option idempotency_level = NO_SIDE_EFFECTS;
+    option idempotency_level = IDEMPOTENT;
   }
   rpc OAuth2Revoke(OAuth2RevokeRequest) returns (OAuth2RevokeResponse) {
     option idempotency_level = IDEMPOTENT;
@@ -223,7 +239,7 @@ service AuthService {
   // ── MFA Recovery Codes ──
 
   rpc GenerateRecoveryCodes(GenerateRecoveryCodesRequest) returns (GenerateRecoveryCodesResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
     option (google.api.http) = { post: "/v1/auth/mfa/recovery/generate" body: "*" };
   }
   rpc VerifyRecoveryCode(VerifyRecoveryCodeRequest) returns (MfaVerifyResponse) {
@@ -1447,7 +1463,16 @@ message ResendSmsMfaResponse {
 // MFA Recovery Codes
 // ══════════════════════════════════════════════════════════════════════════
 
-message GenerateRecoveryCodesRequest {}
+message GenerateRecoveryCodesRequest {
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // issues no second set: the codes are shown once and kept only as
+  // hashes, so it is refused with FAILED_PRECONDITION
+  // (OPERATION_RESULT_UNAVAILABLE, RECOVERY_CODES_ISSUED).
+  string request_id = 1 [
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
 
 message GenerateRecoveryCodesResponse {
   repeated string codes = 1;  // 12 single-use recovery codes
@@ -1745,6 +1770,12 @@ message CompleteStepUpResponse {
 // Delete an MFA credential. Requires elevated session (step-up auth).
 message DeleteMfaCredentialRequest {
   string credential_id = 1;  // UUID of the credential to delete
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result.
+  string request_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message DeleteMfaCredentialResponse {

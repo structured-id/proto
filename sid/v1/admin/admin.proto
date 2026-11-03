@@ -10,6 +10,7 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/struct.proto";
 import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
 import "sid/v1/identity/identity.proto";
 
 // AdminService provides privileged operations for instance administrators.
@@ -78,6 +79,13 @@ message AdminUpdateProfileRequest {
   repeated string roles = 3;
   // Override email verification status.
   optional bool email_verified = 4;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result and never writes over a later
+  // edit.
+  string request_id = 5 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message AdminUpdateProfileResponse {
@@ -88,6 +96,12 @@ message AdminUpdateProfileResponse {
 
 message RevokeAllSessionsRequest {
   string profile_id = 1;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's count and ends no session begun after it.
+  string request_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message RevokeAllSessionsResponse {
@@ -120,9 +134,23 @@ message SetProfileMetadataRequest {
   string profile_id = 1;
   string key = 2;
   google.protobuf.Value value = 3;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result and never writes over a later
+  // value.
+  string request_id = 4 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
 
 message DeleteProfileMetadataRequest {
   string profile_id = 1;
   string key = 2;
+  // The caller's opaque operation key (AIP-155), created once before the
+  // first submission and kept across every retry of this command. A retry
+  // answers with the first call's result and never deletes a value set
+  // again later.
+  string request_id = 3 [
+    (google.api.field_behavior) = REQUIRED
+  ];
 }
