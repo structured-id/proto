@@ -8,7 +8,7 @@ package sid.v1.admin;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
-import "google/api/field_behavior.proto";
+import "sid/v1/common/operation.proto";
 
 // BrandingService manages per-project branding configurations.
 // Each project can have multiple configs (draft, published, archived).
@@ -36,24 +36,30 @@ service BrandingService {
   // Create a new branding config (always starts as draft).
   rpc CreateBrandingConfig(CreateBrandingConfigRequest) returns (BrandingConfig) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/projects/{project_id}/branding/configs" body: "*" };
   }
 
   // Update an existing branding config (draft or published).
   rpc UpdateBrandingConfig(UpdateBrandingConfigRequest) returns (BrandingConfig) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/projects/{project_id}/branding/{config_id}" body: "*" };
   }
 
   // Publish a draft config. Archives the currently published config (if any).
   rpc PublishBrandingConfig(PublishBrandingConfigRequest) returns (BrandingConfig) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/projects/{project_id}/branding/{config_id}/publish" body: "*" };
   }
 
   // Delete a branding config. Cannot delete a published config — archive or replace first.
   rpc DeleteBrandingConfig(DeleteBrandingConfigRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "a config id is never reused, so a deleted config stays deleted: a repeat finds none and answers as the first; a published config is refused either way"
+    };
     option (google.api.http) = { delete: "/v1/projects/{project_id}/branding/{config_id}" };
   }
 
@@ -196,12 +202,6 @@ message CreateBrandingConfigRequest {
   BrandingAssets assets = 3;
   DarkModeConfig dark_mode = 4;
   BrandingText text = 5;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the config the first call created.
-  string request_id = 6 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message UpdateBrandingConfigRequest {
@@ -211,24 +211,11 @@ message UpdateBrandingConfigRequest {
   BrandingAssets assets = 4;
   DarkModeConfig dark_mode = 5;
   BrandingText text = 6;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result and never writes over a later
-  // edit.
-  string request_id = 7 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message PublishBrandingConfigRequest {
   string project_id = 1;
   string config_id = 2;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the config as the first call published it.
-  string request_id = 3 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message DeleteBrandingConfigRequest {

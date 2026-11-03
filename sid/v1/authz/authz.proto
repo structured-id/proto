@@ -7,7 +7,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
-import "google/api/field_behavior.proto";
+import "sid/v1/common/operation.proto";
 import "sid/v1/authn/sender_proof.proto";
 import "sid/v1/ids/ids.proto";
 
@@ -249,18 +249,25 @@ service AuthzService {
   // confirms that admission.
   rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "the check decides from current state and changes none; only a refused caller is audited, each attempt as its own event"
+    };
     option (google.api.http) = { post: "/v1/authz/check" body: "*" };
   }
   // Several permission checks at once, each with the effects of
   // CheckPermission.
   rpc BatchCheckPermission(BatchCheckPermissionRequest) returns (BatchCheckPermissionResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "the checks decide from current state and change none; only a refused caller is audited, each attempt as its own event"
+    };
     option (google.api.http) = { post: "/v1/authz/check/batch" body: "*" };
   }
 
   // Role management.
   rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/authz/roles" body: "*" };
   }
   rpc GetRole(GetRoleRequest) returns (GetRoleResponse) {
@@ -269,10 +276,12 @@ service AuthzService {
   }
   rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/authz/roles/{id}" body: "*" };
   }
   rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/authz/roles/{id}" };
   }
   rpc ListRoles(ListRolesRequest) returns (ListRolesResponse) {
@@ -283,10 +292,12 @@ service AuthzService {
   // Role assignment.
   rpc AssignRole(AssignRoleRequest) returns (AssignRoleResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/authz/assignments" body: "*" };
   }
   rpc RevokeRole(RevokeRoleRequest) returns (RevokeRoleResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/authz/assignments/{assignment_id}" };
   }
   rpc ListRoleAssignments(ListRoleAssignmentsRequest) returns (ListRoleAssignmentsResponse) {
@@ -297,6 +308,7 @@ service AuthzService {
   // Group management.
   rpc CreateGroup(CreateGroupRequest) returns (CreateGroupResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/authz/groups" body: "*" };
   }
   rpc GetGroup(GetGroupRequest) returns (GetGroupResponse) {
@@ -305,10 +317,12 @@ service AuthzService {
   }
   rpc UpdateGroup(UpdateGroupRequest) returns (UpdateGroupResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/authz/groups/{id}" body: "*" };
   }
   rpc DeleteGroup(DeleteGroupRequest) returns (DeleteGroupResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/authz/groups/{id}" };
   }
   rpc ListGroups(ListGroupsRequest) returns (ListGroupsResponse) {
@@ -319,10 +333,12 @@ service AuthzService {
   // Group membership.
   rpc AddToGroup(AddToGroupRequest) returns (AddToGroupResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/authz/groups/{group_id}/members" body: "*" };
   }
   rpc RemoveFromGroup(RemoveFromGroupRequest) returns (RemoveFromGroupResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/authz/groups/{group_id}/members/{profile_id}" };
   }
   rpc ListGroupMembers(ListGroupMembersRequest) returns (ListGroupMembersResponse) {
@@ -333,6 +349,7 @@ service AuthzService {
   // Policy management (Cedar ABAC).
   rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/authz/policies" body: "*" };
   }
   rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse) {
@@ -341,10 +358,12 @@ service AuthzService {
   }
   rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/authz/policies/{id}" body: "*" };
   }
   rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/authz/policies/{id}" };
   }
   rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse) {
@@ -530,12 +549,6 @@ message CreateRoleRequest {
   string name = 2;
   optional string description = 3;
   repeated string permissions = 4;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result.
-  string request_id = 5 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message CreateRoleResponse {
@@ -568,13 +581,6 @@ message UpdateRoleRequest {
   optional string description = 2;
   // The role's complete new permission list; empty keeps the current one.
   repeated string permissions = 3;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result and never writes over a later
-  // edit.
-  string request_id = 4 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message UpdateRoleResponse {
@@ -583,12 +589,6 @@ message UpdateRoleResponse {
 
 message DeleteRoleRequest {
   string id = 1;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result.
-  string request_id = 2 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message DeleteRoleResponse {}
@@ -638,13 +638,6 @@ message AssignRoleRequest {
   // assignment of the same role holding POLICY_OPERATION_REDELEGATE and every
   // operation granted here, with `expires_at` no later than its own.
   optional PolicyAuthority policy_admin = 10;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the assignment the first call made, whether or not it is
-  // still in force, and never makes a second one.
-  string request_id = 11 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message AssignRoleResponse {
@@ -653,12 +646,6 @@ message AssignRoleResponse {
 
 message RevokeRoleRequest {
   string assignment_id = 1;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result.
-  string request_id = 2 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message RevokeRoleResponse {}
@@ -686,12 +673,6 @@ message CreateGroupRequest {
   string project_id = 1;
   string name = 2;
   optional string description = 3;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result.
-  string request_id = 4 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message CreateGroupResponse {
@@ -713,12 +694,6 @@ message GetGroupResponse {
 message UpdateGroupRequest {
   string id = 1;
   optional string description = 2;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result.
-  string request_id = 3 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message UpdateGroupResponse {
@@ -727,12 +702,6 @@ message UpdateGroupResponse {
 
 message DeleteGroupRequest {
   string id = 1;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result.
-  string request_id = 2 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message DeleteGroupResponse {}
@@ -753,13 +722,6 @@ message ListGroupsResponse {
 message AddToGroupRequest {
   string group_id = 1;
   string profile_id = 2;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result and never adds the member back
-  // after a later removal.
-  string request_id = 3 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message AddToGroupResponse {}
@@ -767,13 +729,6 @@ message AddToGroupResponse {}
 message RemoveFromGroupRequest {
   string group_id = 1;
   string profile_id = 2;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result and never removes the member
-  // again after a later addition.
-  string request_id = 3 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message RemoveFromGroupResponse {}
@@ -796,12 +751,6 @@ message CreatePolicyRequest {
   string policy_text = 4;
   PolicyEffect effect = 5;
   bool enabled = 6;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result.
-  string request_id = 8 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message CreatePolicyResponse {
@@ -822,13 +771,6 @@ message UpdatePolicyRequest {
   optional string policy_text = 3;
   optional PolicyEffect effect = 4;
   optional bool enabled = 5;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result and never writes over a later
-  // edit.
-  string request_id = 6 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message UpdatePolicyResponse {
@@ -837,12 +779,6 @@ message UpdatePolicyResponse {
 
 message DeletePolicyRequest {
   string id = 1;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result.
-  string request_id = 2 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message DeletePolicyResponse {}

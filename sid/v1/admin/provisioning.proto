@@ -13,7 +13,7 @@ package sid.v1.admin;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
-import "google/api/field_behavior.proto";
+import "sid/v1/common/operation.proto";
 import "sid/v1/ids/ids.proto";
 
 // ProvisioningService manages provisioning connectors and their credentials.
@@ -28,10 +28,10 @@ service ProvisioningService {
 
   // Register an inbound connector: a directory source that will send SCIM to
   // this organization. It starts active, with no credential and no grant.
-  // Keyed: a retry with the same idempotency key returns the connector the
-  // first attempt created.
+  // A retry returns the connector the first attempt created.
   rpc CreateInboundConnector(CreateInboundConnectorRequest) returns (ProvisioningConnector) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/provisioning/connectors" body: "*" };
   }
 
@@ -45,6 +45,9 @@ service ProvisioningService {
   // FAILED_PRECONDITION.
   rpc RenameProvisioningConnector(RenameProvisioningConnectorRequest) returns (ProvisioningConnector) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "the rename names the revision it edits: a repeat names one the first rename moved past, so it is refused as changed and writes nothing over a later change"
+    };
     option (google.api.http) = { post: "/v1/admin/provisioning/connectors:rename" body: "*" };
   }
 
@@ -52,9 +55,11 @@ service ProvisioningService {
   // request of it at once, its credentials kept; it deactivates no user.
   // Retiring is final and revokes its credentials. A step that is no
   // lifecycle transition is FAILED_PRECONDITION; moving to the state it
-  // already has returns it unchanged.
+  // already has returns it unchanged. A retry answers with the connector as
+  // the first call left it and never moves it again after a later change.
   rpc ChangeProvisioningConnectorState(ChangeProvisioningConnectorStateRequest) returns (ProvisioningConnector) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/provisioning/connectors:state" body: "*" };
   }
 
@@ -74,20 +79,22 @@ service ProvisioningService {
 
   // Issue a credential of an active inbound connector; the secret is in the
   // response only. A connector holds at most two usable credentials
-  // (RESOURCE_EXHAUSTED beyond). Keyed: a retry with the same idempotency
-  // key returns the credential the first attempt created, without its
-  // secret; a lost secret is replaced through RotateConnectorCredential.
+  // (RESOURCE_EXHAUSTED beyond). A retry returns the credential the first
+  // attempt created, without its secret; a lost secret is replaced through
+  // RotateConnectorCredential.
   rpc CreateConnectorCredential(CreateConnectorCredentialRequest) returns (IssuedConnectorCredential) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/provisioning/credentials" body: "*" };
   }
 
   // Replace an active credential: a new one is issued (its secret in the
   // response only) and the old one keeps working for the rotation grace
-  // period, so the client can switch without an outage. Keyed like
-  // CreateConnectorCredential.
+  // period, so the client can switch without an outage. A retry returns the
+  // credential the first attempt issued, without its secret.
   rpc RotateConnectorCredential(RotateConnectorCredentialRequest) returns (IssuedConnectorCredential) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/provisioning/credentials:rotate" body: "*" };
   }
 
@@ -95,6 +102,9 @@ service ProvisioningService {
   // revoked is a no-op.
   rpc RevokeConnectorCredential(RevokeConnectorCredentialRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "a revoked credential is never usable again: a repeat revokes nothing and answers as the first"
+    };
     option (google.api.http) = { post: "/v1/admin/provisioning/credentials:revoke" body: "*" };
   }
 }
@@ -143,12 +153,6 @@ message ListProvisioningConnectorsResponse {
 message CreateInboundConnectorRequest {
   // Administrator-chosen label, non-empty.
   string display_name = 1;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the connector the first call created.
-  string request_id = 2 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message GetProvisioningConnectorRequest {
@@ -167,13 +171,6 @@ message ChangeProvisioningConnectorStateRequest {
   sid.v1.ids.ProvisioningConnectorId connector_id = 1;
   // The state to move to: ACTIVE (enable), DISABLED or RETIRED.
   ProvisioningConnectorState state = 2;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the connector as the first call left it and never moves
-  // it again after a later change.
-  string request_id = 3 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 // How a SCIM client authenticates as an inbound connector.
@@ -272,26 +269,12 @@ message CreateConnectorCredentialRequest {
   google.protobuf.Timestamp expires_at = 2;
   // What it authenticates; required. A rotation keeps the kind it replaces.
   ConnectorCredentialKind kind = 3;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the credential the first call issued and an empty secret:
-  // the secret is shown once and never stored in plaintext.
-  string request_id = 4 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message RotateConnectorCredentialRequest {
   sid.v1.ids.ProvisioningConnectorId connector_id = 1;
   // The active credential being replaced.
   sid.v1.ids.ProvisioningCredentialId credential_id = 2;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the credential the first call issued and an empty secret:
-  // the secret is shown once and never stored in plaintext.
-  string request_id = 3 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message RevokeConnectorCredentialRequest {

@@ -8,7 +8,6 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
-import "google/api/field_behavior.proto";
 import "sid/v1/authn/password_history.proto";
 import "sid/v1/common/operation.proto";
 import "sid/v1/ids/ids.proto";
@@ -66,16 +65,25 @@ service AuthService {
   // retry is not free.
   rpc PasswordChangeChallenge(PasswordChangeChallengeRequest) returns (PasswordChangeChallengeResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "each challenge opens its own pending change; nothing changes before its finish"
+    };
     option (google.api.http) = { post: "/v1/auth/password/change/challenge" body: "*" };
   }
   rpc PasswordChangeExecute(PasswordChangeExecuteRequest) returns (PasswordChangeExecuteResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "an OPAQUE step of the change (RFC 9807 §5): it changes no account state, and the change commits only in its single-use finish"
+    };
     option (google.api.http) = { post: "/v1/auth/password/change/execute" body: "*" };
   }
   // Answers nothing beyond success, so it returns Empty rather than an empty
   // message of its own; this API keeps no type aliases for older clients.
   rpc PasswordChangeFinish(PasswordChangeFinishRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "the change's pending operation is consumed by its commit: a repeat finds none and changes nothing"
+    };
     option (google.api.http) = { post: "/v1/auth/password/change/finish" body: "*" };
   }
   // How long from the moment of this answer, measured on the server's clock, a
@@ -97,6 +105,9 @@ service AuthService {
   }
   rpc WebAuthnRegistrationFinish(WebAuthnRegistrationFinishRequest) returns (WebAuthnRegistrationFinishResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "WebAuthn §13.4.3: the challenge is single-use; a repeat finds it spent and registers nothing"
+    };
     option (google.api.http) = { post: "/v1/auth/webauthn/registration/finish" body: "*" };
   }
   rpc WebAuthnAuthenticationStart(WebAuthnAuthenticationStartRequest) returns (WebAuthnAuthenticationStartResponse) {
@@ -105,6 +116,9 @@ service AuthService {
   }
   rpc WebAuthnAuthenticationFinish(WebAuthnAuthenticationFinishRequest) returns (WebAuthnAuthenticationFinishResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "WebAuthn §13.4.3: the challenge is single-use; a repeat finds it spent and creates no session"
+    };
     option (google.api.http) = { post: "/v1/auth/webauthn/authentication/finish" body: "*" };
   }
 
@@ -119,6 +133,9 @@ service AuthService {
   // browser authorization endpoint (OidcProviderService) runs the same logic.
   rpc OAuth2Authorize(OAuth2AuthorizeRequest) returns (OAuth2AuthorizeResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 6749 §4.1.2: each authorization request issues its own single-use code"
+    };
   }
   // The context of the authorization request a sign-in page was sent to
   // complete: the server checks the request against its saved state (the
@@ -143,23 +160,38 @@ service AuthService {
   // (RFC 6749 §2.3.1), never both.
   rpc OAuth2Token(OAuth2TokenRequest) returns (OAuth2TokenResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 6749 §4.1.2 and §10.4: a code or rotated refresh token is consumed once; a second use is refused, never answered with tokens"
+    };
   }
   // A client assertion is recorded against replay, so the call is not free
   // of effects (as OidcProviderService.Introspect).
   rpc OAuth2Introspect(OAuth2IntrospectRequest) returns (OAuth2IntrospectResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 7523 §3: a client assertion's jti is admitted once; the answer otherwise only reads the token"
+    };
   }
   rpc OAuth2Revoke(OAuth2RevokeRequest) returns (OAuth2RevokeResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 7009 §2.2: revoking a revoked or unknown token answers success and changes nothing"
+    };
   }
 
   // Device Authorization Grant (RFC 8628): the device starts here and polls
   // OAuth2Token with the device_code grant (RFC 8628 §3.4).
   rpc StartDeviceAuthorization(DeviceAuthorizationRequest) returns (DeviceAuthorizationResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 8628 §3.2: each request issues its own device and user codes"
+    };
   }
   rpc SubmitDeviceUserCode(SubmitDeviceUserCodeRequest) returns (SubmitDeviceUserCodeResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 8628 §3.3: a user code is decided once; a repeat is refused as decided and changes nothing"
+    };
     option (google.api.http) = { post: "/v1/oauth2/device/submit" body: "*" };
   }
 
@@ -167,11 +199,17 @@ service AuthService {
 
   rpc RequestMagicLink(RequestMagicLinkRequest) returns (RequestMagicLinkResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "each request issues its own single-use link under the delivery rate limit; no account state changes"
+    };
     option (google.api.http) = { post: "/v1/auth/magic-link/request" body: "*" };
   }
 
   rpc VerifyMagicLink(VerifyMagicLinkRequest) returns (VerifyMagicLinkResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "the link is single-use: a repeat finds it spent and creates no session"
+    };
     option (google.api.http) = { post: "/v1/auth/magic-link/verify" body: "*" };
   }
 
@@ -182,6 +220,9 @@ service AuthService {
   }
   rpc LegacyMigrateFinish(LegacyMigrateFinishRequest) returns (LegacyMigrateFinishResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "the migration state is taken by its first finish: a repeat finds none and replaces nothing"
+    };
     option (google.api.http) = { post: "/v1/auth/legacy/migrate/finish" body: "*" };
   }
 
@@ -207,6 +248,9 @@ service AuthService {
   // Must be called within 24h of registration from a WASM-capable device.
   rpc SubmitDeferredZkProof(SubmitDeferredZkProofRequest) returns (SubmitDeferredZkProofResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "a credential's deferred proof is recorded once and never withdrawn: a repeat finds it proven, records nothing and answers as the first"
+    };
     option (google.api.http) = { post: "/v1/auth/zk-proof/deferred" body: "*" };
   }
 
@@ -214,14 +258,23 @@ service AuthService {
 
   rpc StartTotpEnrollment(StartTotpEnrollmentRequest) returns (TotpEnrollmentChallenge) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "each start opens its own pending enrollment; nothing is enrolled before its finish"
+    };
     option (google.api.http) = { post: "/v1/auth/mfa/totp/enroll/start" body: "*" };
   }
   rpc FinishTotpEnrollment(FinishTotpEnrollmentRequest) returns (FinishTotpEnrollmentResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "the pending enrollment is taken by its first finish: a repeat finds none and enrolls nothing"
+    };
     option (google.api.http) = { post: "/v1/auth/mfa/totp/enroll/finish" body: "*" };
   }
   rpc VerifyTotp(VerifyTotpRequest) returns (MfaVerifyResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 6238 §5.2: a time step's code is accepted once; a replayed code is refused"
+    };
     option (google.api.http) = { post: "/v1/auth/mfa/totp/verify" body: "*" };
   }
 
@@ -229,21 +282,34 @@ service AuthService {
 
   rpc VerifySmsMfa(VerifySmsMfaRequest) returns (MfaVerifyResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "the SMS code is consumed by its first valid use; wrong codes count toward the challenge's attempt limit"
+    };
     option (google.api.http) = { post: "/v1/auth/mfa/sms/verify" body: "*" };
   }
   rpc ResendSmsMfa(ResendSmsMfaRequest) returns (ResendSmsMfaResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "a new code replaces the challenge's previous one under the rate limit; no account state changes"
+    };
     option (google.api.http) = { post: "/v1/auth/mfa/sms/resend" body: "*" };
   }
 
   // ── MFA Recovery Codes ──
 
+  // A retry issues no second set: the codes are shown once and kept only as
+  // hashes, so it is refused with FAILED_PRECONDITION
+  // (OPERATION_RESULT_UNAVAILABLE, RECOVERY_CODES_ISSUED).
   rpc GenerateRecoveryCodes(GenerateRecoveryCodesRequest) returns (GenerateRecoveryCodesResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/auth/mfa/recovery/generate" body: "*" };
   }
   rpc VerifyRecoveryCode(VerifyRecoveryCodeRequest) returns (MfaVerifyResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "each recovery code is consumed once; a repeat of a used code is refused"
+    };
     option (google.api.http) = { post: "/v1/auth/mfa/recovery/verify" body: "*" };
   }
 
@@ -251,14 +317,23 @@ service AuthService {
 
   rpc RequestOtp(RequestOtpRequest) returns (RequestOtpResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "each request opens its own code session under the rate limit; no account state changes"
+    };
     option (google.api.http) = { post: "/v1/auth/otp/request" body: "*" };
   }
   rpc VerifyOtp(VerifyOtpRequest) returns (VerifyOtpResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "the code session is consumed by its first valid code; wrong codes count toward its attempt limit"
+    };
     option (google.api.http) = { post: "/v1/auth/otp/verify" body: "*" };
   }
   rpc ResendOtp(ResendOtpRequest) returns (ResendOtpResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "a new code replaces the session's previous one under the rate limit; no account state changes"
+    };
     option (google.api.http) = { post: "/v1/auth/otp/resend" body: "*" };
   }
 
@@ -266,14 +341,23 @@ service AuthService {
 
   rpc ResendEmailVerification(ResendEmailVerificationRequest) returns (ResendEmailVerificationResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "each request sends a new single-use verification link replacing the previous one, under the delivery rate limit; no account state changes"
+    };
     option (google.api.http) = { post: "/v1/auth/email/verify/resend" body: "*" };
   }
   rpc VerifyPhone(VerifyPhoneRequest) returns (VerifyPhoneResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "the verification code is consumed by its first valid use; wrong codes count toward its attempt limit"
+    };
     option (google.api.http) = { post: "/v1/auth/phone/verify" body: "*" };
   }
   rpc ResendPhoneVerification(ResendPhoneVerificationRequest) returns (ResendPhoneVerificationResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "a new code replaces the previous one under the rate limit; no account state changes"
+    };
     option (google.api.http) = { post: "/v1/auth/phone/verify/resend" body: "*" };
   }
 
@@ -281,6 +365,9 @@ service AuthService {
 
   rpc ConfirmIdpLink(ConfirmIdpLinkRequest) returns (ConfirmIdpLinkResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "the pending link is taken by its confirmation: a repeat finds none and links nothing"
+    };
     option (google.api.http) = { post: "/v1/auth/idp/link/confirm" body: "*" };
   }
 
@@ -292,6 +379,9 @@ service AuthService {
   }
   rpc SelectOrganization(SelectOrganizationRequest) returns (SelectOrganizationResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "the pending sign-in's selection step is consumed once: a repeat finds the sign-in completed and issues nothing"
+    };
     option (google.api.http) = { post: "/v1/auth/orgs/select" body: "*" };
   }
 
@@ -303,6 +393,9 @@ service AuthService {
   }
   rpc AcceptTerms(AcceptTermsRequest) returns (AcceptTermsResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "the pending sign-in's terms step is consumed by its acceptance: a repeat finds the step done and issues nothing"
+    };
     option (google.api.http) = { post: "/v1/auth/terms/accept" body: "*" };
   }
 
@@ -310,10 +403,16 @@ service AuthService {
 
   rpc ApproveCiba(ApproveCibaRequest) returns (CibaConsentResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "OpenID CIBA Core 1.0: an authentication request is decided once by its user; a repeat is refused as decided and changes nothing"
+    };
     option (google.api.http) = { post: "/v1/auth/ciba/approve" body: "*" };
   }
   rpc DenyCiba(DenyCibaRequest) returns (CibaConsentResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "OpenID CIBA Core 1.0: an authentication request is decided once by its user; a repeat is refused as decided and changes nothing"
+    };
     option (google.api.http) = { post: "/v1/auth/ciba/deny" body: "*" };
   }
 
@@ -321,6 +420,9 @@ service AuthService {
 
   rpc VerifyCaptcha(VerifyCaptchaRequest) returns (VerifyCaptchaResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "a solution counts once, for the challenge a sign-in was asked"
+    };
     option (google.api.http) = { post: "/v1/auth/captcha/verify" body: "*" };
   }
 
@@ -332,6 +434,9 @@ service AuthService {
   }
   rpc SubmitDynamicPrompt(SubmitDynamicPromptRequest) returns (SubmitDynamicPromptResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "the prompt step is consumed by its first submission: a repeat finds it answered and changes nothing"
+    };
     option (google.api.http) = { post: "/v1/auth/prompt/{prompt_id}/submit" body: "*" };
   }
 
@@ -340,22 +445,28 @@ service AuthService {
   // Generic step-up Phase 1: request challenge (WebAuthn). Skip for TOTP/recovery.
   rpc RequestStepUp(RequestStepUpRequest) returns (StepUpChallenge) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "each request opens its own single-use challenge; nothing is elevated before it completes"
+    };
     option (google.api.http) = { post: "/v1/auth/step-up/request" body: "*" };
   }
 
   // Generic step-up Phase 2: submit proof → elevate session → rotate token.
   rpc CompleteStepUp(CompleteStepUpRequest) returns (CompleteStepUpResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "its proof counts once: a TOTP time step, recovery code or passkey challenge is spent by its first use, so a repeat elevates nothing"
+    };
     option (google.api.http) = { post: "/v1/auth/step-up/complete" body: "*" };
   }
 
   // ── MFA credential management ──
 
   // Delete an MFA credential (TOTP, WebAuthn, Recovery).
-  // Requires elevated session (step-up auth) before calling. A credential
-  // already revoked is revoked again with no change and the same answer.
+  // Requires elevated session (step-up auth) before calling.
   rpc DeleteMfaCredential(DeleteMfaCredentialRequest) returns (DeleteMfaCredentialResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/auth/mfa/credentials/{credential_id}" };
   }
 
@@ -363,28 +474,43 @@ service AuthService {
 
   rpc ConfirmAccountDeletion(ConfirmAccountDeletionRequest) returns (ConfirmAccountDeletionResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "the deletion confirmation token is single-use: a repeat finds it spent and deletes nothing more"
+    };
     option (google.api.http) = { post: "/v1/auth/delete-confirm" body: "*" };
   }
 
   // Password reset flow (magic link → new OPAQUE credential).
   rpc RequestPasswordReset(RequestPasswordResetRequest) returns (RequestPasswordResetResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "each request issues its own single-use reset link under the delivery rate limit; no account state changes"
+    };
     option (google.api.http) = { post: "/v1/auth/password/reset/request" body: "*" };
   }
   rpc VerifyPasswordReset(VerifyPasswordResetRequest) returns (VerifyPasswordResetResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "the reset link is consumed once into a reset session"
+    };
     option (google.api.http) = { post: "/v1/auth/password/reset/verify" body: "*" };
   }
   // OPAQUE registration start of the replacement password, under the verified
   // reset's operation.
   rpc ExecutePasswordReset(ExecutePasswordResetRequest) returns (ExecutePasswordResetResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "an OPAQUE step of the reset (RFC 9807 §5): it changes no account state, and the reset commits only in its single-use completion"
+    };
     option (google.api.http) = { post: "/v1/auth/password/reset/execute" body: "*" };
   }
   // The completion's result is recorded with it, keyed by the reset's
   // operation and its final record: a retry gets the recorded answer.
   rpc CompletePasswordReset(CompletePasswordResetRequest) returns (CompletePasswordResetResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "the reset session is consumed by the password it sets, and its result is recorded under the reset's operation: a retry of that operation gets the recorded answer and changes nothing"
+    };
     option (google.api.http) = { post: "/v1/auth/password/reset/complete" body: "*" };
   }
 }
@@ -1463,16 +1589,7 @@ message ResendSmsMfaResponse {
 // MFA Recovery Codes
 // ══════════════════════════════════════════════════════════════════════════
 
-message GenerateRecoveryCodesRequest {
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // issues no second set: the codes are shown once and kept only as
-  // hashes, so it is refused with FAILED_PRECONDITION
-  // (OPERATION_RESULT_UNAVAILABLE, RECOVERY_CODES_ISSUED).
-  string request_id = 1 [
-    (google.api.field_behavior) = REQUIRED
-  ];
-}
+message GenerateRecoveryCodesRequest {}
 
 message GenerateRecoveryCodesResponse {
   repeated string codes = 1;  // 12 single-use recovery codes
@@ -1770,12 +1887,6 @@ message CompleteStepUpResponse {
 // Delete an MFA credential. Requires elevated session (step-up auth).
 message DeleteMfaCredentialRequest {
   string credential_id = 1;  // UUID of the credential to delete
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result.
-  string request_id = 2 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message DeleteMfaCredentialResponse {

@@ -1,16 +1,23 @@
-// StructuredID retry rules of methods without an operation key.
-// A method that changes state and whose request has no required
-// `request_id` (AIP-155) states here why repeating it after a lost response
-// is safe; a method with one answers a retry with its recorded result.
+// StructuredID operation retry rules.
+// How a call of a method that changes state is safe to repeat after its
+// response was lost, declared on the method itself.
 syntax = "proto3";
 
 package sid.v1.common;
 
 import "google/protobuf/descriptor.proto";
 
-// Why repeating a method without an operation key is safe.
+// The retry rule of one method.
 message RetryRule {
   oneof rule {
+    // The caller names its command by an operation key: the
+    // `idempotency-key` request metadata (the Idempotency-Key header of
+    // draft-ietf-httpapi-idempotency-key-header), an opaque value created
+    // once before the first submission and kept across every retry. A retry
+    // under the same key answers with the result recorded by the first
+    // commit and applies nothing again; a call without a key is refused
+    // before any effect.
+    bool keyed = 3;
     // The method follows its protocol's own consume or replay rule, stated
     // here with the normative section where the protocol is standardized
     // (for example RFC 6749 §4.1.2 for an authorization code). Its result
@@ -25,6 +32,6 @@ message RetryRule {
 
 extend google.protobuf.MethodOptions {
   // The retry rule of a method whose idempotency_level is not
-  // NO_SIDE_EFFECTS and whose request has no required `request_id`.
+  // NO_SIDE_EFFECTS. Every such method declares it.
   RetryRule retry = 51200;
 }

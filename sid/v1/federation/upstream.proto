@@ -7,13 +7,14 @@ package sid.v1.federation;
 
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
-import "google/api/field_behavior.proto";
+import "sid/v1/common/operation.proto";
 
 // UpstreamService manages upstream identity providers and auth flows.
 service UpstreamService {
   // Provider CRUD (admin).
   rpc CreateUpstreamProvider(CreateUpstreamProviderRequest) returns (UpstreamProviderResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/upstream/providers" body: "*" };
   }
   rpc GetUpstreamProvider(GetUpstreamProviderRequest) returns (UpstreamProviderResponse) {
@@ -22,10 +23,14 @@ service UpstreamService {
   }
   rpc UpdateUpstreamProvider(UpdateUpstreamProviderRequest) returns (UpstreamProviderResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/upstream/providers/{provider_id}" body: "*" };
   }
   rpc DeleteUpstreamProvider(DeleteUpstreamProviderRequest) returns (DeleteUpstreamProviderResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "a provider id is never reused, so a deleted provider stays deleted: a repeat deletes nothing and answers as the first"
+    };
     option (google.api.http) = { delete: "/v1/upstream/providers/{provider_id}" };
   }
   rpc ListUpstreamProviders(ListUpstreamProvidersRequest) returns (ListUpstreamProvidersResponse) {
@@ -42,10 +47,16 @@ service UpstreamService {
   // Upstream auth flow.
   rpc InitiateUpstreamAuth(InitiateUpstreamAuthRequest) returns (InitiateUpstreamAuthResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "each request opens its own single-use sign-in state; nothing changes before its callback"
+    };
     option (google.api.http) = { post: "/v1/upstream/auth/initiate" body: "*" };
   }
   rpc HandleUpstreamCallback(HandleUpstreamCallbackRequest) returns (HandleUpstreamCallbackResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 6749 §10.12: the sign-in state is taken by its callback; a repeat finds none and signs nobody in"
+    };
     option (google.api.http) = { post: "/v1/upstream/auth/callback" body: "*" };
   }
 }
@@ -120,12 +131,6 @@ message CreateUpstreamProviderRequest {
   bool show_on_login = 11;
   int32 display_order = 12;
   string logo_url = 13;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the provider the first call created.
-  string request_id = 14 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message UpstreamProviderResponse {
@@ -152,13 +157,6 @@ message UpdateUpstreamProviderRequest {
   optional bool show_on_login = 13;
   optional int32 display_order = 14;
   optional string logo_url = 15;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result and never writes over a later
-  // edit.
-  string request_id = 16 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message DeleteUpstreamProviderRequest {

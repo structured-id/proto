@@ -7,7 +7,7 @@ package sid.v1.identity;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
-import "google/api/field_behavior.proto";
+import "sid/v1/common/operation.proto";
 
 // Profile represents a user identity in StructuredID: the Profile is the
 // user (there is no separate User entity).
@@ -352,6 +352,7 @@ service IdentityService {
   // Profile management.
   rpc CreateProfile(CreateProfileRequest) returns (CreateProfileResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/profiles" body: "*" };
   }
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse) {
@@ -360,10 +361,12 @@ service IdentityService {
   }
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/identity/profiles/{id}" body: "*" };
   }
   rpc DeleteProfile(DeleteProfileRequest) returns (DeleteProfileResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/identity/profiles/{id}" };
   }
   rpc ListProfiles(ListProfilesRequest) returns (ListProfilesResponse) {
@@ -374,6 +377,7 @@ service IdentityService {
   // Credential management.
   rpc AddCredential(AddCredentialRequest) returns (AddCredentialResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/profiles/{profile_id}/credentials" body: "*" };
   }
   rpc ListCredentials(ListCredentialsRequest) returns (ListCredentialsResponse) {
@@ -382,16 +386,19 @@ service IdentityService {
   }
   rpc UpdateCredential(UpdateCredentialRequest) returns (UpdateCredentialResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/identity/credentials/{credential_id}" body: "*" };
   }
   rpc RevokeCredential(RevokeCredentialRequest) returns (RevokeCredentialResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/identity/credentials/{credential_id}" };
   }
 
   // Principal management.
   rpc AddPrincipal(AddPrincipalRequest) returns (AddPrincipalResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/profiles/{profile_id}/principals" body: "*" };
   }
   rpc ListPrincipals(ListPrincipalsRequest) returns (ListPrincipalsResponse) {
@@ -400,6 +407,7 @@ service IdentityService {
   }
   rpc RemovePrincipal(RemovePrincipalRequest) returns (RemovePrincipalResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/identity/principals/{principal_id}" };
   }
 
@@ -410,6 +418,9 @@ service IdentityService {
   }
   rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "an ended session stays ended and is never resumed: a repeat finds none and answers as the first, disclosing nothing"
+    };
     option (google.api.http) = { delete: "/v1/identity/sessions/{session_id}" };
   }
 
@@ -420,22 +431,28 @@ service IdentityService {
   }
   rpc RecordPasskeyPromptDismissal(RecordPasskeyPromptDismissalRequest) returns (RecordPasskeyPromptDismissalResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/passkey-prompt/dismiss" body: "*" };
   }
 
   // Revocation cascade.
   rpc RevokeProfile(RevokeProfileRequest) returns (RevokeProfileResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "every cascade step ends only what is still active and a revoked profile is never reactivated: a repeat ends what an interrupted attempt left and nothing else, and counts what it ended"
+    };
     option (google.api.http) = { post: "/v1/identity/profiles/{profile_id}/revoke" body: "*" };
   }
 
   // Account closure.
   rpc RequestClosure(RequestClosureRequest) returns (RequestClosureResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/closure" body: "*" };
   }
   rpc CancelClosure(CancelClosureRequest) returns (CancelClosureResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/closure/cancel" body: "*" };
   }
   rpc GetClosureStatus(GetClosureStatusRequest) returns (GetClosureStatusResponse) {
@@ -446,6 +463,7 @@ service IdentityService {
   // Data export (GDPR Art. 20).
   rpc PrepareExport(PrepareExportRequest) returns (PrepareExportResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/export" body: "*" };
   }
   rpc GetExportStatus(GetExportStatusRequest) returns (GetExportStatusResponse) {
@@ -458,6 +476,7 @@ service IdentityService {
   }
   rpc AcknowledgeExport(AcknowledgeExportRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/export/acknowledge" body: "*" };
   }
 
@@ -478,18 +497,22 @@ service IdentityService {
   }
   rpc UpdateDevice(UpdateDeviceRequest) returns (Device) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/identity/devices/{device_id}" body: "*" };
   }
   rpc RemoveDevice(RemoveDeviceRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/identity/devices/{device_id}" };
   }
   rpc TrustDevice(TrustDeviceRequest) returns (Device) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/devices/{device_id}/trust" body: "*" };
   }
   rpc RevokeDeviceTrust(RevokeDeviceTrustRequest) returns (Device) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/devices/{device_id}/revoke-trust" body: "*" };
   }
 }
@@ -523,12 +546,6 @@ message CreateProfileRequest {
   optional string referrer_id = 11;
   // Optional UTM parameters captured from registration URL.
   optional UtmParams utm = 12;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the profile the first call created.
-  string request_id = 18 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 // UTM tracking parameters from registration URL.
@@ -567,13 +584,6 @@ message UpdateProfileRequest {
   optional string honorific_prefix = 6;
   optional string honorific_suffix = 7;
   optional string avatar_url = 3;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result and never writes over a later
-  // edit.
-  string request_id = 8 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message UpdateProfileResponse {
@@ -582,12 +592,6 @@ message UpdateProfileResponse {
 
 message DeleteProfileRequest {
   string id = 1;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result.
-  string request_id = 2 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message DeleteProfileResponse {}
@@ -626,13 +630,6 @@ message UpdateCredentialRequest {
   // Currently only label can be updated.
   // Cryptographic material is immutable after registration.
   optional string label = 2;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result and never writes over a later
-  // edit.
-  string request_id = 3 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message UpdateCredentialResponse {
@@ -641,12 +638,6 @@ message UpdateCredentialResponse {
 
 message RevokeCredentialRequest {
   string credential_id = 1;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result.
-  string request_id = 2 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message RevokeCredentialResponse {}
@@ -671,12 +662,6 @@ message AddPrincipalRequest {
   string profile_id = 1;
   PrincipalType type = 2;
   string value = 3;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the principal the first call added.
-  string request_id = 4 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message AddPrincipalResponse {
@@ -693,12 +678,6 @@ message ListPrincipalsResponse {
 
 message RemovePrincipalRequest {
   string principal_id = 1;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result.
-  string request_id = 2 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message RemovePrincipalResponse {}
@@ -727,12 +706,6 @@ message GetPasskeyPromptStateResponse {
 }
 
 message RecordPasskeyPromptDismissalRequest {
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result and counts no second dismissal.
-  string request_id = 1 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message RecordPasskeyPromptDismissalResponse {
@@ -764,12 +737,6 @@ message RequestClosureRequest {
   ClosureMode mode = 1;
   string closure_reason = 2;       // Optional human-readable reason.
   optional string court_reference = 3; // Required for REGULATORY_ORDER mode.
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result.
-  string request_id = 4 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message RequestClosureResponse {
@@ -779,12 +746,6 @@ message RequestClosureResponse {
 }
 
 message CancelClosureRequest {
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result and cancels no later closure.
-  string request_id = 1 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message CancelClosureResponse {}
@@ -815,12 +776,6 @@ message GetClosureStatusResponse {
 
 message PrepareExportRequest {
   ExportFormat format = 1;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the export the first call started.
-  string request_id = 2 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 enum ExportFormat {
@@ -857,12 +812,6 @@ message DownloadExportChunk {
 }
 
 message AcknowledgeExportRequest {
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result.
-  string request_id = 1 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 // ── Device management ──
@@ -958,47 +907,20 @@ message UpdateDeviceRequest {
 
   // New user-given label; unset leaves the current label unchanged.
   optional string display_name = 2;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the device as the first call left it and never writes over
-  // a later edit.
-  string request_id = 3 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message RemoveDeviceRequest {
   // Device to remove (`Device.id`, UUIDv7). Removal kills the device's
   // sessions and revokes its keys in sid-attestation.
   string device_id = 1;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the first call's result.
-  string request_id = 2 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message TrustDeviceRequest {
   // Device the Profile owner marks as trusted (`Device.id`, UUIDv7).
   string device_id = 1;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the device as the first call left it and never trusts it
-  // again after a later withdrawal.
-  string request_id = 2 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
 
 message RevokeDeviceTrustRequest {
   // Device whose explicit trust is withdrawn (`Device.id`, UUIDv7).
   string device_id = 1;
-  // The caller's opaque operation key (AIP-155), created once before the
-  // first submission and kept across every retry of this command. A retry
-  // answers with the device as the first call left it and never withdraws
-  // trust given again later.
-  string request_id = 2 [
-    (google.api.field_behavior) = REQUIRED
-  ];
 }
