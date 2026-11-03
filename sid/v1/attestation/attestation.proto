@@ -91,9 +91,7 @@ service AttestationService {
   // Revoke a device key (device removed or compromised).
   rpc RevokeDeviceKey(RevokeDeviceKeyRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
-    option (sid.v1.common.retry) = {
-      natural: "a revoked device key is never usable again: a repeat revokes nothing more and answers as the first"
-    };
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/attestation/devices/{device_id}/revoke" body: "*" };
   }
 

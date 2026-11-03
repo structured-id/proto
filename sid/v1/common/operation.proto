@@ -27,8 +27,11 @@ message RetryRule {
     bool keyed = 3;
     // The method follows its protocol's own consume or replay rule, stated
     // here with the normative section where the protocol is standardized
-    // (for example RFC 6749 §4.1.2 for an authorization code). Its result
-    // is never replayed from a recorded answer.
+    // (for example RFC 6749 §4.1.2 for an authorization code). It takes no
+    // operation context and its result is never replayed from the keyed
+    // record; a protocol that names its own operation (a password
+    // operation, a reset) may answer a retry of that same operation with
+    // the outcome it recorded, as its rule states.
     string ceremony = 1;
     // The method's effect is the same however often it is applied: the
     // invariant that makes it so and what a repeat answers, including after

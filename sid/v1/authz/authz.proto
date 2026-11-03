@@ -250,7 +250,7 @@ service AuthzService {
   rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
-      natural: "the check decides from current state and changes none; only a refused caller is audited, each attempt as its own event"
+      ceremony: "RFC 9449 §11.1: a request-bound check admits its sender proof once, for one original request, and a repeat for that same request confirms the first admission; the decision otherwise reads current state, and only a refused caller is audited, each attempt as its own event"
     };
     option (google.api.http) = { post: "/v1/authz/check" body: "*" };
   }
@@ -259,7 +259,7 @@ service AuthzService {
   rpc BatchCheckPermission(BatchCheckPermissionRequest) returns (BatchCheckPermissionResponse) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
-      natural: "the checks decide from current state and change none; only a refused caller is audited, each attempt as its own event"
+      ceremony: "RFC 9449 §11.1: a request-bound check admits its sender proof once, for one original request, and a repeat for that same request confirms the first admission; the decisions otherwise read current state, and only a refused caller is audited, each attempt as its own event"
     };
     option (google.api.http) = { post: "/v1/authz/check/batch" body: "*" };
   }
