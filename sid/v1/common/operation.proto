@@ -1,0 +1,77 @@
+// StructuredID operation retry rules.
+// How a call of a method that changes state is safe to repeat after its
+// response was lost, declared on the method itself, and the server-issued
+// period a keyed command is admitted under.
+syntax = "proto3";
+
+package sid.v1.common;
+
+import "google/api/annotations.proto";
+import "google/protobuf/descriptor.proto";
+import "google/protobuf/timestamp.proto";
+
+// The retry rule of one method.
+message RetryRule {
+  oneof rule {
+    // The caller names its command by an operation context, created once
+    // before the first submission and kept across every retry: the
+    // `idempotency-key` request metadata (the Idempotency-Key header of
+    // draft-ietf-httpapi-idempotency-key-header-08 §2.1, a Structured
+    // Field String, the same encoded value in gRPC metadata and HTTP) and
+    // the `sid-operation-period` metadata (SID-Operation-Period in HTTP:
+    // one canonical unsigned decimal period from OperationService). A
+    // retry under the same context answers with the result recorded by the
+    // first commit and applies nothing again; a call with a missing,
+    // malformed or duplicated context is refused before any effect, and
+    // one under a retired period with OPERATION_EXPIRED.
+    bool keyed = 3;
+    // The method follows its protocol's own consume or replay rule, stated
+    // here with the normative section where the protocol is standardized
+    // (for example RFC 6749 §4.1.2 for an authorization code). It takes no
+    // operation context and its result is never replayed from the keyed
+    // record; a protocol that names its own operation (a password
+    // operation, a reset) may answer a retry of that same operation with
+    // the outcome it recorded, as its rule states.
+    string ceremony = 1;
+    // The method's effect is the same however often it is applied: the
+    // invariant that makes it so and what a repeat answers, including after
+    // an intervening change.
+    string natural = 2;
+  }
+}
+
+extend google.protobuf.MethodOptions {
+  // The retry rule of a method whose idempotency_level is not
+  // NO_SIDE_EFFECTS. Every such method declares it.
+  RetryRule retry = 51200;
+}
+
+// The server-issued periods keyed commands are admitted under.
+service OperationService {
+  // The period a new keyed command names, issued by the store that owns the
+  // operation. A period serves many commands; a caller obtains it once,
+  // saves it with the key before the first submission and keeps both
+  // across every retry. Open to every caller: a period conveys no
+  // permission and selects no issuer, tenant or store.
+  rpc GetOperationPeriod(GetOperationPeriodRequest) returns (OperationPeriod) {
+    option idempotency_level = IDEMPOTENT;
+    option (retry) = {
+      natural: "the current period is answered, issued when none is current: a repeat answers the same period until a later one replaces it, and no call retires a period another caller still holds within its acceptance bound"
+    };
+    option (google.api.http) = { get: "/v1/operations/period" };
+  }
+}
+
+message GetOperationPeriodRequest {}
+
+// One server-issued period.
+message OperationPeriod {
+  // The period: an unsigned epoch the owning store issued, carried by a
+  // keyed command as its `sid-operation-period` metadata. Not a timestamp.
+  uint64 period = 1;
+  // Until when a new command named with this period is admitted. A command
+  // first submitted before this bound may still be retried within the
+  // store's retention; one under a retired period is refused with
+  // OPERATION_EXPIRED.
+  google.protobuf.Timestamp accepted_until = 2;
+}

@@ -8,12 +8,14 @@ package sid.v1.machine;
 
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 
 // MachineUserService manages non-human identities (service accounts).
 service MachineUserService {
   // CRUD
   rpc CreateMachineUser(CreateMachineUserRequest) returns (CreateMachineUserResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/machine-users" body: "*" };
   }
   rpc GetMachineUser(GetMachineUserRequest) returns (MachineUserResponse) {
@@ -22,10 +24,12 @@ service MachineUserService {
   }
   rpc UpdateMachineUser(UpdateMachineUserRequest) returns (MachineUserResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/machine-users/{machine_user_id}" body: "*" };
   }
   rpc DeleteMachineUser(DeleteMachineUserRequest) returns (DeleteMachineUserResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/machine-users/{machine_user_id}" };
   }
   rpc ListMachineUsers(ListMachineUsersRequest) returns (ListMachineUsersResponse) {
@@ -34,20 +38,28 @@ service MachineUserService {
   }
   rpc SuspendMachineUser(SuspendMachineUserRequest) returns (MachineUserResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/machine-users/{machine_user_id}/suspend" body: "*" };
   }
   rpc ReactivateMachineUser(ReactivateMachineUserRequest) returns (MachineUserResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/machine-users/{machine_user_id}/reactivate" body: "*" };
   }
 
-  // Credentials
+  // Credentials. A retry of an addition or rotation answers with the
+  // credentials it left and an empty `client_secret`: the secret is shown
+  // once and never stored in plaintext.
   rpc AddMachineCredential(AddMachineCredentialRequest) returns (AddMachineCredentialResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/machine-users/{machine_user_id}/credentials" body: "*" };
   }
   rpc RevokeMachineCredential(RevokeMachineCredentialRequest) returns (RevokeMachineCredentialResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "a revoked credential is never reactivated: a repeat finds it revoked, answers as the first and stops its tokens again"
+    };
     option (google.api.http) = { delete: "/v1/machine-users/{machine_user_id}/credentials/{kid}" };
   }
   rpc ListMachineCredentials(ListMachineCredentialsRequest) returns (ListMachineCredentialsResponse) {
@@ -55,17 +67,20 @@ service MachineUserService {
     option (google.api.http) = { get: "/v1/machine-users/{machine_user_id}/credentials" };
   }
   rpc RotateMachineCredential(RotateMachineCredentialRequest) returns (RotateMachineCredentialResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/machine-users/{machine_user_id}/credentials/{kid}/rotate" body: "*" };
   }
 
   // Impersonation
   rpc GrantImpersonation(GrantImpersonationRequest) returns (GrantImpersonationResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/machine-users/{machine_user_id}/impersonation" body: "*" };
   }
   rpc RevokeImpersonation(RevokeImpersonationRequest) returns (RevokeImpersonationResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/machine-users/{machine_user_id}/impersonation/{target_type}/{target}" };
   }
   rpc ListImpersonationGrants(ListImpersonationGrantsRequest) returns (ListImpersonationGrantsResponse) {

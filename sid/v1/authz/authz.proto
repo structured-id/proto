@@ -7,6 +7,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 import "sid/v1/authn/sender_proof.proto";
 import "sid/v1/ids/ids.proto";
 
@@ -248,18 +249,25 @@ service AuthzService {
   // confirms that admission.
   rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 9449 §11.1: a request-bound check admits its sender proof once, for one original request, and a repeat for that same request confirms the first admission; the decision otherwise reads current state, and only a refused caller is audited, each attempt as its own event"
+    };
     option (google.api.http) = { post: "/v1/authz/check" body: "*" };
   }
   // Several permission checks at once, each with the effects of
   // CheckPermission.
   rpc BatchCheckPermission(BatchCheckPermissionRequest) returns (BatchCheckPermissionResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 9449 §11.1: a request-bound check admits its sender proof once, for one original request, and a repeat for that same request confirms the first admission; the decisions otherwise read current state, and only a refused caller is audited, each attempt as its own event"
+    };
     option (google.api.http) = { post: "/v1/authz/check/batch" body: "*" };
   }
 
   // Role management.
   rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/authz/roles" body: "*" };
   }
   rpc GetRole(GetRoleRequest) returns (GetRoleResponse) {
@@ -268,10 +276,12 @@ service AuthzService {
   }
   rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/authz/roles/{id}" body: "*" };
   }
   rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/authz/roles/{id}" };
   }
   rpc ListRoles(ListRolesRequest) returns (ListRolesResponse) {
@@ -282,10 +292,12 @@ service AuthzService {
   // Role assignment.
   rpc AssignRole(AssignRoleRequest) returns (AssignRoleResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/authz/assignments" body: "*" };
   }
   rpc RevokeRole(RevokeRoleRequest) returns (RevokeRoleResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/authz/assignments/{assignment_id}" };
   }
   rpc ListRoleAssignments(ListRoleAssignmentsRequest) returns (ListRoleAssignmentsResponse) {
@@ -296,6 +308,7 @@ service AuthzService {
   // Group management.
   rpc CreateGroup(CreateGroupRequest) returns (CreateGroupResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/authz/groups" body: "*" };
   }
   rpc GetGroup(GetGroupRequest) returns (GetGroupResponse) {
@@ -304,10 +317,12 @@ service AuthzService {
   }
   rpc UpdateGroup(UpdateGroupRequest) returns (UpdateGroupResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/authz/groups/{id}" body: "*" };
   }
   rpc DeleteGroup(DeleteGroupRequest) returns (DeleteGroupResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/authz/groups/{id}" };
   }
   rpc ListGroups(ListGroupsRequest) returns (ListGroupsResponse) {
@@ -318,10 +333,12 @@ service AuthzService {
   // Group membership.
   rpc AddToGroup(AddToGroupRequest) returns (AddToGroupResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/authz/groups/{group_id}/members" body: "*" };
   }
   rpc RemoveFromGroup(RemoveFromGroupRequest) returns (RemoveFromGroupResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/authz/groups/{group_id}/members/{profile_id}" };
   }
   rpc ListGroupMembers(ListGroupMembersRequest) returns (ListGroupMembersResponse) {
@@ -332,6 +349,7 @@ service AuthzService {
   // Policy management (Cedar ABAC).
   rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/authz/policies" body: "*" };
   }
   rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse) {
@@ -340,10 +358,12 @@ service AuthzService {
   }
   rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/authz/policies/{id}" body: "*" };
   }
   rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/authz/policies/{id}" };
   }
   rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse) {

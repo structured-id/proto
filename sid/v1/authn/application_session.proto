@@ -11,6 +11,7 @@ package sid.v1.authn;
 
 import "google/api/annotations.proto";
 import "google/api/httpbody.proto";
+import "sid/v1/common/operation.proto";
 
 service ApplicationSessionService {
   // Start a sign-in: redirect the browser to the issuer's authorization
@@ -27,6 +28,9 @@ service ApplicationSessionService {
   // sign-in.
   rpc StartSignIn(StartSignInRequest) returns (google.api.HttpBody) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 6749 §10.12: each call records its own single-use sign-in state; nothing else changes before its callback"
+    };
     option (google.api.http) = {get: "/auth/login"};
   }
 
@@ -47,6 +51,9 @@ service ApplicationSessionService {
   // Consumes the sign-in its `state` names, so a repeat is refused.
   rpc CompleteSignIn(CompleteSignInRequest) returns (google.api.HttpBody) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 6749 §10.12: the sign-in its state names is consumed by its completion; a repeat is refused and creates no session"
+    };
     option (google.api.http) = {get: "/auth/callback"};
   }
 
@@ -64,6 +71,9 @@ service ApplicationSessionService {
   // Extends the session's idle window; repeating it does nothing more.
   rpc GetApplicationSession(GetApplicationSessionRequest) returns (ApplicationSession) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "the call only moves the session's idle window to now: a repeat moves it to the same point again and changes nothing else"
+    };
   }
 
   // End the application session the request's cookie names and revoke the
@@ -80,6 +90,9 @@ service ApplicationSessionService {
   // is ended.
   rpc EndApplicationSession(EndApplicationSessionRequest) returns (EndApplicationSessionResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "an ended session stays ended and is never resumed: a repeat finds no session, ends nothing more and answers GRANT_OUTCOME_UNKNOWN"
+    };
   }
 }
 

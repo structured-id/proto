@@ -9,6 +9,7 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/struct.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 
 // ────────────────────────────────────────────────────────────────────────────
 // EventService — user & admin event log, event configuration
@@ -53,6 +54,7 @@ service EventService {
 
   rpc UpdateEventConfig(EventConfig) returns (EventConfig) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/events/config" body: "*" };
   }
 }

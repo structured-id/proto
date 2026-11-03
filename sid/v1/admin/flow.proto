@@ -9,6 +9,7 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/struct.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 
 // FlowConfigService manages per-project, per-flow-type step configuration.
 // Flow structure is hardcoded — only step enable/disable and params are configurable.
@@ -22,9 +23,11 @@ service FlowConfigService {
   }
 
   // Save (create or update) flow config. The stored config is replaced by
-  // the given one, so a repetition leaves the same config.
+  // the given one; a retry answers with the config as the first call saved
+  // it and never writes over a later save.
   rpc SaveFlowConfig(SaveFlowConfigRequest) returns (FlowConfig) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = {
       put: "/v1/projects/{project_id}/flows/{flow_type}"
       body: "*"
@@ -44,7 +47,8 @@ service FlowConfigService {
 service FlowActionService {
   // Create a new action.
   rpc CreateFlowAction(CreateFlowActionRequest) returns (FlowAction) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = {
       post: "/v1/projects/{project_id}/flows/{flow_type}/actions"
       body: "*"
@@ -68,9 +72,11 @@ service FlowActionService {
   }
 
   // Update an existing action. Only the given fields are written over the
-  // current revision, so a repetition leaves the same action.
+  // current revision; a retry answers with the action as the first call left
+  // it and never writes over a later edit.
   rpc UpdateFlowAction(UpdateFlowActionRequest) returns (FlowAction) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = {
       patch: "/v1/projects/{project_id}/flows/{flow_type}/actions/{action_id}"
       body: "*"
@@ -81,6 +87,9 @@ service FlowActionService {
   // NOT_FOUND; idempotency is the effect, not the answer (RFC 9110 §9.2.2).
   rpc DeleteFlowAction(DeleteFlowActionRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "an action id is never reused, so a deleted action stays deleted: a repeat removes nothing more and answers NOT_FOUND"
+    };
     option (google.api.http) = {
       delete: "/v1/projects/{project_id}/flows/{flow_type}/actions/{action_id}"
     };

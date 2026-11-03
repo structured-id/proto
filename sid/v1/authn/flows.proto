@@ -9,6 +9,7 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 
 // ────────────────────────────────────────────────────────────────────────────
 // FlowService — auth flow CRUD, step bindings, blueprint import/export
@@ -28,27 +29,32 @@ service FlowService {
   }
 
   rpc CreateFlow(CreateFlowRequest) returns (Flow) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/flows" body: "*" };
   }
 
   rpc UpdateFlow(UpdateFlowRequest) returns (Flow) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/flows/{flow_id}" body: "*" };
   }
 
   rpc DeleteFlow(DeleteFlowRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/admin/flows/{flow_id}" };
   }
 
   rpc DuplicateFlow(DuplicateFlowRequest) returns (Flow) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/flows/{flow_id}/duplicate" body: "*" };
   }
 
   rpc BindFlow(BindFlowRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/flows/{flow_id}/bind" body: "*" };
   }
 
@@ -60,7 +66,8 @@ service FlowService {
   }
 
   rpc ImportBlueprint(ImportBlueprintRequest) returns (Flow) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/flows/import" body: "*" };
   }
 
@@ -72,22 +79,26 @@ service FlowService {
   }
 
   rpc AddStepBinding(AddStepBindingRequest) returns (StepBinding) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/flows/{flow_id}/steps" body: "*" };
   }
 
   rpc UpdateStepBinding(UpdateStepBindingRequest) returns (StepBinding) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/flows/{flow_id}/steps/{binding_id}" body: "*" };
   }
 
   rpc RemoveStepBinding(RemoveStepBindingRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/admin/flows/{flow_id}/steps/{binding_id}" };
   }
 
   rpc ReorderStepBindings(ReorderStepBindingsRequest) returns (ListStepBindingsResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/flows/{flow_id}/steps/reorder" body: "*" };
   }
 }
@@ -109,6 +120,7 @@ service StepService {
 
   rpc UpdateStepConfig(UpdateStepConfigRequest) returns (StepConfig) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/steps/{step_type}/config" body: "*" };
   }
 }
@@ -129,22 +141,26 @@ service ActionService {
   }
 
   rpc CreateAction(CreateActionRequest) returns (Action) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/actions" body: "*" };
   }
 
   rpc UpdateAction(UpdateActionRequest) returns (Action) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/actions/{action_id}" body: "*" };
   }
 
   rpc DeleteAction(DeleteActionRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/admin/actions/{action_id}" };
   }
 
   rpc TestAction(TestActionRequest) returns (TestActionResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/actions/{action_id}/test" body: "*" };
   }
 
@@ -155,6 +171,7 @@ service ActionService {
 
   rpc ConfigureBuiltinAction(ConfigureBuiltinActionRequest) returns (BuiltinAction) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/actions/builtin/{action_type}" body: "*" };
   }
 

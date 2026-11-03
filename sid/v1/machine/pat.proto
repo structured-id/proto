@@ -10,12 +10,15 @@ package sid.v1.machine;
 
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 
 // PatService manages personal access tokens for programmatic API access.
 service PatService {
-  // User-facing CRUD.
+  // User-facing CRUD. A retry of a creation answers with the token it
+  // created and an empty `token`: the value is shown once and never stored.
   rpc CreatePat(CreatePatRequest) returns (CreatePatResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/pats" body: "*" };
   }
   rpc ListPats(ListPatsRequest) returns (ListPatsResponse) {
@@ -28,12 +31,18 @@ service PatService {
   }
   rpc RevokePat(RevokePatRequest) returns (RevokePatResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "a revoked token is never reactivated: a repeat finds it revoked and answers as the first"
+    };
     option (google.api.http) = { delete: "/v1/pats/{pat_id}" };
   }
 
   // Token exchange (opaque-JWT-swap model).
   rpc ExchangePat(ExchangePatRequest) returns (ExchangePatResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 8693 §2: each exchange issues its own short-lived access token from the presented token; an issued token is never replayed from a record"
+    };
     option (google.api.http) = { post: "/v1/pats/exchange" body: "*" };
   }
 
@@ -44,6 +53,9 @@ service PatService {
   }
   rpc AdminRevokePat(AdminRevokePatRequest) returns (RevokePatResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "a revoked token is never reactivated: a repeat finds it revoked and answers as the first"
+    };
     option (google.api.http) = { delete: "/v1/admin/pats/{pat_id}" };
   }
 }

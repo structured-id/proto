@@ -8,6 +8,7 @@ package sid.v1.authz;
 
 import "google/api/annotations.proto";
 import "google/api/httpbody.proto";
+import "sid/v1/common/operation.proto";
 
 service ForwardAuthService {
   // Decide whether the original request may reach `application`.
@@ -41,6 +42,9 @@ service ForwardAuthService {
   // proxy denies on both.
   rpc Verify(VerifyRequest) returns (google.api.HttpBody) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 9449 §11.1: a DPoP proof is admitted once by its issuer; the decision otherwise only reads"
+    };
     option (google.api.http) = {
       custom: {kind: "*", path: "/auth/verify/{application}"}
     };

@@ -15,6 +15,7 @@ package sid.v1.admin;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 
 // EnrollmentService manages registration gating policies, invite codes,
 // and registration source analytics.
@@ -43,6 +44,7 @@ service EnrollmentService {
   // allowed domain that is no domain name.
   rpc UpdateEnrollmentPolicy(UpdateEnrollmentPolicyRequest) returns (EnrollmentPolicy) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/enrollment/policy" body: "*" };
   }
 
@@ -50,7 +52,8 @@ service EnrollmentService {
 
   // Create a new invite code.
   rpc CreateInvite(CreateInviteRequest) returns (Invite) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/enrollment/invites" body: "*" };
   }
 
@@ -76,12 +79,16 @@ service EnrollmentService {
   // Revoke an invite code (deactivate, cannot be used anymore).
   rpc RevokeInvite(RevokeInviteRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "a revoked invite is never reactivated: a repeat finds it revoked and answers as the first"
+    };
     option (google.api.http) = { post: "/v1/admin/enrollment/invites/{invite_id}/revoke" body: "*" };
   }
 
   // Bulk-generate invite codes.
   rpc BulkCreateInvites(BulkCreateInvitesRequest) returns (BulkCreateInvitesResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/enrollment/invites/bulk" body: "*" };
   }
 

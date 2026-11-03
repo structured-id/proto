@@ -10,6 +10,7 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/struct.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 import "sid/v1/identity/identity.proto";
 
 // AdminService provides privileged operations for instance administrators.
@@ -20,18 +21,23 @@ service AdminService {
   // is claimed; PERMISSION_DENIED for a token that does not match.
   rpc ClaimInstance(ClaimInstanceRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "the installation claim is single-use: its token opens only an unclaimed installation, so a repeat is refused and changes nothing"
+    };
     option (google.api.http) = { post: "/v1/admin/claim" body: "*" };
   }
 
   // Update a profile with admin-only fields (status, roles, email verification).
   rpc AdminUpdateProfile(AdminUpdateProfileRequest) returns (AdminUpdateProfileResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/profiles/{profile_id}" body: "*" };
   }
 
   // Revoke all sessions for a profile (force logout).
   rpc RevokeAllSessions(RevokeAllSessionsRequest) returns (RevokeAllSessionsResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/admin/profiles/{profile_id}/sessions" };
   }
 
@@ -49,11 +55,13 @@ service AdminService {
 
   rpc SetProfileMetadata(SetProfileMetadataRequest) returns (ProfileMetadataEntry) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/profiles/{profile_id}/metadata/{key}" body: "*" };
   }
 
   rpc DeleteProfileMetadata(DeleteProfileMetadataRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/admin/profiles/{profile_id}/metadata/{key}" };
   }
 }

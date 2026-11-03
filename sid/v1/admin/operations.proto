@@ -8,6 +8,7 @@ package sid.v1.admin;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 
 // ── Feature Flag Service ──
 
@@ -18,12 +19,14 @@ service FeatureFlagService {
   }
 
   rpc SetFlag(SetFlagRequest) returns (FeatureFlag) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/operations/flags/{flag_name}" body: "*" };
   }
 
   rpc ResetFlag(ResetFlagRequest) returns (FeatureFlag) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/operations/flags/{flag_name}/reset" body: "*" };
   }
 
@@ -66,12 +69,14 @@ service NotificationChannelService {
   }
 
   rpc UpdateChannelConfig(UpdateChannelConfigRequest) returns (ChannelConfig) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/operations/channels/{channel}" body: "*" };
   }
 
   rpc TestChannel(TestChannelRequest) returns (TestChannelResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/operations/channels/{channel}/test" body: "*" };
   }
 
@@ -86,7 +91,8 @@ service NotificationChannelService {
   }
 
   rpc UpdateDefaultPreferences(DefaultNotificationPreferences) returns (DefaultNotificationPreferences) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/operations/channels/default-preferences" body: "*" };
   }
 }

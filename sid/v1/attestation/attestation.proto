@@ -10,6 +10,7 @@ package sid.v1.attestation;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 
 // Attestation format reported by the device.
 enum AttestationFormat {
@@ -66,9 +67,11 @@ service AttestationService {
   // Register a device key with platform attestation: stores the attestation
   // data and marks the device as hardware_attested; a server that verifies
   // attestation also checks the chain and the AAGUID policy. A device that
-  // already has a live attestation is refused (ATTESTATION_ALREADY_EXISTS).
+  // already has a live attestation is refused (ATTESTATION_ALREADY_EXISTS);
+  // a retry answers with the attestation the first call registered.
   rpc RegisterDeviceKey(RegisterDeviceKeyRequest) returns (DeviceAttestation) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/attestation/devices/{device_id}/keys" body: "*" };
   }
 
@@ -80,13 +83,15 @@ service AttestationService {
 
   // Rotate a device key (triggered by OS update or manual re-attestation).
   rpc RotateDeviceKey(RotateDeviceKeyRequest) returns (DeviceAttestation) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/attestation/devices/{device_id}/rotate" body: "*" };
   }
 
   // Revoke a device key (device removed or compromised).
   rpc RevokeDeviceKey(RevokeDeviceKeyRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/attestation/devices/{device_id}/revoke" body: "*" };
   }
 

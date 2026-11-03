@@ -7,6 +7,7 @@ syntax = "proto3";
 package sid.v1.test;
 
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 
 // TestService provides performance and functional testing endpoints.
 // Gated behind `dev-perf-test` feature flag in sid-server.
@@ -16,24 +17,36 @@ service TestService {
   // Simulates OPAQUE registration start (server-side state creation).
   rpc PerfRegistrationStart(PerfTestRequest) returns (PerfTestResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "each start creates its own ephemeral state, kept for five minutes; nothing durable changes"
+    };
     option (google.api.http) = { post: "/v1/test/perf/registration/start" body: "*" };
   }
 
   // Simulates OPAQUE registration finish (consume ephemeral state).
   rpc PerfRegistrationFinish(PerfTestFinishRequest) returns (PerfTestResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "the finish consumes its start's ephemeral state; a repeat finds none and changes nothing"
+    };
     option (google.api.http) = { post: "/v1/test/perf/registration/finish" body: "*" };
   }
 
   // Simulates OPAQUE login start (credential lookup + state creation).
   rpc PerfLoginStart(PerfTestRequest) returns (PerfTestResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "each start creates its own ephemeral state, kept for five minutes; nothing durable changes"
+    };
     option (google.api.http) = { post: "/v1/test/perf/login/start" body: "*" };
   }
 
   // Simulates OPAQUE login finish (consume ephemeral state, session creation).
   rpc PerfLoginFinish(PerfTestFinishRequest) returns (PerfTestResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "the finish consumes its start's ephemeral state; a repeat finds none and changes nothing"
+    };
     option (google.api.http) = { post: "/v1/test/perf/login/finish" body: "*" };
   }
 
@@ -48,6 +61,9 @@ service TestService {
   // Register a test user with username + password. Enforces password policy.
   rpc AuthTestRegister(AuthTestRequest) returns (AuthTestResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "a test user name is unique: a repeat is refused as taken and registers nothing"
+    };
     option (google.api.http) = { post: "/v1/test/auth/register" body: "*" };
   }
 
@@ -60,6 +76,9 @@ service TestService {
   // Change password for an existing user. Verifies old password, enforces policy on new.
   rpc AuthTestChangePassword(AuthTestChangePasswordRequest) returns (AuthTestResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "the change verifies the old password: after the first change a repeat names a password that no longer matches and is refused"
+    };
     option (google.api.http) = { post: "/v1/test/auth/change-password" body: "*" };
   }
 
@@ -72,12 +91,18 @@ service TestService {
   // Reset all test user state (clean slate for new test run).
   rpc AuthTestReset(AuthTestResetRequest) returns (AuthTestResetResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "the test state becomes empty: a repeat leaves it empty"
+    };
     option (google.api.http) = { post: "/v1/test/auth/reset" body: "*" };
   }
 
   // Set the active password policy. Affects all subsequent register/change operations.
   rpc AuthTestSetPolicy(AuthTestSetPolicyRequest) returns (AuthTestSetPolicyResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "the policy is set to the request's value: a repeat sets the same value again; the test run is its only writer"
+    };
     option (google.api.http) = { put: "/v1/test/auth/policy" body: "*" };
   }
 

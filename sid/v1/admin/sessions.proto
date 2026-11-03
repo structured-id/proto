@@ -8,6 +8,7 @@ package sid.v1.admin;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 
 // SessionService provides admin-level session management across all users.
 // Per-user sessions are available via IdentityService.ListSessions.
@@ -27,18 +28,23 @@ service SessionService {
   // Revoke an individual session.
   rpc RevokeSession(AdminRevokeSessionRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "an ended session stays ended and is never resumed: a repeat finds none and answers as the first"
+    };
     option (google.api.http) = { delete: "/v1/admin/sessions/{session_id}" };
   }
 
   // Revoke all sessions for a specific application.
   rpc RevokeApplicationSessions(RevokeApplicationSessionsRequest) returns (RevokeSessionsResult) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/sessions/revoke-by-app" body: "*" };
   }
 
   // Revoke ALL sessions in the realm (emergency).
   rpc RevokeRealmSessions(RevokeRealmSessionsRequest) returns (RevokeSessionsResult) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/sessions/revoke-all" body: "*" };
   }
 }

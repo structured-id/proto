@@ -9,6 +9,7 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 import "sid/v1/authz/authz.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 
 // Project is a container for related applications that share authorization scope.
 message Project {
@@ -218,6 +219,7 @@ service ProjectService {
   // Project CRUD.
   rpc CreateProject(CreateProjectRequest) returns (Project) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/projects" body: "*" };
   }
   rpc GetProject(GetProjectRequest) returns (Project) {
@@ -230,17 +232,22 @@ service ProjectService {
   }
   rpc UpdateProject(UpdateProjectRequest) returns (Project) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/projects/{id}" body: "*" };
   }
   rpc DeleteProject(DeleteProjectRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/projects/{id}" };
   }
 
   // Applications within a project. Creating one registers the roles it
-  // starts with in one step.
+  // starts with in one step. A retry answers with the application the first
+  // call created and an empty `client_secret`: the secret is shown once and
+  // never stored in plaintext.
   rpc CreateApplication(CreateApplicationRequest) returns (CreateApplicationResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/projects/{project_id}/applications" body: "*" };
   }
   rpc GetApplication(GetApplicationRequest) returns (Application) {
@@ -253,45 +260,54 @@ service ProjectService {
   }
   rpc UpdateApplication(UpdateApplicationRequest) returns (Application) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/applications/{id}" body: "*" };
   }
   // Removes the application: its client role and the client's access are
   // deleted, its resource role is retired and access to it ends.
   rpc DeleteApplication(DeleteApplicationRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/applications/{id}" };
   }
 
-  // Client role. An application has at most one: a repeat is refused
-  // (APPLICATION_ROLE_EXISTS) and adds nothing; the secret is in the first
-  // response only.
+  // Client role. An application has at most one: a new addition to one that
+  // has it is refused (APPLICATION_ROLE_EXISTS) and adds nothing. A retry
+  // answers with the first call's result and an empty secret: the secret is
+  // in the first response only.
   rpc AddClientRole(AddClientRoleRequest) returns (CreateApplicationResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/applications/{application_id}/client" body: "*" };
   }
   rpc UpdateClientRole(UpdateClientRoleRequest) returns (Application) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/clients/{client_id}" body: "*" };
   }
 
-  // Protected-resource role. Its indicator is unique: a repeat is refused and
-  // adds nothing.
+  // Protected-resource role. Its indicator is unique: a new addition of a
+  // taken indicator is refused and adds nothing.
   rpc AddResourceRole(AddResourceRoleRequest) returns (Application) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/applications/{application_id}/resource" body: "*" };
   }
   rpc UpdateResourceRole(UpdateResourceRoleRequest) returns (ProtectedResource) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/resources/{resource_id}" body: "*" };
   }
 
   // Client-to-resource access.
   rpc SetResourceAccess(SetResourceAccessRequest) returns (ResourceAccess) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/clients/{client_id}/resources/{resource_id}" body: "*" };
   }
   rpc RemoveResourceAccess(RemoveResourceAccessRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/clients/{client_id}/resources/{resource_id}" };
   }
   rpc ListResourceAccess(ListResourceAccessRequest) returns (ListResourceAccessResponse) {
@@ -305,10 +321,12 @@ service ProjectService {
   // Roles within project (uses Role type from authz.proto).
   rpc AddRole(AddRoleRequest) returns (sid.v1.authz.Role) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/projects/{project_id}/roles" body: "*" };
   }
   rpc RemoveRole(RemoveRoleRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/projects/{project_id}/roles/{role_id}" };
   }
   // ListRoles is already defined in AuthzService; reuse authz.proto messages.
@@ -321,20 +339,32 @@ service ProjectService {
   // access to one.
   rpc RegisterClient(RegisterClientRequest) returns (RegisterClientResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 7591 §3: the client presents no operation key; each registration issues a new client, its secret and registration access token once"
+    };
   }
   rpc GetRegisteredClient(GetRegisteredClientRequest) returns (OAuthClient) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
   rpc UpdateRegisteredClient(UpdateRegisteredClientRequest) returns (OAuthClient) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 7592 §2.2: the request carries the client's whole metadata and replaces it, so a repeat leaves the same registration"
+    };
   }
   rpc DeleteRegisteredClient(DeleteRegisteredClientRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 7592 §2.3: deletion invalidates the client and its registration access token, so a repeat is refused and changes nothing"
+    };
   }
 
   // Initial Access Token management (admin operations).
+  // A retry answers with the token the first call created and an empty
+  // `token_value`: the bearer value is shown once and never stored.
   rpc CreateInitialAccessToken(CreateInitialAccessTokenRequest) returns (CreateInitialAccessTokenResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/projects/{project_id}/iat" body: "*" };
   }
   rpc ListInitialAccessTokens(ListInitialAccessTokensRequest) returns (ListInitialAccessTokensResponse) {
@@ -343,6 +373,7 @@ service ProjectService {
   }
   rpc RevokeInitialAccessToken(RevokeInitialAccessTokenRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/projects/iat/{id}" };
   }
 }

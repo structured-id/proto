@@ -6,6 +6,8 @@ syntax = "proto3";
 
 package sid.v1.authn;
 
+import "sid/v1/common/operation.proto";
+
 // SystemIntegrationService gives a system integration's backend its
 // connection details, so an operator never copies issuer handles or client
 // identifiers by hand.
@@ -25,6 +27,9 @@ service SystemIntegrationService {
   // sign-in until it is.
   rpc GetAccountConnection(GetAccountConnectionRequest) returns (AccountConnection) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 7519 §4.1.7: the key proof's jti is admitted once and a replayed proof is refused; the answer otherwise only reads the integration"
+    };
   }
 }
 

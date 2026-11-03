@@ -7,6 +7,7 @@ package sid.v1.identity;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 
 // Profile represents a user identity in StructuredID: the Profile is the
 // user (there is no separate User entity).
@@ -351,6 +352,7 @@ service IdentityService {
   // Profile management.
   rpc CreateProfile(CreateProfileRequest) returns (CreateProfileResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/profiles" body: "*" };
   }
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse) {
@@ -359,10 +361,12 @@ service IdentityService {
   }
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/identity/profiles/{id}" body: "*" };
   }
   rpc DeleteProfile(DeleteProfileRequest) returns (DeleteProfileResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/identity/profiles/{id}" };
   }
   rpc ListProfiles(ListProfilesRequest) returns (ListProfilesResponse) {
@@ -373,6 +377,7 @@ service IdentityService {
   // Credential management.
   rpc AddCredential(AddCredentialRequest) returns (AddCredentialResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/profiles/{profile_id}/credentials" body: "*" };
   }
   rpc ListCredentials(ListCredentialsRequest) returns (ListCredentialsResponse) {
@@ -381,16 +386,19 @@ service IdentityService {
   }
   rpc UpdateCredential(UpdateCredentialRequest) returns (UpdateCredentialResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/identity/credentials/{credential_id}" body: "*" };
   }
   rpc RevokeCredential(RevokeCredentialRequest) returns (RevokeCredentialResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/identity/credentials/{credential_id}" };
   }
 
   // Principal management.
   rpc AddPrincipal(AddPrincipalRequest) returns (AddPrincipalResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/profiles/{profile_id}/principals" body: "*" };
   }
   rpc ListPrincipals(ListPrincipalsRequest) returns (ListPrincipalsResponse) {
@@ -399,6 +407,7 @@ service IdentityService {
   }
   rpc RemovePrincipal(RemovePrincipalRequest) returns (RemovePrincipalResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/identity/principals/{principal_id}" };
   }
 
@@ -409,6 +418,9 @@ service IdentityService {
   }
   rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "an ended session stays ended and is never resumed: a repeat finds none and answers as the first, disclosing nothing"
+    };
     option (google.api.http) = { delete: "/v1/identity/sessions/{session_id}" };
   }
 
@@ -418,23 +430,29 @@ service IdentityService {
     option (google.api.http) = { get: "/v1/identity/passkey-prompt" };
   }
   rpc RecordPasskeyPromptDismissal(RecordPasskeyPromptDismissalRequest) returns (RecordPasskeyPromptDismissalResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/passkey-prompt/dismiss" body: "*" };
   }
 
   // Revocation cascade.
   rpc RevokeProfile(RevokeProfileRequest) returns (RevokeProfileResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "every cascade step ends only what is still active and a revoked profile is never reactivated: a repeat ends what an interrupted attempt left and nothing else, and counts what it ended"
+    };
     option (google.api.http) = { post: "/v1/identity/profiles/{profile_id}/revoke" body: "*" };
   }
 
   // Account closure.
   rpc RequestClosure(RequestClosureRequest) returns (RequestClosureResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/closure" body: "*" };
   }
   rpc CancelClosure(CancelClosureRequest) returns (CancelClosureResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/closure/cancel" body: "*" };
   }
   rpc GetClosureStatus(GetClosureStatusRequest) returns (GetClosureStatusResponse) {
@@ -444,7 +462,8 @@ service IdentityService {
 
   // Data export (GDPR Art. 20).
   rpc PrepareExport(PrepareExportRequest) returns (PrepareExportResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/export" body: "*" };
   }
   rpc GetExportStatus(GetExportStatusRequest) returns (GetExportStatusResponse) {
@@ -457,6 +476,7 @@ service IdentityService {
   }
   rpc AcknowledgeExport(AcknowledgeExportRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/export/acknowledge" body: "*" };
   }
 
@@ -477,18 +497,22 @@ service IdentityService {
   }
   rpc UpdateDevice(UpdateDeviceRequest) returns (Device) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/identity/devices/{device_id}" body: "*" };
   }
   rpc RemoveDevice(RemoveDeviceRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/identity/devices/{device_id}" };
   }
   rpc TrustDevice(TrustDeviceRequest) returns (Device) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/devices/{device_id}/trust" body: "*" };
   }
   rpc RevokeDeviceTrust(RevokeDeviceTrustRequest) returns (Device) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/devices/{device_id}/revoke-trust" body: "*" };
   }
 }
@@ -681,7 +705,8 @@ message GetPasskeyPromptStateResponse {
   PasskeyPromptState state = 1;
 }
 
-message RecordPasskeyPromptDismissalRequest {}
+message RecordPasskeyPromptDismissalRequest {
+}
 
 message RecordPasskeyPromptDismissalResponse {
   PasskeyPromptState state = 1;
@@ -720,7 +745,8 @@ message RequestClosureResponse {
   google.protobuf.Timestamp grace_period_end = 3;
 }
 
-message CancelClosureRequest {}
+message CancelClosureRequest {
+}
 
 message CancelClosureResponse {}
 
@@ -785,7 +811,8 @@ message DownloadExportChunk {
   int64 total_size = 3;
 }
 
-message AcknowledgeExportRequest {}
+message AcknowledgeExportRequest {
+}
 
 // ── Device management ──
 

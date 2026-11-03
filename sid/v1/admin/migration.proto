@@ -8,6 +8,7 @@ package sid.v1.admin;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/operation.proto";
 
 service MigrationService {
   // ── Blueprints ──
@@ -18,7 +19,8 @@ service MigrationService {
   }
 
   rpc ImportBlueprint(ImportBlueprintRequest) returns (ImportBlueprintResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/migration/blueprints/import" body: "*" };
   }
 
@@ -30,12 +32,14 @@ service MigrationService {
   // ── Migration Wizard ──
 
   rpc ParseMigrationFile(ParseMigrationFileRequest) returns (ParseMigrationFileResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/migration/parse" body: "*" };
   }
 
   rpc ExecuteMigration(ExecuteMigrationRequest) returns (ExecuteMigrationResponse) {
-    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/migration/execute" body: "*" };
   }
 
