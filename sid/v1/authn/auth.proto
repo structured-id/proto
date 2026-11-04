@@ -8,6 +8,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/authn/native_session.proto";
 import "sid/v1/authn/password_history.proto";
 import "sid/v1/common/operation.proto";
 import "sid/v1/ids/ids.proto";
@@ -224,6 +225,18 @@ service AuthService {
       ceremony: "the migration state is taken by its first finish: a repeat finds none and replaces nothing"
     };
     option (google.api.http) = { post: "/v1/auth/legacy/migrate/finish" body: "*" };
+  }
+
+  // Refresh a native session bound to its application key, or redeliver the
+  // generation a lost response carried (native_session.proto). Proof and
+  // presented credential in request metadata; the access token and the next
+  // generation in response metadata.
+  rpc RefreshNativeSession(RefreshNativeSessionRequest) returns (RefreshNativeSessionResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "a generation rotates once: a retry of the same exchange within the redelivery window, with any credential of the rotated generation and a fresh proof, answers the committed generation; after the window, or for another exchange, a rotated credential is refused"
+    };
+    option (google.api.http) = { post: "/v1/auth/native-session/refresh" body: "*" };
   }
 
   // Session validation.
@@ -634,6 +647,17 @@ message OpaqueLoginFinishRequest {
 // is on the authority's site (same scheme and registrable domain, a server
 // configured otherwise does not start), so the cookie is first-party and a
 // page on another site completes no browser sign-in at all.
+//
+// A native client that wants a renewable session sends a SID native proof of
+// its application key in `sid-native-proof` request metadata, with `sid_cer`
+// over this request's `server_login_state` (native_session.proto). When the
+// sign-in completes the session, the response then also carries its first
+// generation of refresh credentials in `sid-native-credentials-bin`
+// metadata, bound to that key. A pending context (second factor or first
+// enrollment still owed) carries none: the completing method delivers them,
+// its proof's `sid_cer` taken over the pending context presented in
+// `authorization`. A proof that does not verify fails the call; no session
+// is created without the binding it asked for.
 message OpaqueLoginFinishResponse {
   // Server-assigned session identifier (UUIDv7). Used for session management
   // (revoke, step-up target). Not a credential.
@@ -915,7 +939,9 @@ message WebAuthnAuthenticationFinishRequest {
 }
 
 // The session a passkey sign-in completed; its credential is delivered as for
-// OpaqueLoginFinishResponse.
+// OpaqueLoginFinishResponse. A native renewable session is asked for as
+// there, with `sid_cer` over the request's `state_key`, which such a request
+// must then carry.
 message WebAuthnAuthenticationFinishResponse {
   // Server-assigned session ID (same semantics as OpaqueLoginFinishResponse).
   string session_id = 1;
@@ -1549,6 +1575,12 @@ message VerifyTotpRequest {
 
 // Shared response for MFA verification (TOTP, SMS, recovery).
 // Used by VerifyTotp, VerifySmsMfa, and VerifyRecoveryCode RPCs.
+//
+// A native sign-in that asked for a renewable session completes it here: a
+// SID native proof in `sid-native-proof`, `sid_cer` over the pending context
+// presented in `authorization`, and the completed session's first
+// generation in `sid-native-credentials-bin` response metadata
+// (native_session.proto).
 message MfaVerifyResponse {
   // Whether the MFA code was correct.
   bool verified = 1;

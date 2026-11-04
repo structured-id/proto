@@ -1,0 +1,103 @@
+// StructuredID native sessions: the refresh credentials of a direct SID
+// native sign-in, bound to the application instance's key.
+//
+// A native client completes an authentication ceremony of AuthService with a
+// SID native proof of its application key; the completion delivers the
+// access token in `authorization` response metadata and the session's first
+// generation of refresh credentials in `sid-native-credentials-bin` response
+// metadata (a NativeCredentialSet). AuthService.RefreshNativeSession
+// presents one credential of the current generation with a fresh proof and
+// receives the next generation the same way. Browser cookies, BFF custody
+// and OAuth refresh tokens follow their own contracts; an OAuth DPoP proof
+// is not a SID native proof.
+//
+// Metadata (gRPC metadata, the same names as HTTP headers):
+// - `sid-native-proof` (request): one SID native proof, a compact JWS
+//   described by NativeProofClaims.
+// - `sid-native-refresh` (request, RefreshNativeSession only): the presented
+//   refresh credential, as delivered.
+// - `sid-native-credentials-bin` (response): a NativeCredentialSet in
+//   protobuf binary encoding (base64 in an HTTP header, as gRPC carries
+//   `-bin` metadata).
+// Secrets never travel in a message body.
+syntax = "proto3";
+
+package sid.v1.authn;
+
+// One generation of a native session's refresh credentials, delivered in
+// `sid-native-credentials-bin` response metadata by a native ceremony
+// completion, a refresh and a redelivery of that refresh. The client
+// replaces its stored generation with this one as a whole: credentials of
+// different generations are never mixed.
+message NativeCredentialSet {
+  // The generation's refresh credentials, opaque bearer secrets of equal
+  // standing bound to the application key: any one of them, with a fresh
+  // proof by that key, refreshes the session once. Their number is the
+  // issuer's session policy (`native_refresh_generation_size`); a client
+  // accepts any count from 1 up to 16 and refuses a set outside it.
+  repeated string refresh_credentials = 1;
+  // Seconds until these credentials expire, counted from the response.
+  // Never beyond the session's absolute end or a source deadline.
+  int64 expires_in = 2;
+  // Seconds after a refresh commits during which a retry of the same
+  // exchange with another credential of the presented generation receives
+  // this same set again (the issuer's `native_redelivery_window_seconds`).
+  // After it, the presented generation is retired.
+  int64 redelivery_window = 3;
+}
+
+// The claims of a SID native proof (JWS header `typ: "sid-native+jwt"`,
+// `jwk`: the application key's public JWK, `alg`: an asymmetric algorithm
+// of RFC 9449 §4.2). Signature, key, `jti`, `htm`, `htu` and `iat` follow
+// RFC 9449 §4.2 and §4.3: `htu` and `htm` name the request as the client
+// actually addressed it (the issuer URL and gRPC method path for a direct
+// gRPC call, the HTTP route for an HTTP call), and each `jti` is admitted
+// once by the issuer. The SID claims below bind what standard DPoP does not
+// (RFC 9449 §11.7): `ath` keeps its access-token meaning and is not used.
+// This message documents the claim set; the proof is the JWS, not this
+// message.
+message NativeProofClaims {
+  // RFC 9449 §4.2: unique identifier of this proof; a proof is used once.
+  string jti = 1;
+  // RFC 9449 §4.2: the HTTP method of the request ("POST").
+  string htm = 2;
+  // RFC 9449 §4.2: the request URI without query and fragment, as the
+  // client addressed it.
+  string htu = 3;
+  // RFC 9449 §4.2: creation time, seconds since the epoch.
+  int64 iat = 4;
+  // On RefreshNativeSession: base64url (no padding) SHA-256 of the
+  // presented refresh credential's ASCII form. A proof for one credential
+  // presents no other.
+  string sid_rt = 5;
+  // On RefreshNativeSession: base64url (no padding) of the request's
+  // `exchange`. A retry of the same exchange keeps it under a new proof.
+  string sid_ex = 6;
+  // On a ceremony completion: base64url (no padding) SHA-256 of the
+  // ceremony reference that completion echoes, as the completing method
+  // documents it (for OpaqueLoginFinish its `server_login_state`). Binds
+  // the application key to that one authenticated ceremony.
+  string sid_cer = 7;
+}
+
+// Refresh a native session, or receive again the generation a lost response
+// carried. Presented credential in `sid-native-refresh`, proof in
+// `sid-native-proof`; the access token in `authorization` and the next
+// generation in `sid-native-credentials-bin` response metadata.
+message RefreshNativeSessionRequest {
+  // The logical exchange: 16 random bytes the client chooses for one refresh
+  // and keeps across its retries. Retrying an exchange within the
+  // redelivery window, with any credential of the generation it rotated and
+  // a fresh proof, answers the generation it committed; it grants no
+  // authority by itself.
+  bytes exchange = 1;
+}
+
+// The refreshed session. Its credentials are in the response metadata.
+message RefreshNativeSessionResponse {
+  // Server-assigned session identifier (UUIDv7) of the refreshed session:
+  // the same session, never a new one. Not a credential.
+  string session_id = 1;
+  // Seconds until the delivered access token expires.
+  int64 expires_in = 2;
+}

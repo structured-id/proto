@@ -427,6 +427,17 @@ message SecurityPolicyResponse {
   // When true (default): passkey login grants standard assurance (no second factor needed).
   // When false: passkey login grants basic assurance only.
   bool passkey_satisfies_mfa = 18;
+
+  // Refresh credentials in each generation of a native session bound to its
+  // application key (native_session.proto), 1 to 16: each one refreshes the
+  // session once with a fresh proof, so a retry after a lost response can
+  // use another. All of them occupy one session slot.
+  uint32 native_refresh_generation_size = 19;
+
+  // Seconds after a native refresh commits during which a retry of the same
+  // exchange receives the committed generation again; afterwards the
+  // presented generation is retired.
+  uint32 native_redelivery_window_seconds = 20;
 }
 
 message ApplicationOverride {
