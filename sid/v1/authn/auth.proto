@@ -940,8 +940,9 @@ message WebAuthnAuthenticationFinishRequest {
 
 // The session a passkey sign-in completed; its credential is delivered as for
 // OpaqueLoginFinishResponse. A native renewable session is asked for as
-// there, with `sid_cer` over the request's `state_key`, which such a request
-// must then carry.
+// there, with `sid_cer` over the `state_key` of the
+// WebAuthnAuthenticationStartResponse the assertion answers: the server
+// takes it from the assertion's own challenge, not from this request.
 message WebAuthnAuthenticationFinishResponse {
   // Server-assigned session ID (same semantics as OpaqueLoginFinishResponse).
   string session_id = 1;
