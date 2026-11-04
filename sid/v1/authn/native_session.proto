@@ -75,7 +75,7 @@ message NativeProofClaims {
   string sid_ex = 6;
   // On a ceremony completion: base64url (no padding) SHA-256 of the
   // ceremony reference that completion echoes, as the completing method
-  // documents it (for OpaqueLoginFinish its `server_login_state`). Binds
+  // documents it (for OpaqueLoginFinish the 16 bytes of its `login_id`). Binds
   // the application key to that one authenticated ceremony.
   string sid_cer = 7;
 }
