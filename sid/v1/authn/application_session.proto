@@ -64,7 +64,8 @@ service ApplicationSessionService {
   //
   // No cookie, or one naming no live session of this application's
   // connection, is UNAUTHENTICATED (TOKEN_INVALID). A session whose issuer
-  // session was ended elsewhere is ended here too and is UNAUTHENTICATED. A
+  // session was ended elsewhere (a back-channel logout received, or a
+  // revocation known here) is ended here too and is UNAUTHENTICATED. A
   // session store or revocation check that cannot be answered is UNAVAILABLE
   // with RetryInfo: an outage never reads as a signed-out user.
   //
@@ -94,6 +95,38 @@ service ApplicationSessionService {
       natural: "an ended session stays ended and is never resumed: a repeat finds no session, ends nothing more and answers GRANT_OUTCOME_UNKNOWN"
     };
   }
+
+  // The issuer's back-channel logout (OpenID Connect Back-Channel Logout 1.0
+  // §2.5): the application's issuer posts a `logout_token` here when a
+  // session it issued to this client ends. The adapter validates it as §2.6
+  // states (the connection's exact issuer and its keys, `typ` `logout+jwt`,
+  // `aud` this client, the logout event, no `nonce`) and ends every
+  // application session of that issuer session (`sid`), or of that subject
+  // when the token names no session. A sign-in completing for an ended
+  // issuer session afterwards opens nothing.
+  //
+  // Server to server, so the answer is HTTP (§2.8): `x-http-code` 200 with
+  // `cache-control: no-store` once the end is recorded in the session store;
+  // 400 with the JSON error `invalid_request` for a token that does not
+  // validate; 503 when the session store cannot be reached, so the issuer
+  // retries.
+  rpc ReceiveBackChannelLogout(BackChannelLogoutRequest) returns (google.api.HttpBody) {
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "an ended issuer session stays ended here: a repeat of the token, or a later token naming the same session, ends nothing more and answers 200 again"
+    };
+    option (google.api.http) = {
+      post: "/auth/backchannel-logout"
+      body: "body"
+    };
+  }
+}
+
+message BackChannelLogoutRequest {
+  // The issuer's POST as it arrived: the `application/x-www-form-urlencoded`
+  // form carrying `logout_token` (Back-Channel Logout 1.0 §2.5), sent by the
+  // issuer, never by a browser.
+  google.api.HttpBody body = 1;
 }
 
 message StartSignInRequest {
