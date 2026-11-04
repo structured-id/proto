@@ -29,6 +29,16 @@ message PasswordOperationId {
   bytes value = 1;
 }
 
+// One OPAQUE login (RFC 9807 §6) from its start to its finish: the reference
+// to the login state the server keeps between the two steps. It carries no
+// part of that state; the server's AKE state never leaves it.
+message OpaqueLoginId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
 // A non-human actor (a service, bot or agent) with its own SID credentials.
 // Not a Binding, a Profile or a device, whatever its bytes.
 message MachineUserId {
