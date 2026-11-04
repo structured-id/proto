@@ -101,9 +101,10 @@ service ApplicationSessionService {
   // session it issued to this client ends. The adapter validates it as §2.6
   // states (the connection's exact issuer and its keys, `typ` `logout+jwt`,
   // `aud` this client, the logout event, no `nonce`) and ends every
-  // application session of that issuer session (`sid`), or of that subject
-  // when the token names no session. A sign-in completing for an ended
-  // issuer session afterwards opens nothing.
+  // application session of that issuer session (`sid`). The client is
+  // registered with the session required (§2.2), so a token naming no
+  // session is `invalid_request` and ends nothing. A sign-in completing for
+  // an ended issuer session afterwards opens nothing.
   //
   // Server to server, so the answer is HTTP (§2.8): `x-http-code` 200 with
   // `cache-control: no-store` once the end is recorded in the session store;
