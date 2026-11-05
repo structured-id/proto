@@ -24,7 +24,7 @@ message RetryRule {
     // first commit and applies nothing again; a call with a missing,
     // malformed or duplicated context is refused before any effect, and
     // one under a retired period with OPERATION_EXPIRED.
-    bool keyed = 3;
+    bool keyed = 1;
     // The method follows its protocol's own consume or replay rule, stated
     // here with the normative section where the protocol is standardized
     // (for example RFC 6749 §4.1.2 for an authorization code). It takes no
@@ -32,11 +32,11 @@ message RetryRule {
     // record; a protocol that names its own operation (a password
     // operation, a reset) may answer a retry of that same operation with
     // the outcome it recorded, as its rule states.
-    string ceremony = 1;
+    string ceremony = 2;
     // The method's effect is the same however often it is applied: the
     // invariant that makes it so and what a repeat answers, including after
     // an intervening change.
-    string natural = 2;
+    string natural = 3;
   }
 }
 

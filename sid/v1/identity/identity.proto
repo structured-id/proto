@@ -28,36 +28,36 @@ message Profile {
   bool email_verified = 5;
 
   // Primary phone in E.164 format (denormalized from Principal for OIDC phone_number claim).
-  optional string phone = 19;
-  bool phone_verified = 20;
+  optional string phone = 6;
+  bool phone_verified = 7;
 
   // Structured name (OIDC Core 1.0 §5.1 + SCIM RFC 7643 §4.1.1).
   // OIDC `name` claim = computed from components, not stored.
-  optional string given_name = 6;       // Given name(s) / first name(s)
-  optional string family_name = 14;     // Family name(s) / surname(s) — optional (mononyms)
-  optional string middle_name = 15;     // Middle name(s), patronymic, generational qualifier
-  optional string honorific_prefix = 16; // "Dr.", "Prof.", "Sheikh"
-  optional string honorific_suffix = 17; // "Jr.", "III", "PhD"
-  optional string formatted_name = 18;  // Computed: [prefix] given [middle] family [suffix] (read-only)
+  optional string given_name = 8;       // Given name(s) / first name(s)
+  optional string family_name = 9;      // Family name(s) / surname(s) — optional (mononyms)
+  optional string middle_name = 10;     // Middle name(s), patronymic, generational qualifier
+  optional string honorific_prefix = 11; // "Dr.", "Prof.", "Sheikh"
+  optional string honorific_suffix = 12; // "Jr.", "III", "PhD"
+  optional string formatted_name = 13;  // Computed: [prefix] given [middle] family [suffix] (read-only)
 
   // Avatar URL.
-  optional string avatar_url = 7;
+  optional string avatar_url = 14;
 
   // Account status (active / suspended / closed).
-  ProfileStatus status = 8;
+  ProfileStatus status = 15;
 
   // Profile visibility (public / private).
-  ProfileVisibility visibility = 9;
+  ProfileVisibility visibility = 16;
 
   // Timestamps.
-  google.protobuf.Timestamp created_at = 10;
-  google.protobuf.Timestamp updated_at = 11;
+  google.protobuf.Timestamp created_at = 17;
+  google.protobuf.Timestamp updated_at = 18;
 
   // Last login.
-  optional google.protobuf.Timestamp last_login_at = 12;
+  optional google.protobuf.Timestamp last_login_at = 19;
 
   // Principals (login handles: email, phone, username, etc.).
-  repeated Principal principals = 13;
+  repeated Principal principals = 20;
 }
 
 // Principal represents a verifiable login handle (always authentication-capable)
@@ -550,15 +550,15 @@ message CreateProfileRequest {
   // Email address. Requires OTP/magic-link verification after signup.
   optional string email = 2;
   // Phone number in E.164 format (+380501234567). Requires OTP verification after signup.
-  optional string phone = 17;
+  optional string phone = 3;
 
   // Structured name components (OIDC + SCIM compliant). All optional.
-  optional string given_name = 3;
-  optional string family_name = 13;
-  optional string middle_name = 14;
-  optional string honorific_prefix = 15;
-  optional string honorific_suffix = 16;
-  ProfileType profile_type = 4;
+  optional string given_name = 4;
+  optional string family_name = 5;
+  optional string middle_name = 6;
+  optional string honorific_prefix = 7;
+  optional string honorific_suffix = 8;
+  ProfileType profile_type = 9;
 
   // Enrollment fields (used during self-registration).
   // invite_code is required when enrollment mode = InviteOnly.
@@ -605,11 +605,11 @@ message UpdateProfileRequest {
   // The Profile to update.
   sid.v1.ids.ProfileId id = 1;
   optional string given_name = 2;
-  optional string family_name = 4;
-  optional string middle_name = 5;
-  optional string honorific_prefix = 6;
-  optional string honorific_suffix = 7;
-  optional string avatar_url = 3;
+  optional string family_name = 3;
+  optional string middle_name = 4;
+  optional string honorific_prefix = 5;
+  optional string honorific_suffix = 6;
+  optional string avatar_url = 7;
 }
 
 message UpdateProfileResponse {
