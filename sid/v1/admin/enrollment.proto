@@ -103,12 +103,9 @@ service EnrollmentService {
 
 // The installation's bootstrap status, as the registration page needs it.
 message InstanceStatus {
-  reserved 1;
-  reserved "claimed";
-
   // The local administrator claim of this installation. The token itself is
   // never returned, nor who holds administration.
-  AdministratorClaim claim = 2;
+  AdministratorClaim claim = 1;
 }
 
 // Whether an installation offers a local first-administrator claim.

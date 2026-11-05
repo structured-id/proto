@@ -30,13 +30,12 @@ message GetSiteInfoRequest {}
 message SiteInfo {
   string site_name = 1;
   string version = 2;
-  reserved 3;
-  string primary_domain = 4;
-  string admin_contact = 5;
+  string primary_domain = 3;
+  string admin_contact = 4;
   // Quick stats.
-  SiteStats stats = 6;
+  SiteStats stats = 5;
   // Name of the server build serving the site (InstanceInfo.edition).
-  string edition = 7;
+  string edition = 6;
 }
 
 message SiteStats {

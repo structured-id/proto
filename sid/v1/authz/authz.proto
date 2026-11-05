@@ -408,32 +408,29 @@ service AuthzService {
 // a request whose evidence fails is refused, never re-evaluated in another
 // mode.
 message CheckPermissionRequest {
-  reserved 1, 3, 5;
-  reserved "subject", "resource", "context";
-
   // The application operation to decide, in the target application's own
   // vocabulary (for example "orders.read"). The receiver maps its real
   // operation to it; SID does not derive it from an HTTP method or path.
-  string action = 2;
+  string action = 1;
 
   // How fresh the decision must be; unspecified is CONSISTENCY_EVENTUAL.
-  Consistency consistency = 4;
+  Consistency consistency = 2;
 
   // Where the action would take effect.
-  PermissionTarget target = 6;
+  PermissionTarget target = 3;
 
   // Whose permission is decided, and on what evidence.
   oneof evaluation {
     // The subject of one original request to the target, established from
     // that request's own access token (request-bound evaluation).
-    RequestEvaluation request = 7;
+    RequestEvaluation request = 4;
     // A named subject, evaluated by policy alone (abstract evaluation). It
     // claims no presence, session, assurance or sender proof, and cannot
     // satisfy a policy that requires them.
-    SubjectReference named_subject = 8;
+    SubjectReference named_subject = 5;
     // The caller itself, as its own credential authenticates it. Needs no
     // checker assignment.
-    SelfEvaluation self = 9;
+    SelfEvaluation self = 6;
   }
 }
 
@@ -501,8 +498,8 @@ message IssuerSubject {
 message SelfEvaluation {}
 
 message CheckPermissionResponse {
-  reserved 1;
-  reserved "allowed";
+  // The decision.
+  PermissionOutcome outcome = 1;
 
   // Explanation of the decision, for a caller asking about itself; absent
   // for a checker, which gets the decision without policy internals.
@@ -510,9 +507,6 @@ message CheckPermissionResponse {
 
   // Snapshot token for subsequent consistent checks.
   optional string zookie = 3;
-
-  // The decision.
-  PermissionOutcome outcome = 4;
 }
 
 // What a permission question decided.

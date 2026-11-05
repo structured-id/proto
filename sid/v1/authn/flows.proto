@@ -350,8 +350,7 @@ message StepType {
   string display_name = 2;
   string description = 3;
   string category = 4;         // "authenticator", "identity", "verification"
-  reserved 5;
-  bool configurable = 6;
+  bool configurable = 5;
 }
 
 message ListStepTypesResponse {

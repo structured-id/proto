@@ -86,23 +86,22 @@ message UpstreamProvider {
   TrustCategory trust_category = 4;
   bool enabled = 5;
   string client_id = 6;
-  // Field 7 reserved: client_secret is write-only (in create/update requests only).
 
   // OIDC discovery or manual endpoint configuration.
-  string discovery_url = 8;
-  string authorization_endpoint = 9;
-  string token_endpoint = 10;
-  string userinfo_endpoint = 11;
-  repeated string scopes = 12;
+  string discovery_url = 7;
+  string authorization_endpoint = 8;
+  string token_endpoint = 9;
+  string userinfo_endpoint = 10;
+  repeated string scopes = 11;
 
   // Login screen display settings.
-  bool show_on_login = 13;
-  int32 display_order = 14;
-  string logo_url = 15;
+  bool show_on_login = 12;
+  int32 display_order = 13;
+  string logo_url = 14;
 
   // Timestamps.
-  google.protobuf.Timestamp created_at = 16;
-  google.protobuf.Timestamp updated_at = 17;
+  google.protobuf.Timestamp created_at = 15;
+  google.protobuf.Timestamp updated_at = 16;
 }
 
 // Minimal provider info for the login screen (public, no admin details).
@@ -205,12 +204,11 @@ message HandleUpstreamCallbackResponse {
 
 message UpstreamAuthSuccess {
   string session_id = 1;
-  // The session's credential is delivered as for
-  // sid.v1.OpaqueLoginFinishResponse, never in this message.
-  reserved 2;
-  reserved "access_token";
-  int64 expires_in = 3;
-  bool new_profile_created = 4;
+  // Seconds until the delivered credential expires. The session's credential
+  // is delivered as for sid.v1.OpaqueLoginFinishResponse, never in this
+  // message.
+  int64 expires_in = 2;
+  bool new_profile_created = 3;
 }
 
 message UpstreamLinkingRequired {
