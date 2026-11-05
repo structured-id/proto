@@ -228,19 +228,18 @@ message InstanceInfo {
   string version = 1;
   string build_commit = 2;
   string build_date = 3;
-  reserved 4;
-  string instance_id = 5;
-  string uptime = 6;
-  string rust_version = 7;
-  repeated string compiled_features = 8;
-  string os = 9;
-  uint32 node_count = 10;
-  uint32 healthy_nodes = 11;
+  string instance_id = 4;
+  string uptime = 5;
+  string rust_version = 6;
+  repeated string compiled_features = 7;
+  string os = 8;
+  uint32 node_count = 9;
+  uint32 healthy_nodes = 10;
   // Name of the server build serving this instance, set by the server itself
   // (`community` for this repository's server). Shown to administrators;
   // clients do not branch on it: an unavailable feature answers
   // FEATURE_NOT_AVAILABLE.
-  string edition = 12;
+  string edition = 11;
 }
 
 // ── Notification Channel Messages ──

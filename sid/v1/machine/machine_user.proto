@@ -138,18 +138,16 @@ message MachineUserInfo {
   MachineUserStatus status = 7;
   string owner_type = 8;
   string owner_id = 9;
-  repeated string scopes = 10;
   // Roles are RoleAssignments of the machine user principal (AuthzService),
   // never a list stored on the machine user.
-  reserved 11;
-  reserved "roles";
-  repeated string ip_allowlist = 12;
-  int32 rate_limit_rpm = 13;
-  int32 max_token_lifetime = 14;
-  google.protobuf.Timestamp expires_at = 15;
-  google.protobuf.Timestamp last_used_at = 16;
-  google.protobuf.Timestamp created_at = 17;
-  google.protobuf.Timestamp updated_at = 18;
+  repeated string scopes = 10;
+  repeated string ip_allowlist = 11;
+  int32 rate_limit_rpm = 12;
+  int32 max_token_lifetime = 13;
+  google.protobuf.Timestamp expires_at = 14;
+  google.protobuf.Timestamp last_used_at = 15;
+  google.protobuf.Timestamp created_at = 16;
+  google.protobuf.Timestamp updated_at = 17;
 }
 
 message MachineCredentialInfo {
@@ -178,14 +176,12 @@ message CreateMachineUserRequest {
   string display_name = 2;
   string description = 3;
   MachineUserType machine_type = 4;
-  repeated string scopes = 5;
   // Roles are granted through AuthzService.AssignRole.
-  reserved 6;
-  reserved "roles";
-  repeated string ip_allowlist = 7;
-  int32 rate_limit_rpm = 8;
-  int32 max_token_lifetime = 9;
-  google.protobuf.Timestamp expires_at = 10;
+  repeated string scopes = 5;
+  repeated string ip_allowlist = 6;
+  int32 rate_limit_rpm = 7;
+  int32 max_token_lifetime = 8;
+  google.protobuf.Timestamp expires_at = 9;
 }
 
 message CreateMachineUserResponse {
@@ -204,14 +200,12 @@ message UpdateMachineUserRequest {
   string machine_user_id = 1;
   string display_name = 2;
   string description = 3;
-  repeated string scopes = 4;
   // Roles are granted through AuthzService.AssignRole.
-  reserved 5;
-  reserved "roles";
-  repeated string ip_allowlist = 6;
-  int32 rate_limit_rpm = 7;
-  int32 max_token_lifetime = 8;
-  google.protobuf.Timestamp expires_at = 9;
+  repeated string scopes = 4;
+  repeated string ip_allowlist = 5;
+  int32 rate_limit_rpm = 6;
+  int32 max_token_lifetime = 7;
+  google.protobuf.Timestamp expires_at = 8;
 }
 
 message DeleteMachineUserRequest {

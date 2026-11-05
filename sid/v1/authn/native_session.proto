@@ -99,8 +99,7 @@ message RefreshNativeSessionRequest {
 message RefreshNativeSessionResponse {
   // The refreshed session: the same session, never a new one. Not a
   // credential.
-  sid.v1.ids.SessionId session_id = 3;
-  reserved 1;
+  sid.v1.ids.SessionId session_id = 1;
   // Seconds until the delivered access token expires.
   int64 expires_in = 2;
 }

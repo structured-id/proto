@@ -305,7 +305,6 @@ message AnomalyRule {
   // Contribution of the rule to the risk score (0-100). Read-only where the
   // server does not let administrators tune rules.
   int32 weight = 6;
-  reserved 7;
 }
 
 enum AnomalyRuleType {
