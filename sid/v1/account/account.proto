@@ -10,6 +10,7 @@ import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
 import "sid/v1/common/operation.proto";
 import "sid/v1/identity/identity.proto";
+import "sid/v1/ids/ids.proto";
 
 // ══════════════════════════════════════════════════════════════════════════
 // Consent management — claim-level consent control
@@ -282,7 +283,7 @@ service AccountService {
   rpc RemovePhone(RemovePhoneRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { delete: "/v1/account/phones/{phone_id}" };
+    option (google.api.http) = { delete: "/v1/account/phones/{phone_id.value}" };
   }
 
   // Update a phone number's label or capabilities. Only the given settings
@@ -290,14 +291,14 @@ service AccountService {
   rpc UpdatePhone(UpdatePhoneRequest) returns (sid.v1.identity.ProfilePhone) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { patch: "/v1/account/phones/{phone_id}" body: "*" };
+    option (google.api.http) = { patch: "/v1/account/phones/{phone_id.value}" body: "*" };
   }
 
   // Set a phone as the primary phone for this profile.
   rpc SetPrimaryPhone(SetPrimaryPhoneRequest) returns (sid.v1.identity.ProfilePhone) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { post: "/v1/account/phones/{phone_id}/primary" body: "*" };
+    option (google.api.http) = { post: "/v1/account/phones/{phone_id.value}/primary" body: "*" };
   }
 
   // List all phone numbers for the current profile.
@@ -320,21 +321,21 @@ service AccountService {
   rpc RemoveEmail(RemoveEmailRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { delete: "/v1/account/emails/{email_id}" };
+    option (google.api.http) = { delete: "/v1/account/emails/{email_id.value}" };
   }
 
   // Update an email address's label. Only the given settings are written.
   rpc UpdateEmail(UpdateEmailRequest) returns (sid.v1.identity.ProfileEmail) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { patch: "/v1/account/emails/{email_id}" body: "*" };
+    option (google.api.http) = { patch: "/v1/account/emails/{email_id.value}" body: "*" };
   }
 
   // Set an email as the primary email for this profile.
   rpc SetPrimaryEmail(SetPrimaryEmailRequest) returns (sid.v1.identity.ProfileEmail) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { post: "/v1/account/emails/{email_id}/primary" body: "*" };
+    option (google.api.http) = { post: "/v1/account/emails/{email_id.value}/primary" body: "*" };
   }
 
   // List all email addresses for the current profile.
@@ -506,11 +507,15 @@ message AddPhoneRequest {
 }
 
 message RemovePhoneRequest {
-  string phone_id = 1;
+  // The phone to remove (`ProfilePhone.id`) of the caller's own Profile.
+  sid.v1.ids.ProfilePhoneId phone_id = 2;
+  reserved 1;
 }
 
 message UpdatePhoneRequest {
-  string phone_id = 1;
+  // The phone to update (`ProfilePhone.id`) of the caller's own Profile.
+  sid.v1.ids.ProfilePhoneId phone_id = 7;
+  reserved 1;
   optional sid.v1.identity.PhoneLabel label = 2;
   optional string custom_label = 3;
   optional bool can_receive_sms = 4;
@@ -519,7 +524,9 @@ message UpdatePhoneRequest {
 }
 
 message SetPrimaryPhoneRequest {
-  string phone_id = 1;
+  // The phone to make primary (`ProfilePhone.id`).
+  sid.v1.ids.ProfilePhoneId phone_id = 2;
+  reserved 1;
 }
 
 message ListPhonesResponse {
@@ -536,17 +543,23 @@ message AddEmailRequest {
 }
 
 message RemoveEmailRequest {
-  string email_id = 1;
+  // The email to remove (`ProfileEmail.id`) of the caller's own Profile.
+  sid.v1.ids.ProfileEmailId email_id = 2;
+  reserved 1;
 }
 
 message UpdateEmailRequest {
-  string email_id = 1;
+  // The email to update (`ProfileEmail.id`) of the caller's own Profile.
+  sid.v1.ids.ProfileEmailId email_id = 4;
+  reserved 1;
   optional sid.v1.identity.EmailLabel label = 2;
   optional string custom_label = 3;
 }
 
 message SetPrimaryEmailRequest {
-  string email_id = 1;
+  // The email to make primary (`ProfileEmail.id`).
+  sid.v1.ids.ProfileEmailId email_id = 2;
+  reserved 1;
 }
 
 message ListEmailsResponse {

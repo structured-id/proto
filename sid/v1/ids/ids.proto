@@ -8,6 +8,53 @@ syntax = "proto3";
 // This file imports nothing, so a consumer can compile it on its own.
 package sid.v1.ids;
 
+// A user's Profile within one installation. Internal to that installation:
+// an external or federated service never receives it and sees a pairwise
+// BindingId instead.
+message ProfileId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// One login handle of a Profile (an email, phone or username it signs in
+// with): the reference its management names. Not the handle's value.
+message PrincipalId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// One email address recorded for a Profile, a contact that may or may not
+// be a login handle: the reference its management names.
+message ProfileEmailId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// One phone number recorded for a Profile, a contact that may or may not be
+// a login handle: the reference its management names.
+message ProfilePhoneId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// A device registered in a Profile's scope: a descriptive record its
+// management and sessions name. Knowing it grants no authority and proves
+// no possession of a device key.
+message DeviceId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
 // A Profile's identity at one organization: the pairwise subject that
 // organization's services see. Opaque and unlinkable across organizations;
 // it never carries or reveals a ProfileId.

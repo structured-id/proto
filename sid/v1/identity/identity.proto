@@ -8,12 +8,15 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
 import "sid/v1/common/operation.proto";
+import "sid/v1/ids/ids.proto";
 
 // Profile represents a user identity in StructuredID: the Profile is the
 // user (there is no separate User entity).
 message Profile {
-  // Unique identifier (UUIDv7).
-  string id = 1;
+  // The Profile, issued by SID at its creation. Internal to the
+  // installation; an external service never receives it.
+  sid.v1.ids.ProfileId id = 21;
+  reserved 1;
 
   // Profile type (personal or corporate).
   ProfileType profile_type = 2;
@@ -62,11 +65,11 @@ message Profile {
 // claimed by the Profile that lists it. If a value cannot be used for login,
 // it's a Profile Field, not a Principal.
 message Principal {
-  reserved 9, 10;
+  reserved 1, 9, 10;
   reserved "subject_type", "subject_id";
 
-  // Unique principal identifier (UUIDv7).
-  string id = 1;
+  // The login handle, issued by SID when the Profile claimed it.
+  sid.v1.ids.PrincipalId id = 13;
   // Principal type: email, phone, username, face_embedding, nfc_tag.
   PrincipalType type = 2;
   // The handle as sign-in resolves it, derived by the server: for an email
@@ -82,10 +85,11 @@ message Principal {
   google.protobuf.Timestamp updated_at = 7;
   // Links Principal to the ProfilePhone/ProfileEmail it was created from.
   optional string source_field = 8;
-  // The ProfileEmail (UUID) whose address this email handle delivers to,
-  // in the spelling given; absent for other types and for a handle whose
-  // address is not known.
-  optional string source_email_id = 11;
+  // The ProfileEmail whose address this email handle delivers to, in the
+  // spelling given; absent for other types and for a handle whose address is
+  // not known.
+  sid.v1.ids.ProfileEmailId source_email_id = 14;
+  reserved 11;
   // An email handle written before the installation's email policy
   // revisions, its address unknown: still reserved for the account, but no
   // sign-in, code, link or reset uses it until the owner confirms the
@@ -109,7 +113,9 @@ enum PrincipalType {
 // ProfilePhone represents a phone number associated with a profile.
 // E.164 format stored as uint64 (max 15 digits, no + prefix).
 message ProfilePhone {
-  string id = 1;                              // UUID
+  // The phone record, issued by SID when it was added.
+  sid.v1.ids.ProfilePhoneId id = 12;
+  reserved 1;
   uint64 e164 = 2;                            // E.164 digits only (no +), max 15 digits
   optional uint32 extension = 3;              // RFC 3966 ;ext=N
   PhoneLabel label = 4;
@@ -137,7 +143,9 @@ enum PhoneLabel {
 // ProfileEmail represents an email address associated with a profile.
 // Normalized: lowercase + NFC Unicode normalization.
 message ProfileEmail {
-  string id = 1;                              // UUID
+  // The email record, issued by SID when it was added.
+  sid.v1.ids.ProfileEmailId id = 8;
+  reserved 1;
   string email = 2;                           // Normalized email address
   EmailLabel label = 3;
   optional string custom_label = 4;           // User-defined label when label=CUSTOM
@@ -180,10 +188,13 @@ enum ProfileVisibility {
   PROFILE_VISIBILITY_PRIVATE = 2;
 }
 
-// Credential represents an authentication factor.
+// Credential represents an authentication factor of the Profile the listing
+// named.
 message Credential {
-  string id = 1;
-  string profile_id = 2;
+  // The credential, issued by SID when it was added.
+  sid.v1.ids.CredentialId id = 10;
+  reserved 1, 2;
+  reserved "profile_id";
 
   CredentialType type = 3;
 
@@ -321,18 +332,20 @@ enum CredentialType {
   CREDENTIAL_TYPE_LEGACY_HASH = 5; // Legacy password hash (temporary, during migration)
 }
 
-// Session represents an active user session.
+// Session represents an active session of the Profile the listing named.
 message Session {
-  string id = 1;
-  string profile_id = 2;
+  // The session, issued by SID when it opened.
+  sid.v1.ids.SessionId id = 11;
+  reserved 1, 2, 4;
+  reserved "profile_id";
 
-  // Client info.
+  // OAuth `client_id` (RFC 6749 §2.2) of the client the session was opened
+  // for: the protocol's own text.
   string client_id = 3;
-  // Device the session was issued on (`Device.id`, UUIDv7); unset when the
-  // session is not associated with a registered device. A revocation
-  // association (removing the device ends the session), not proof of key
-  // possession.
-  optional string device_id = 4;
+  // Device the session was issued on (`Device.id`); unset when the session
+  // is not associated with a registered device. A revocation association
+  // (removing the device ends the session), not proof of key possession.
+  sid.v1.ids.DeviceId device_id = 12;
 
   // Session metadata.
   string ip_address = 5;
@@ -357,71 +370,87 @@ service IdentityService {
   }
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { get: "/v1/identity/profiles/{id}" };
+    option (google.api.http) = { get: "/v1/identity/profiles/{id.value}" };
   }
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { patch: "/v1/identity/profiles/{id}" body: "*" };
+    option (google.api.http) = { patch: "/v1/identity/profiles/{id.value}" body: "*" };
   }
   rpc DeleteProfile(DeleteProfileRequest) returns (DeleteProfileResponse) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { delete: "/v1/identity/profiles/{id}" };
+    option (google.api.http) = { delete: "/v1/identity/profiles/{id.value}" };
   }
   rpc ListProfiles(ListProfilesRequest) returns (ListProfilesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { get: "/v1/identity/profiles" };
   }
 
-  // Credential management.
+  // Credential management. A request without `profile_id` acts on the
+  // caller's own Profile; naming another requires administrator authority.
   rpc AddCredential(AddCredentialRequest) returns (AddCredentialResponse) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { post: "/v1/identity/profiles/{profile_id}/credentials" body: "*" };
+    option (google.api.http) = {
+      post: "/v1/identity/credentials" body: "*"
+      additional_bindings { post: "/v1/identity/profiles/{profile_id.value}/credentials" body: "*" }
+    };
   }
   rpc ListCredentials(ListCredentialsRequest) returns (ListCredentialsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { get: "/v1/identity/profiles/{profile_id}/credentials" };
+    option (google.api.http) = {
+      get: "/v1/identity/credentials"
+      additional_bindings { get: "/v1/identity/profiles/{profile_id.value}/credentials" }
+    };
   }
   rpc UpdateCredential(UpdateCredentialRequest) returns (UpdateCredentialResponse) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { patch: "/v1/identity/credentials/{credential_id}" body: "*" };
+    option (google.api.http) = { patch: "/v1/identity/credentials/{credential_id.value}" body: "*" };
   }
   rpc RevokeCredential(RevokeCredentialRequest) returns (RevokeCredentialResponse) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { delete: "/v1/identity/credentials/{credential_id}" };
+    option (google.api.http) = { delete: "/v1/identity/credentials/{credential_id.value}" };
   }
 
-  // Principal management.
+  // Principal management; `profile_id` as for credentials.
   rpc AddPrincipal(AddPrincipalRequest) returns (AddPrincipalResponse) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { post: "/v1/identity/profiles/{profile_id}/principals" body: "*" };
+    option (google.api.http) = {
+      post: "/v1/identity/principals" body: "*"
+      additional_bindings { post: "/v1/identity/profiles/{profile_id.value}/principals" body: "*" }
+    };
   }
   rpc ListPrincipals(ListPrincipalsRequest) returns (ListPrincipalsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { get: "/v1/identity/profiles/{profile_id}/principals" };
+    option (google.api.http) = {
+      get: "/v1/identity/principals"
+      additional_bindings { get: "/v1/identity/profiles/{profile_id.value}/principals" }
+    };
   }
   rpc RemovePrincipal(RemovePrincipalRequest) returns (RemovePrincipalResponse) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { delete: "/v1/identity/principals/{principal_id}" };
+    option (google.api.http) = { delete: "/v1/identity/principals/{principal_id.value}" };
   }
 
-  // Session management.
+  // Session management; `profile_id` as for credentials.
   rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { get: "/v1/identity/profiles/{profile_id}/sessions" };
+    option (google.api.http) = {
+      get: "/v1/identity/sessions"
+      additional_bindings { get: "/v1/identity/profiles/{profile_id.value}/sessions" }
+    };
   }
   rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResponse) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       natural: "an ended session stays ended and is never resumed: a repeat finds none and answers as the first, disclosing nothing"
     };
-    option (google.api.http) = { delete: "/v1/identity/sessions/{session_id}" };
+    option (google.api.http) = { delete: "/v1/identity/sessions/{session_id.value}" };
   }
 
   // Passkey registration prompts.
@@ -441,7 +470,7 @@ service IdentityService {
     option (sid.v1.common.retry) = {
       natural: "every cascade step ends only what is still active and a revoked profile is never reactivated: a repeat ends what an interrupted attempt left and nothing else, and counts what it ended"
     };
-    option (google.api.http) = { post: "/v1/identity/profiles/{profile_id}/revoke" body: "*" };
+    option (google.api.http) = { post: "/v1/identity/profiles/{profile_id.value}/revoke" body: "*" };
   }
 
   // Account closure.
@@ -486,34 +515,37 @@ service IdentityService {
     option (google.api.http) = { get: "/v1/identity/me" };
   }
 
-  // Device management.
+  // Device management; `profile_id` as for credentials.
   rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { get: "/v1/identity/profiles/{profile_id}/devices" };
+    option (google.api.http) = {
+      get: "/v1/identity/devices"
+      additional_bindings { get: "/v1/identity/profiles/{profile_id.value}/devices" }
+    };
   }
   rpc GetDevice(GetDeviceRequest) returns (Device) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { get: "/v1/identity/devices/{device_id}" };
+    option (google.api.http) = { get: "/v1/identity/devices/{device_id.value}" };
   }
   rpc UpdateDevice(UpdateDeviceRequest) returns (Device) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { patch: "/v1/identity/devices/{device_id}" body: "*" };
+    option (google.api.http) = { patch: "/v1/identity/devices/{device_id.value}" body: "*" };
   }
   rpc RemoveDevice(RemoveDeviceRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { delete: "/v1/identity/devices/{device_id}" };
+    option (google.api.http) = { delete: "/v1/identity/devices/{device_id.value}" };
   }
   rpc TrustDevice(TrustDeviceRequest) returns (Device) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { post: "/v1/identity/devices/{device_id}/trust" body: "*" };
+    option (google.api.http) = { post: "/v1/identity/devices/{device_id.value}/trust" body: "*" };
   }
   rpc RevokeDeviceTrust(RevokeDeviceTrustRequest) returns (Device) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { post: "/v1/identity/devices/{device_id}/revoke-trust" body: "*" };
+    option (google.api.http) = { post: "/v1/identity/devices/{device_id.value}/revoke-trust" body: "*" };
   }
 }
 
@@ -542,8 +574,10 @@ message CreateProfileRequest {
   // Enrollment fields (used during self-registration).
   // invite_code is required when enrollment mode = InviteOnly.
   optional string invite_code = 10;
-  // Optional referrer profile ID (tracked for analytics).
-  optional string referrer_id = 11;
+  // The Profile that referred this registration, tracked for analytics;
+  // absent when none did. It must name an existing Profile.
+  sid.v1.ids.ProfileId referrer_id = 18;
+  reserved 11;
   // Optional UTM parameters captured from registration URL.
   optional UtmParams utm = 12;
 }
@@ -562,9 +596,13 @@ message CreateProfileResponse {
 }
 
 message GetProfileRequest {
+  reserved 1;
   oneof identifier {
-    string id = 1;
+    // The Profile itself.
+    sid.v1.ids.ProfileId id = 4;
+    // A username handle the Profile claims.
     string username = 2;
+    // An email handle the Profile claims.
     string email = 3;
   }
 }
@@ -577,7 +615,9 @@ message GetProfileResponse {
 }
 
 message UpdateProfileRequest {
-  string id = 1;
+  // The Profile to update.
+  sid.v1.ids.ProfileId id = 8;
+  reserved 1;
   optional string given_name = 2;
   optional string family_name = 4;
   optional string middle_name = 5;
@@ -591,7 +631,9 @@ message UpdateProfileResponse {
 }
 
 message DeleteProfileRequest {
-  string id = 1;
+  // The Profile to delete.
+  sid.v1.ids.ProfileId id = 2;
+  reserved 1;
 }
 
 message DeleteProfileResponse {}
@@ -607,7 +649,10 @@ message ListProfilesResponse {
 }
 
 message AddCredentialRequest {
-  string profile_id = 1;
+  // The Profile to add to; absent for the caller's own (resolved from its
+  // session). Another Profile requires administrator authority.
+  sid.v1.ids.ProfileId profile_id = 5;
+  reserved 1;
   CredentialType type = 2;
   bytes data = 3;
   optional string label = 4;
@@ -618,7 +663,10 @@ message AddCredentialResponse {
 }
 
 message ListCredentialsRequest {
-  string profile_id = 1;
+  // The Profile whose credentials to list; absent for the caller's own.
+  // Another Profile requires administrator authority.
+  sid.v1.ids.ProfileId profile_id = 2;
+  reserved 1;
 }
 
 message ListCredentialsResponse {
@@ -626,7 +674,9 @@ message ListCredentialsResponse {
 }
 
 message UpdateCredentialRequest {
-  string credential_id = 1;
+  // The credential to update (`Credential.id`).
+  sid.v1.ids.CredentialId credential_id = 3;
+  reserved 1;
   // Currently only label can be updated.
   // Cryptographic material is immutable after registration.
   optional string label = 2;
@@ -637,13 +687,18 @@ message UpdateCredentialResponse {
 }
 
 message RevokeCredentialRequest {
-  string credential_id = 1;
+  // The credential to revoke (`Credential.id`).
+  sid.v1.ids.CredentialId credential_id = 2;
+  reserved 1;
 }
 
 message RevokeCredentialResponse {}
 
 message ListSessionsRequest {
-  string profile_id = 1;
+  // The Profile whose sessions to list; absent for the caller's own.
+  // Another Profile requires administrator authority.
+  sid.v1.ids.ProfileId profile_id = 2;
+  reserved 1;
 }
 
 message ListSessionsResponse {
@@ -651,7 +706,9 @@ message ListSessionsResponse {
 }
 
 message RevokeSessionRequest {
-  string session_id = 1;
+  // The session to end (`Session.id`).
+  sid.v1.ids.SessionId session_id = 2;
+  reserved 1;
 }
 
 message RevokeSessionResponse {}
@@ -659,7 +716,10 @@ message RevokeSessionResponse {}
 // Principal messages.
 
 message AddPrincipalRequest {
-  string profile_id = 1;
+  // The Profile to add to; absent for the caller's own. Another Profile
+  // requires administrator authority.
+  sid.v1.ids.ProfileId profile_id = 4;
+  reserved 1;
   PrincipalType type = 2;
   string value = 3;
 }
@@ -669,7 +729,10 @@ message AddPrincipalResponse {
 }
 
 message ListPrincipalsRequest {
-  string profile_id = 1;
+  // The Profile whose principals to list; absent for the caller's own.
+  // Another Profile requires administrator authority.
+  sid.v1.ids.ProfileId profile_id = 2;
+  reserved 1;
 }
 
 message ListPrincipalsResponse {
@@ -677,7 +740,9 @@ message ListPrincipalsResponse {
 }
 
 message RemovePrincipalRequest {
-  string principal_id = 1;
+  // The principal to remove (`Principal.id`).
+  sid.v1.ids.PrincipalId principal_id = 2;
+  reserved 1;
 }
 
 message RemovePrincipalResponse {}
@@ -715,7 +780,9 @@ message RecordPasskeyPromptDismissalResponse {
 // ── Revocation messages ──
 
 message RevokeProfileRequest {
-  string profile_id = 1;
+  // The Profile to revoke, named explicitly even by its owner.
+  sid.v1.ids.ProfileId profile_id = 3;
+  reserved 1;
   string reason = 2;           // "user_requested", "admin", "emergency", etc.
 }
 
@@ -739,8 +806,10 @@ message RequestClosureRequest {
   optional string court_reference = 3; // Required for REGULATORY_ORDER mode.
 }
 
+// The closure of the caller's own Profile.
 message RequestClosureResponse {
-  string profile_id = 1;
+  reserved 1;
+  reserved "profile_id";
   ClosureMode mode = 2;
   google.protobuf.Timestamp grace_period_end = 3;
 }
@@ -784,7 +853,8 @@ enum ExportFormat {
 }
 
 message PrepareExportResponse {
-  string export_id = 1;
+  reserved 1;
+  reserved "export_id";
   google.protobuf.Timestamp estimated_ready = 2;
 }
 
@@ -795,8 +865,10 @@ message GetExportStatusResponse {
   ExportStatus export_status = 1;
   // Export archive size in bytes. Set when status >= READY.
   optional int64 size_bytes = 2;
-  // SHA-256 checksum of the export archive. Set when status >= READY.
-  optional string checksum_sha256 = 3;
+  // SHA-256 digest (FIPS 180-4) of the export archive, the 32 raw bytes.
+  // Set when status >= READY.
+  optional bytes checksum_sha256 = 6;
+  reserved 3;
   // Timestamp when the export became ready for download.
   optional google.protobuf.Timestamp ready_at = 4;
   // Timestamp when the download link expires (default: 7 days after ready_at).
@@ -838,15 +910,13 @@ enum DeviceAssurance {
 // Known device associated with a profile. A descriptive record (DTO), not an
 // identifier type and not evidence of device authority.
 message Device {
-  // Device identifier: UUIDv7 in canonical lowercase hyphenated form. Issued by
-  // SID when the device is registered in the owning Profile's scope; the same
-  // value is carried as `device_id` in session and attestation messages.
-  // Knowing it grants no authority and does not prove key possession.
-  string id = 1;
-
-  // Owning Profile identifier (UUIDv7). Internal identity; never exposed to
-  // external or federated services.
-  string profile_id = 2;
+  // The device, issued by SID when it is registered in the owning Profile's
+  // scope; the same value is carried as `device_id` in session and
+  // attestation messages. Knowing it grants no authority and does not prove
+  // key possession.
+  sid.v1.ids.DeviceId id = 12;
+  reserved 1, 2;
+  reserved "profile_id";
 
   // User-given label for the device (e.g. "Work laptop"). Set by the Profile
   // owner via UpdateDevice; unset until the user names the device.
@@ -884,9 +954,10 @@ message Device {
 }
 
 message ListDevicesRequest {
-  // Profile whose devices to list (UUIDv7). Must match the caller's
-  // authorized Profile scope.
-  string profile_id = 1;
+  // The Profile whose devices to list; absent for the caller's own. Another
+  // Profile requires administrator authority.
+  sid.v1.ids.ProfileId profile_id = 2;
+  reserved 1;
 }
 
 message ListDevicesResponse {
@@ -895,32 +966,37 @@ message ListDevicesResponse {
 }
 
 message GetDeviceRequest {
-  // Device to fetch (`Device.id`, UUIDv7). Must belong to the caller's
-  // authorized Profile scope.
-  string device_id = 1;
+  // Device to fetch (`Device.id`). Must belong to the caller's authorized
+  // Profile scope.
+  sid.v1.ids.DeviceId device_id = 2;
+  reserved 1;
 }
 
 message UpdateDeviceRequest {
-  // Device to update (`Device.id`, UUIDv7). Must belong to the caller's
-  // authorized Profile scope.
-  string device_id = 1;
+  // Device to update (`Device.id`). Must belong to the caller's authorized
+  // Profile scope.
+  sid.v1.ids.DeviceId device_id = 3;
+  reserved 1;
 
   // New user-given label; unset leaves the current label unchanged.
   optional string display_name = 2;
 }
 
 message RemoveDeviceRequest {
-  // Device to remove (`Device.id`, UUIDv7). Removal kills the device's
-  // sessions and revokes its keys in sid-attestation.
-  string device_id = 1;
+  // Device to remove (`Device.id`). Removal kills the device's sessions and
+  // revokes its keys in sid-attestation.
+  sid.v1.ids.DeviceId device_id = 2;
+  reserved 1;
 }
 
 message TrustDeviceRequest {
-  // Device the Profile owner marks as trusted (`Device.id`, UUIDv7).
-  string device_id = 1;
+  // Device the Profile owner marks as trusted (`Device.id`).
+  sid.v1.ids.DeviceId device_id = 2;
+  reserved 1;
 }
 
 message RevokeDeviceTrustRequest {
-  // Device whose explicit trust is withdrawn (`Device.id`, UUIDv7).
-  string device_id = 1;
+  // Device whose explicit trust is withdrawn (`Device.id`).
+  sid.v1.ids.DeviceId device_id = 2;
+  reserved 1;
 }
