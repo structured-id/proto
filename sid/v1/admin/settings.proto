@@ -232,7 +232,6 @@ message Feature {
   string display_name = 2;
   string description = 3;
   bool enabled = 4;
-  reserved 5;
 }
 
 message ListFeaturesResponse {

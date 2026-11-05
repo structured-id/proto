@@ -388,8 +388,8 @@ message ListActivityEventsRequest {
   optional string search = 6;
 
   // Pagination.
-  int32 page_size = 10;
-  string page_token = 11;
+  int32 page_size = 7;
+  string page_token = 8;
 }
 
 message ListActivityEventsResponse {
@@ -508,14 +508,12 @@ message AddPhoneRequest {
 
 message RemovePhoneRequest {
   // The phone to remove (`ProfilePhone.id`) of the caller's own Profile.
-  sid.v1.ids.ProfilePhoneId phone_id = 2;
-  reserved 1;
+  sid.v1.ids.ProfilePhoneId phone_id = 1;
 }
 
 message UpdatePhoneRequest {
   // The phone to update (`ProfilePhone.id`) of the caller's own Profile.
-  sid.v1.ids.ProfilePhoneId phone_id = 7;
-  reserved 1;
+  sid.v1.ids.ProfilePhoneId phone_id = 1;
   optional sid.v1.identity.PhoneLabel label = 2;
   optional string custom_label = 3;
   optional bool can_receive_sms = 4;
@@ -525,8 +523,7 @@ message UpdatePhoneRequest {
 
 message SetPrimaryPhoneRequest {
   // The phone to make primary (`ProfilePhone.id`).
-  sid.v1.ids.ProfilePhoneId phone_id = 2;
-  reserved 1;
+  sid.v1.ids.ProfilePhoneId phone_id = 1;
 }
 
 message ListPhonesResponse {
@@ -544,22 +541,19 @@ message AddEmailRequest {
 
 message RemoveEmailRequest {
   // The email to remove (`ProfileEmail.id`) of the caller's own Profile.
-  sid.v1.ids.ProfileEmailId email_id = 2;
-  reserved 1;
+  sid.v1.ids.ProfileEmailId email_id = 1;
 }
 
 message UpdateEmailRequest {
   // The email to update (`ProfileEmail.id`) of the caller's own Profile.
-  sid.v1.ids.ProfileEmailId email_id = 4;
-  reserved 1;
+  sid.v1.ids.ProfileEmailId email_id = 1;
   optional sid.v1.identity.EmailLabel label = 2;
   optional string custom_label = 3;
 }
 
 message SetPrimaryEmailRequest {
   // The email to make primary (`ProfileEmail.id`).
-  sid.v1.ids.ProfileEmailId email_id = 2;
-  reserved 1;
+  sid.v1.ids.ProfileEmailId email_id = 1;
 }
 
 message ListEmailsResponse {

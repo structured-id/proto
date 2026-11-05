@@ -238,11 +238,11 @@ enum ConnectorCredentialStatus {
 message ConnectorCredential {
   sid.v1.ids.ProvisioningCredentialId id = 1;
   ConnectorCredentialStatus status = 2;
-  ConnectorCredentialKind kind = 5;
+  ConnectorCredentialKind kind = 3;
   // When it stops working, when it does: its own expiry or the end of its
   // rotation grace.
-  google.protobuf.Timestamp expires_at = 3;
-  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp expires_at = 4;
+  google.protobuf.Timestamp created_at = 5;
 }
 
 // A newly issued credential and its secret.

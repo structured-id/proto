@@ -550,12 +550,10 @@ message OpaqueLoginStartResponse {
   // ephemeral DH public key + MAC. Client uses this to recover the password
   // file and compute the session key. RFC 9807 §6.
   bytes credential_response = 1;
-  reserved 2;
-  reserved "server_login_state";
   // This login, for its Finish to name. Only a reference: the server keeps
   // the login's AKE state (ephemeral keys, expected finalization) itself for
   // 5 minutes, and a Finish takes it once.
-  sid.v1.ids.OpaqueLoginId login_id = 3;
+  sid.v1.ids.OpaqueLoginId login_id = 2;
 }
 
 message OpaqueLoginFinishRequest {
@@ -566,10 +564,8 @@ message OpaqueLoginFinishRequest {
   // If password was wrong, client-side loginFinish fails (never reaches server).
   // RFC 9807 §6.
   bytes credential_finalization = 2;
-  reserved 3;
-  reserved "server_login_state";
   // The login being finished: OpaqueLoginStartResponse.login_id, as received.
-  sid.v1.ids.OpaqueLoginId login_id = 4;
+  sid.v1.ids.OpaqueLoginId login_id = 3;
 }
 
 // The session a sign-in ceremony completed. Its credential is never in the
@@ -595,26 +591,22 @@ message OpaqueLoginFinishRequest {
 message OpaqueLoginFinishResponse {
   // The session this sign-in opened, for session management (listing,
   // revocation). Not a credential.
-  sid.v1.ids.SessionId session_id = 7;
-  reserved 1;
-  // The access token is delivered in `authorization` metadata.
-  reserved 2;
-  reserved "access_token";
+  sid.v1.ids.SessionId session_id = 1;
   // Seconds until the delivered credential expires: the access token for a
   // native client (default 900), the session cookie for a browser.
-  int64 expires_in = 3;
+  int64 expires_in = 2;
   // Set by the server when the login requirements need a second factor
   // beyond the one this ceremony proved and the account has one of these
   // enrolled. The delivered credential is then a pending context: it
   // authorizes only completing the sign-in with one of these methods
   // (VerifyTotp for STEP_UP_METHOD_TOTP), which returns the session. Empty
   // when the session is complete.
-  repeated StepUpMethod second_factors = 4;
+  repeated StepUpMethod second_factors = 3;
   // The CSRF token a browser sends in `X-CSRF-Token` when it completes the
   // pending context with its cookie; set only with `second_factors` on a
   // browser delivery, in this response to the configured sign-in page's
   // origin. It authenticates nothing by itself.
-  optional string browser_csrf = 5;
+  optional string browser_csrf = 4;
   // Set by the server when this sign-in owes a second factor, the account has
   // never enrolled one and it may enroll one of these first. The delivered
   // credential is then a pending context, which authorizes only that first
@@ -622,7 +614,7 @@ message OpaqueLoginFinishResponse {
   // STEP_UP_METHOD_TOTP) and then completing the sign-in with the new factor.
   // Empty on an account with established protection, whose lost factor goes
   // through recovery instead.
-  repeated StepUpMethod enrollable_factors = 6;
+  repeated StepUpMethod enrollable_factors = 5;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -665,16 +657,14 @@ message OpaqueZkppRegistrationStartRequest {
   // otherwise); the new profile becomes the first administrator and the token
   // is consumed when the account commits. Ignored once the installation is
   // claimed. Bearer secret: never logged or echoed.
-  optional string claim_token = 6;
+  optional string claim_token = 3;
   // Invite code an administrator issued. Required while the installation's
   // enrollment mode is invite-only; the account spends one use of it when it
   // is created, and an unknown, expired, revoked or used-up code refuses the
   // registration (REGISTRATION_RESTRICTED, requirement `invite`). Ignored in
   // other modes, and while the administrator claim is open: the claim token
   // alone admits that registration, whatever the mode.
-  optional string invite_code = 8;
-  // Retired field numbers.
-  reserved 3, 4, 5, 7;
+  optional string invite_code = 4;
 }
 
 message OpaqueZkppRegistrationStartResponse {
@@ -683,27 +673,22 @@ message OpaqueZkppRegistrationStartResponse {
   bytes registration_response = 1;
   // The history context of this registration: its operation ID, the new
   // owner's history domain and the comparison domains to evaluate.
-  PasswordHistoryContext history = 3;
-  // Retired field number.
-  reserved 2;
+  PasswordHistoryContext history = 2;
 }
 
 message OpaqueZkppRegistrationFinishRequest {
   // The registration operation (from OpaqueZkppRegistrationStartResponse.history).
-  sid.v1.ids.PasswordOperationId operation_id = 6;
+  sid.v1.ids.PasswordOperationId operation_id = 1;
   // OPAQUE RegistrationRecord (RFC 9807 §5.1): the client's envelope the server
   // stores as the credential. Contains no recoverable password material.
   bytes registration_record = 2;
   // The registration proof; absent when the client cannot prove.
-  PasswordRegistrationProof proof = 7;
-  // Retired field numbers.
-  reserved 1, 3, 4, 5;
+  PasswordRegistrationProof proof = 3;
 }
 
 message OpaqueZkppRegistrationFinishResponse {
   // The password credential the registration stored.
-  sid.v1.ids.CredentialId credential_id = 3;
-  reserved 2;
+  sid.v1.ids.CredentialId credential_id = 1;
 }
 
 // Password change flow (3-step: challenge → execute → finish).
@@ -743,8 +728,7 @@ message PasswordChangeChallengeRequest {
   // Which OPAQUE credential of the caller's Profile to change, from
   // ListCredentials filtered by type=OPAQUE. The Profile is resolved from
   // the bearer token, not sent.
-  sid.v1.ids.CredentialId credential_id = 4;
-  reserved 1;
+  sid.v1.ids.CredentialId credential_id = 1;
   // OPAQUE CredentialRequest (KE1) of a sign-in with the current password,
   // made by the client as for OpaqueLoginStart (RFC 9807 §6), in the
   // configuration of the credential being changed
@@ -764,28 +748,24 @@ message PasswordChangeChallengeResponse {
   // The history context of this change: its operation ID, the owner's history
   // domain, the comparison domains the new password is checked in and the
   // policy version the proof is made for.
-  PasswordHistoryContext history = 4;
+  PasswordHistoryContext history = 1;
   // OPAQUE CredentialResponse (KE2) to credential_request (RFC 9807 §6); the
   // client finishes the sign-in with it and sends KE3 in execute. Absent when
   // the request carried no credential_request.
-  bytes credential_response = 5;
-  // Retired field numbers.
-  reserved 1, 2, 3;
+  bytes credential_response = 2;
 }
 
 message PasswordChangeExecuteRequest {
   // The change operation (from PasswordChangeChallengeResponse.history).
-  sid.v1.ids.PasswordOperationId operation_id = 9;
+  sid.v1.ids.PasswordOperationId operation_id = 1;
   // Target OPAQUE credential (same as in ChallengeRequest).
-  sid.v1.ids.CredentialId credential_id = 11;
+  sid.v1.ids.CredentialId credential_id = 2;
   // OPAQUE CredentialFinalization (KE3) of the current-password sign-in begun
   // in the challenge (RFC 9807 §6), under the change context. Required when
-  // the challenge carried credential_request, absent otherwise.
-  bytes credential_finalization = 10;
-  // Retired field numbers. 5 was the new password's registration request; it
-  // moved to the challenge with no second path, since a request sent here
-  // could not be covered by the current-password context already in use.
-  reserved 1, 3, 4, 5, 6, 7, 8;
+  // the challenge carried credential_request, absent otherwise. The new
+  // password's registration request travels only in the challenge, where the
+  // current-password context covers it.
+  bytes credential_finalization = 3;
 }
 
 message PasswordChangeExecuteResponse {
@@ -796,17 +776,16 @@ message PasswordChangeExecuteResponse {
 
 message PasswordChangeFinishRequest {
   // The change operation (from PasswordChangeChallengeResponse.history).
-  sid.v1.ids.PasswordOperationId operation_id = 4;
+  sid.v1.ids.PasswordOperationId operation_id = 1;
   // Target OPAQUE credential (same as in Challenge/Execute).
-  sid.v1.ids.CredentialId credential_id = 6;
-  reserved 1;
+  sid.v1.ids.CredentialId credential_id = 2;
   // Final OPAQUE RegistrationRecord computed by client from RegistrationResponse.
   // Contains the encrypted password envelope that the server stores.
   // Generated by OpaqueClient.registrationFinish(newPassword, registrationResponse, state).
   bytes registration_record = 3;
   // The registration proof for the new password; absent when the client
   // cannot prove, in which case the change installs policy-unverified.
-  PasswordRegistrationProof proof = 5;
+  PasswordRegistrationProof proof = 4;
 }
 
 // WebAuthn registration flow (2-step).
@@ -841,8 +820,7 @@ message WebAuthnRegistrationFinishRequest {
 message WebAuthnRegistrationFinishResponse {
   // The passkey credential the registration stored, for management (delete,
   // label). Not the authenticator's WebAuthn credential ID.
-  sid.v1.ids.CredentialId credential_id = 2;
-  reserved 1;
+  sid.v1.ids.CredentialId credential_id = 1;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -869,12 +847,10 @@ message WebAuthnAuthenticationStartResponse {
   bytes challenge = 1;
   // PublicKeyCredentialRequestOptions serialized as JSON. Contains: challenge,
   // rpId, allowCredentials (populated for principal-first, empty for conditional UI),
-  // userVerification, timeout.
+  // userVerification, timeout. The server finds the ceremony by the challenge
+  // the assertion signs (WebAuthn Level 3 §7.2 step 12); no separate
+  // reference travels.
   bytes options = 2;
-  // Removed: the server finds the ceremony by the challenge the assertion
-  // signs (WebAuthn Level 3 §7.2 step 12), so no separate reference travels.
-  reserved 3;
-  reserved "state_key";
 }
 
 message WebAuthnAuthenticationFinishRequest {
@@ -884,9 +860,6 @@ message WebAuthnAuthenticationFinishRequest {
   // AuthenticatorAssertionResponse serialized as JSON from navigator.credentials.get().
   // Contains: id, rawId, response (authenticatorData + clientDataJSON + signature), type.
   bytes credential = 2;
-  // Removed: the ceremony is the one whose challenge the assertion signs.
-  reserved 3;
-  reserved "state_key";
 }
 
 // The session a passkey sign-in completed; its credential is delivered as for
@@ -896,19 +869,15 @@ message WebAuthnAuthenticationFinishRequest {
 // takes it from the assertion's own challenge, not from this request.
 message WebAuthnAuthenticationFinishResponse {
   // Same semantics as OpaqueLoginFinishResponse.session_id.
-  sid.v1.ids.SessionId session_id = 7;
-  reserved 1;
-  // The access token is delivered in `authorization` metadata.
-  reserved 2;
-  reserved "access_token";
+  sid.v1.ids.SessionId session_id = 1;
   // Seconds until the delivered credential expires.
-  int64 expires_in = 3;
+  int64 expires_in = 2;
   // Same semantics as OpaqueLoginFinishResponse.second_factors.
-  repeated StepUpMethod second_factors = 4;
+  repeated StepUpMethod second_factors = 3;
   // Same semantics as OpaqueLoginFinishResponse.browser_csrf.
-  optional string browser_csrf = 5;
+  optional string browser_csrf = 4;
   // Same semantics as OpaqueLoginFinishResponse.enrollable_factors.
-  repeated StepUpMethod enrollable_factors = 6;
+  repeated StepUpMethod enrollable_factors = 5;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -1207,8 +1176,7 @@ message OAuth2RevokeResponse {}
 
 message ValidateSessionRequest {
   // The session to validate, from the token's `sid` claim or the cookie.
-  sid.v1.ids.SessionId session_id = 2;
-  reserved 1;
+  sid.v1.ids.SessionId session_id = 1;
 }
 
 message ValidateSessionResponse {
@@ -1315,18 +1283,14 @@ message RequestMagicLinkRequest {
 
 message RequestMagicLinkResponse {
   // The magic link requested. Client may display "check your email" with this reference.
-  sid.v1.ids.MagicLinkId magic_link_id = 3;
-  reserved 1;
-  reserved "session_id";
+  sid.v1.ids.MagicLinkId magic_link_id = 1;
   // Magic link validity in seconds (default 600 = 10 min).
   int32 expires_in = 2;
 }
 
 message VerifyMagicLinkRequest {
   // The magic link, from its URL (the page decodes the URL's text form).
-  sid.v1.ids.MagicLinkId magic_link_id = 3;
-  reserved 1;
-  reserved "session_id";
+  sid.v1.ids.MagicLinkId magic_link_id = 1;
   // Cryptographic token from the magic link URL. Single-use, server-validated.
   string token = 2;
 }
@@ -1335,13 +1299,9 @@ message VerifyMagicLinkRequest {
 // for OpaqueLoginFinishResponse.
 message VerifyMagicLinkResponse {
   // The session the link opened (not the magic link itself).
-  sid.v1.ids.SessionId session_id = 4;
-  reserved 1;
-  // The access token is delivered in `authorization` metadata.
-  reserved 2;
-  reserved "access_token";
+  sid.v1.ids.SessionId session_id = 1;
   // Seconds until the delivered credential expires.
-  int32 expires_in = 3;
+  int32 expires_in = 2;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -1366,12 +1326,10 @@ message ResolvePrincipalResponse {
   // started without credential IDs), "magic_link" when magic links are
   // enabled and the identifier is an email address or phone number. Whether
   // the account can use a method is decided at that method's step, which
-  // refuses an unknown account exactly as a wrong secret.
+  // refuses an unknown account exactly as a wrong secret. No method is
+  // suggested from the account's last sign-in, which would disclose that the
+  // account exists; a client remembers its last method locally.
   repeated string available_methods = 1;
-  // Removed: a method suggested from the account's last sign-in disclosed
-  // that the account exists. A client remembers the last method locally.
-  reserved 2;
-  reserved "suggested_method";
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -1401,18 +1359,14 @@ message LegacyMigrateStartRequest {
 message LegacyMigrateStartResponse {
   // The upgrade this start began, kept by the server for 5 minutes. The
   // client sends it with the finish.
-  sid.v1.ids.ImportedPasswordUpgradeId upgrade_id = 3;
-  reserved 1;
-  reserved "migration_token";
+  sid.v1.ids.ImportedPasswordUpgradeId upgrade_id = 1;
   // OPAQUE RegistrationResponse for client to compute registration record.
   bytes opaque_registration_response = 2;
 }
 
 message LegacyMigrateFinishRequest {
   // From LegacyMigrateStartResponse.upgrade_id.
-  sid.v1.ids.ImportedPasswordUpgradeId upgrade_id = 3;
-  reserved 1;
-  reserved "migration_token";
+  sid.v1.ids.ImportedPasswordUpgradeId upgrade_id = 1;
   // OPAQUE RegistrationRecord computed by client. Server stores as new credential,
   // deletes legacy hash. Migration complete.
   bytes opaque_registration_record = 2;
@@ -1422,19 +1376,15 @@ message LegacyMigrateFinishRequest {
 // OpaqueLoginFinishResponse.
 message LegacyMigrateFinishResponse {
   // Same semantics as OpaqueLoginFinishResponse.session_id.
-  sid.v1.ids.SessionId session_id = 7;
-  reserved 1;
-  // The access token is delivered in `authorization` metadata.
-  reserved 2;
-  reserved "access_token";
+  sid.v1.ids.SessionId session_id = 1;
   // Seconds until the delivered credential expires.
-  int64 expires_in = 3;
+  int64 expires_in = 2;
   // Same semantics as OpaqueLoginFinishResponse.second_factors.
-  repeated StepUpMethod second_factors = 4;
+  repeated StepUpMethod second_factors = 3;
   // Same semantics as OpaqueLoginFinishResponse.browser_csrf.
-  optional string browser_csrf = 5;
+  optional string browser_csrf = 4;
   // Same semantics as OpaqueLoginFinishResponse.enrollable_factors.
-  repeated StepUpMethod enrollable_factors = 6;
+  repeated StepUpMethod enrollable_factors = 5;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -1474,8 +1424,7 @@ message GetZkppPolicyResponse {
 message SubmitDeferredZkProofRequest {
   // The password credential to verify; it must belong to the bearer token's
   // Profile.
-  sid.v1.ids.CredentialId credential_id = 5;
-  reserved 1;
+  sid.v1.ids.CredentialId credential_id = 1;
   // Halo2 password-policy proof over the credential's OPAQUE blinded element.
   bytes zkpp_proof = 2;
   // Public instances of the proof, each a serialized circuit field element.
@@ -1505,24 +1454,22 @@ message StartTotpEnrollmentRequest {}
 // the server selected. The SDK presents them (Base32 for manual entry, the
 // `otpauth://` URI and its QR code); the server sends no display form.
 message TotpEnrollmentChallenge {
-  reserved 1, 2;
-  reserved "secret", "qr_uri";
-  // Issuer name displayed in authenticator app (e.g., "StructuredID").
-  // Server-configured (RealmSettings.display_name).
-  string issuer = 3;
-  // Account identifier displayed in authenticator app (e.g., user's email).
-  // Server resolves from profile's primary email or username.
-  string account_name = 4;
   // The TOTP shared secret (RFC 6238 §5.1, the HMAC key), raw: 20 random
   // bytes generated by the server. SECURITY: delivered only in this response
   // of the enrollment, never again; the client shows it once.
-  bytes shared_secret = 5;
+  bytes shared_secret = 1;
+  // Issuer name displayed in authenticator app (e.g., "StructuredID").
+  // Server-configured (RealmSettings.display_name).
+  string issuer = 2;
+  // Account identifier displayed in authenticator app (e.g., user's email).
+  // Server resolves from profile's primary email or username.
+  string account_name = 3;
   // The HMAC the codes use (RFC 6238 §1.2).
-  TotpAlgorithm algorithm = 6;
+  TotpAlgorithm algorithm = 4;
   // Digits per code (RFC 4226 §5.3), e.g. 6.
-  uint32 digits = 7;
+  uint32 digits = 5;
   // Seconds each code is valid for (RFC 6238 §4.1, X), e.g. 30.
-  uint32 period_seconds = 8;
+  uint32 period_seconds = 6;
 }
 
 // The HMAC of a TOTP (RFC 6238 §1.2).
@@ -1543,8 +1490,7 @@ message FinishTotpEnrollmentRequest {
 
 message FinishTotpEnrollmentResponse {
   // The TOTP credential the enrollment stored.
-  sid.v1.ids.CredentialId credential_id = 3;
-  reserved 1;
+  sid.v1.ids.CredentialId credential_id = 1;
   // 12 single-use recovery codes. Generated only if this is the user's
   // first MFA factor (no existing TOTP, WebAuthn, or recovery codes).
   // Client must display these once — server stores hashed, not plaintext.
@@ -1570,21 +1516,18 @@ message MfaVerifyResponse {
   bool verified = 1;
   // The session after MFA elevation (refreshed with the updated amr). Set
   // when verified=true and this was the last required MFA step.
-  sid.v1.ids.SessionId session_id = 7;
-  reserved 2;
-  // The elevated session's new access token, with the updated amr claim, is
-  // delivered as for OpaqueLoginFinishResponse (`authorization` metadata).
-  reserved 3;
-  reserved "access_token";
+  sid.v1.ids.SessionId session_id = 2;
   // Seconds until the delivered credential expires; set when one was
-  // delivered.
-  optional int64 expires_in = 4;
+  // delivered. The elevated session's new access token, with the updated amr
+  // claim, is delivered as for OpaqueLoginFinishResponse (`authorization`
+  // metadata).
+  optional int64 expires_in = 3;
   // Next step in the authentication flow, if any. Server determines based on
   // policy (e.g., terms acceptance, profile completion). Empty if login is complete.
-  optional string redirect_to = 5;
+  optional string redirect_to = 4;
   // Number of remaining unused recovery codes. Set only for VerifyRecoveryCode
   // responses — helps user know when to generate new codes.
-  optional int32 remaining_codes = 6;
+  optional int32 remaining_codes = 5;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -1626,8 +1569,7 @@ message RequestOtpRequest {
 
 message RequestOtpResponse {
   // The code requested, for its verify and resend.
-  sid.v1.ids.OtpSessionId otp_session_id = 5;
-  reserved 1;
+  sid.v1.ids.OtpSessionId otp_session_id = 1;
   string masked_target = 2;       // "a****@example.com"
   uint32 expires_in_seconds = 3;  // 600
   uint32 code_length = 4;         // 8
@@ -1636,9 +1578,7 @@ message RequestOtpResponse {
 message VerifyOtpRequest {
   string code = 1;             // 8-digit OTP code
   // The code's request, from RequestOtpResponse.otp_session_id.
-  sid.v1.ids.OtpSessionId otp_session_id = 3;
-  reserved 2;
-  reserved "session_id";
+  sid.v1.ids.OtpSessionId otp_session_id = 2;
 }
 
 message VerifyOtpResponse {
@@ -1647,21 +1587,16 @@ message VerifyOtpResponse {
   // Provisional session the verified code opened (set only when verified).
   // Mailbox possession grants provisional scopes only: it cannot add or
   // change a credential of an existing account.
-  sid.v1.ids.SessionId session_id = 6;
-  reserved 3;
-  // The provisional session's access token (restricted scopes) is delivered
-  // as for OpaqueLoginFinishResponse (`authorization` metadata).
-  reserved 4;
-  reserved "access_token";
-  // Seconds until the delivered credential expires; set when verified.
-  optional int64 expires_in = 5;
+  sid.v1.ids.SessionId session_id = 3;
+  // Seconds until the delivered credential expires; set when verified. The
+  // provisional session's access token (restricted scopes) is delivered as for
+  // OpaqueLoginFinishResponse (`authorization` metadata).
+  optional int64 expires_in = 4;
 }
 
 message ResendOtpRequest {
   // The code's request, from RequestOtpResponse.otp_session_id.
-  sid.v1.ids.OtpSessionId otp_session_id = 2;
-  reserved 1;
-  reserved "session_id";
+  sid.v1.ids.OtpSessionId otp_session_id = 1;
 }
 
 message ResendOtpResponse {
@@ -1869,9 +1804,7 @@ enum StepUpMethod {
 // Phase 1: Request challenge (WebAuthn). Skipped for TOTP/recovery.
 // The session stepped up is the bearer token's own, never named here.
 message RequestStepUpRequest {
-  reserved 1;
-  reserved "session_id";
-  StepUpMethod method = 2;
+  StepUpMethod method = 1;
 }
 
 // Challenge response from Phase 1.
@@ -1879,8 +1812,7 @@ message StepUpChallenge {
   StepUpMethod method = 1;
   // The challenge, for CompleteStepUp of the same session; absent for a
   // 1-phase method.
-  sid.v1.ids.StepUpChallengeId challenge_id = 6;
-  reserved 2;
+  sid.v1.ids.StepUpChallengeId challenge_id = 2;
   oneof challenge {
     bytes webauthn_options = 3;      // PublicKeyCredentialRequestOptions (JSON)
   }
@@ -1895,15 +1827,13 @@ message StepUpChallenge {
 // Phase 2: Submit proof → elevate session.
 // The session stepped up is the bearer token's own, never named here.
 message CompleteStepUpRequest {
-  reserved 1, 3;
-  reserved "session_id";
-  StepUpMethod method = 2;
+  StepUpMethod method = 1;
   // From StepUpChallenge.challenge_id; absent for a 1-phase method.
-  sid.v1.ids.StepUpChallengeId challenge_id = 7;
+  sid.v1.ids.StepUpChallengeId challenge_id = 2;
   oneof proof {
-    string totp_code = 4;
-    bytes webauthn_assertion = 5;    // AuthenticatorAssertionResponse (JSON)
-    string recovery_code = 6;
+    string totp_code = 3;
+    bytes webauthn_assertion = 4;    // AuthenticatorAssertionResponse (JSON)
+    string recovery_code = 5;
   }
 }
 
@@ -1921,8 +1851,7 @@ message CompleteStepUpResponse {
 // Delete an MFA credential. Requires elevated session (step-up auth).
 message DeleteMfaCredentialRequest {
   // The MFA credential of the caller's Profile to delete.
-  sid.v1.ids.CredentialId credential_id = 2;
-  reserved 1;
+  sid.v1.ids.CredentialId credential_id = 1;
 }
 
 message DeleteMfaCredentialResponse {
@@ -1960,9 +1889,7 @@ message RequestPasswordResetResponse {
 
 message VerifyPasswordResetRequest {
   // The reset, from the emailed link (the page decodes the URL's text form).
-  sid.v1.ids.ResetSessionId reset_session_id = 3;
-  reserved 1;
-  reserved "session_id";
+  sid.v1.ids.ResetSessionId reset_session_id = 1;
   // Secret token from the emailed link. Single-use, server-validated.
   string token = 2;
 }
@@ -1970,13 +1897,11 @@ message VerifyPasswordResetRequest {
 // The verified reset. Its later steps name it by the operation in `history`,
 // which carries the reset's authority.
 message VerifyPasswordResetResponse {
-  reserved 1;
-  reserved "reset_session_id";
-  int32 expires_in = 2;          // Reset session TTL (seconds)
+  int32 expires_in = 1;          // Reset session TTL (seconds)
   // The history context of the replacement password: its operation ID, the
   // owner's history domain and the comparison domains it is checked in. The
   // reset needs no old password: the retained history is the owner's, not the client's.
-  PasswordHistoryContext history = 3;
+  PasswordHistoryContext history = 2;
 }
 
 message ExecutePasswordResetRequest {
@@ -1997,16 +1922,13 @@ message ExecutePasswordResetResponse {
 message CompletePasswordResetRequest {
   // The reset operation (from VerifyPasswordResetResponse.history). Carries
   // the verified reset session's authority, as in ExecutePasswordReset.
-  sid.v1.ids.PasswordOperationId operation_id = 7;
+  sid.v1.ids.PasswordOperationId operation_id = 1;
   // Final OPAQUE RegistrationRecord of the replacement password, computed from
   // ExecutePasswordResetResponse.registration_response.
   bytes registration_record = 2;
   // The registration proof for the replacement password; absent when the
   // client cannot prove, in which case it installs policy-unverified.
-  PasswordRegistrationProof proof = 8;
-  // Retired field numbers.
-  reserved 1, 3, 4, 5, 6;
-  reserved "reset_session_id";
+  PasswordRegistrationProof proof = 3;
 }
 
 // The replaced password, and the session it signed in when the reset may sign
@@ -2016,11 +1938,7 @@ message CompletePasswordResetRequest {
 // delivered as for OpaqueLoginFinishResponse.
 message CompletePasswordResetResponse {
   // The session the reset signed in; absent when it signed in none.
-  sid.v1.ids.SessionId session_id = 4;
-  reserved 1;
-  // The access token is delivered in `authorization` metadata.
-  reserved 2;
-  reserved "access_token";
+  sid.v1.ids.SessionId session_id = 1;
   // Seconds until the delivered credential expires; absent with session_id.
-  optional int32 expires_in = 3;
+  optional int32 expires_in = 2;
 }
