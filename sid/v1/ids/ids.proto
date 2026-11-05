@@ -219,3 +219,58 @@ message ProvisioningCredentialId {
   // invalid. Issued by SID; compared by exact byte equality.
   bytes value = 1;
 }
+
+// A project of an installation: the scope its roles, groups and policies
+// belong to. Every installation has one system project.
+message ProjectId {
+  // Exactly 16 bytes in network byte order: an RFC 9562 UUID of version 7 and
+  // the RFC 9562 variant, or the nil UUID, which names the installation's
+  // system project. Max, other lengths, versions and variants are invalid.
+  // Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// A role of a project: the named set of permissions an assignment grants.
+// Not its key, which tokens and policies name it by.
+message RoleId {
+  // Exactly 16 bytes in network byte order: an RFC 9562 UUID of version 7 and
+  // the RFC 9562 variant, or a built-in role of every installation, whose
+  // first 15 bytes are zero and whose last byte is not. Nil, max, other
+  // lengths, versions and variants are invalid. Issued by SID; compared by
+  // exact byte equality.
+  bytes value = 1;
+}
+
+// A group of a project whose members hold the roles assigned to it.
+message GroupId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// One assignment of a role to a principal: the reference its revocation,
+// administration and audit name.
+message RoleAssignmentId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// One Cedar policy of a scope: the reference its management names. Not its
+// name, which is unique within the scope only.
+message CedarPolicyId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// One request for a role from its submission to its decision.
+message AccessRequestId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
