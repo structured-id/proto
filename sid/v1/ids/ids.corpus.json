@@ -44,7 +44,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "BindingId",
@@ -55,6 +55,17 @@
       "wire_hex": "0a1000000000000000000000000000000000"
     },
     {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "BindingId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
+    },
+    {
       "about": "the max UUID",
       "case": "max",
       "expect": "max",
@@ -150,7 +161,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "MachineUserId",
@@ -161,6 +172,17 @@
       "wire_hex": "0a1000000000000000000000000000000000"
     },
     {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "MachineUserId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
+    },
+    {
       "about": "the max UUID",
       "case": "max",
       "expect": "max",
@@ -256,7 +278,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "OpaqueLoginId",
@@ -267,6 +289,17 @@
       "wire_hex": "0a1000000000000000000000000000000000"
     },
     {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "OpaqueLoginId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
+    },
+    {
       "about": "the max UUID",
       "case": "max",
       "expect": "max",
@@ -362,7 +395,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "PasswordOperationId",
@@ -373,6 +406,17 @@
       "wire_hex": "0a1000000000000000000000000000000000"
     },
     {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "PasswordOperationId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
+    },
+    {
       "about": "the max UUID",
       "case": "max",
       "expect": "max",
@@ -468,7 +512,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "ProvisioningConnectorId",
@@ -479,6 +523,17 @@
       "wire_hex": "0a1000000000000000000000000000000000"
     },
     {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "ProvisioningConnectorId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
+    },
+    {
       "about": "the max UUID",
       "case": "max",
       "expect": "max",
@@ -574,7 +629,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "ProvisioningCredentialId",
@@ -585,6 +640,17 @@
       "wire_hex": "0a1000000000000000000000000000000000"
     },
     {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "ProvisioningCredentialId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
+    },
+    {
       "about": "the max UUID",
       "case": "max",
       "expect": "max",
@@ -680,7 +746,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "ResourceId",
@@ -691,6 +757,17 @@
       "wire_hex": "0a1000000000000000000000000000000000"
     },
     {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "ResourceId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
+    },
+    {
       "about": "the max UUID",
       "case": "max",
       "expect": "max",
@@ -786,7 +863,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "SessionId",
@@ -797,6 +874,17 @@
       "wire_hex": "0a1000000000000000000000000000000000"
     },
     {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "SessionId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
+    },
+    {
       "about": "the max UUID",
       "case": "max",
       "expect": "max",
@@ -892,7 +980,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "CredentialId",
@@ -903,6 +991,17 @@
       "wire_hex": "0a1000000000000000000000000000000000"
     },
     {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "CredentialId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
+    },
+    {
       "about": "the max UUID",
       "case": "max",
       "expect": "max",
@@ -998,7 +1097,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "OtpSessionId",
@@ -1009,6 +1108,17 @@
       "wire_hex": "0a1000000000000000000000000000000000"
     },
     {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "OtpSessionId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
+    },
+    {
       "about": "the max UUID",
       "case": "max",
       "expect": "max",
@@ -1104,7 +1214,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "MagicLinkId",
@@ -1115,6 +1225,17 @@
       "wire_hex": "0a1000000000000000000000000000000000"
     },
     {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "MagicLinkId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
+    },
+    {
       "about": "the max UUID",
       "case": "max",
       "expect": "max",
@@ -1210,7 +1331,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "StepUpChallengeId",
@@ -1221,6 +1342,17 @@
       "wire_hex": "0a1000000000000000000000000000000000"
     },
     {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "StepUpChallengeId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
+    },
+    {
       "about": "the max UUID",
       "case": "max",
       "expect": "max",
@@ -1316,7 +1448,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "ResetSessionId",
@@ -1327,6 +1459,17 @@
       "wire_hex": "0a1000000000000000000000000000000000"
     },
     {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "ResetSessionId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
+    },
+    {
       "about": "the max UUID",
       "case": "max",
       "expect": "max",
@@ -1422,7 +1565,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "ImportedPasswordUpgradeId",
@@ -1433,6 +1576,17 @@
       "wire_hex": "0a1000000000000000000000000000000000"
     },
     {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "ImportedPasswordUpgradeId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
+    },
+    {
       "about": "the max UUID",
       "case": "max",
       "expect": "max",
@@ -1528,7 +1682,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "ProfileId",
@@ -1539,6 +1693,17 @@
       "wire_hex": "0a1000000000000000000000000000000000"
     },
     {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "ProfileId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
+    },
+    {
       "about": "the max UUID",
       "case": "max",
       "expect": "max",
@@ -1634,7 +1799,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "PrincipalId",
@@ -1643,6 +1808,17 @@
       },
       "value_hex": "00000000000000000000000000000000",
       "wire_hex": "0a1000000000000000000000000000000000"
+    },
+    {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "PrincipalId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
     },
     {
       "about": "the max UUID",
@@ -1740,7 +1916,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "ProfileEmailId",
@@ -1749,6 +1925,17 @@
       },
       "value_hex": "00000000000000000000000000000000",
       "wire_hex": "0a1000000000000000000000000000000000"
+    },
+    {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "ProfileEmailId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
     },
     {
       "about": "the max UUID",
@@ -1846,7 +2033,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "ProfilePhoneId",
@@ -1855,6 +2042,17 @@
       },
       "value_hex": "00000000000000000000000000000000",
       "wire_hex": "0a1000000000000000000000000000000000"
+    },
+    {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "ProfilePhoneId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
     },
     {
       "about": "the max UUID",
@@ -1952,7 +2150,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "DeviceId",
@@ -1961,6 +2159,17 @@
       },
       "value_hex": "00000000000000000000000000000000",
       "wire_hex": "0a1000000000000000000000000000000000"
+    },
+    {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "DeviceId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
     },
     {
       "about": "the max UUID",
@@ -2058,7 +2267,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "OrgId",
@@ -2067,6 +2276,17 @@
       },
       "value_hex": "00000000000000000000000000000000",
       "wire_hex": "0a1000000000000000000000000000000000"
+    },
+    {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "OrgId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
     },
     {
       "about": "the max UUID",
@@ -2164,7 +2384,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "IssuerId",
@@ -2173,6 +2393,17 @@
       },
       "value_hex": "00000000000000000000000000000000",
       "wire_hex": "0a1000000000000000000000000000000000"
+    },
+    {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "IssuerId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
     },
     {
       "about": "the max UUID",
@@ -2270,7 +2501,7 @@
       "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
     },
     {
-      "about": "the nil UUID",
+      "about": "the nil UUID: the system project, refused as any other kind",
       "case": "nil",
       "expect": "nil",
       "kind": "ApplicationId",
@@ -2279,6 +2510,17 @@
       },
       "value_hex": "00000000000000000000000000000000",
       "wire_hex": "0a1000000000000000000000000000000000"
+    },
+    {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "ApplicationId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
     },
     {
       "about": "the max UUID",
@@ -2329,6 +2571,708 @@
       "case": "absent",
       "expect": "missing",
       "kind": "ApplicationId",
+      "protojson": null,
+      "value_hex": null,
+      "wire_hex": null
+    },
+    {
+      "about": "a UUIDv7 of the RFC 9562 variant",
+      "case": "valid",
+      "expect": "valid",
+      "kind": "ProjectId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e8f00112233445566"
+    },
+    {
+      "about": "a present message with no bytes; ProtoJSON {} and wire empty",
+      "case": "empty",
+      "expect": "length:0",
+      "kind": "ProjectId",
+      "protojson": {},
+      "value_hex": "",
+      "wire_hex": ""
+    },
+    {
+      "about": "15 bytes",
+      "case": "short",
+      "expect": "length:15",
+      "kind": "ProjectId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RV"
+      },
+      "value_hex": "019290a47b3c7d2e8f001122334455",
+      "wire_hex": "0a0f019290a47b3c7d2e8f001122334455"
+    },
+    {
+      "about": "17 bytes",
+      "case": "long",
+      "expect": "length:17",
+      "kind": "ProjectId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZnc="
+      },
+      "value_hex": "019290a47b3c7d2e8f0011223344556677",
+      "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
+    },
+    {
+      "about": "the nil UUID: the system project, refused as any other kind",
+      "case": "nil",
+      "expect": "valid",
+      "kind": "ProjectId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAA=="
+      },
+      "value_hex": "00000000000000000000000000000000",
+      "wire_hex": "0a1000000000000000000000000000000000"
+    },
+    {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "ProjectId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
+    },
+    {
+      "about": "the max UUID",
+      "case": "max",
+      "expect": "max",
+      "kind": "ProjectId",
+      "protojson": {
+        "value": "/////////////////////w=="
+      },
+      "value_hex": "ffffffffffffffffffffffffffffffff",
+      "wire_hex": "0a10ffffffffffffffffffffffffffffffff"
+    },
+    {
+      "about": "an RFC 9562 UUID of version 4",
+      "case": "version_4",
+      "expect": "version:4",
+      "kind": "ProjectId",
+      "protojson": {
+        "value": "AZKQpHs8TS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c4d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c4d2e8f00112233445566"
+    },
+    {
+      "about": "variant bits 0xx: refused before the version is read",
+      "case": "variant_ncs",
+      "expect": "variant",
+      "kind": "ProjectId",
+      "protojson": {
+        "value": "AZKQpHs8fS4PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e0f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e0f00112233445566"
+    },
+    {
+      "about": "variant bits 110: refused",
+      "case": "variant_microsoft",
+      "expect": "variant",
+      "kind": "ProjectId",
+      "protojson": {
+        "value": "AZKQpHs8fS7PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2ecf00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2ecf00112233445566"
+    },
+    {
+      "about": "the required message is missing; distinct from an empty one",
+      "case": "absent",
+      "expect": "missing",
+      "kind": "ProjectId",
+      "protojson": null,
+      "value_hex": null,
+      "wire_hex": null
+    },
+    {
+      "about": "a UUIDv7 of the RFC 9562 variant",
+      "case": "valid",
+      "expect": "valid",
+      "kind": "RoleId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e8f00112233445566"
+    },
+    {
+      "about": "a present message with no bytes; ProtoJSON {} and wire empty",
+      "case": "empty",
+      "expect": "length:0",
+      "kind": "RoleId",
+      "protojson": {},
+      "value_hex": "",
+      "wire_hex": ""
+    },
+    {
+      "about": "15 bytes",
+      "case": "short",
+      "expect": "length:15",
+      "kind": "RoleId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RV"
+      },
+      "value_hex": "019290a47b3c7d2e8f001122334455",
+      "wire_hex": "0a0f019290a47b3c7d2e8f001122334455"
+    },
+    {
+      "about": "17 bytes",
+      "case": "long",
+      "expect": "length:17",
+      "kind": "RoleId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZnc="
+      },
+      "value_hex": "019290a47b3c7d2e8f0011223344556677",
+      "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
+    },
+    {
+      "about": "the nil UUID: the system project, refused as any other kind",
+      "case": "nil",
+      "expect": "nil",
+      "kind": "RoleId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAA=="
+      },
+      "value_hex": "00000000000000000000000000000000",
+      "wire_hex": "0a1000000000000000000000000000000000"
+    },
+    {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "valid",
+      "kind": "RoleId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
+    },
+    {
+      "about": "the max UUID",
+      "case": "max",
+      "expect": "max",
+      "kind": "RoleId",
+      "protojson": {
+        "value": "/////////////////////w=="
+      },
+      "value_hex": "ffffffffffffffffffffffffffffffff",
+      "wire_hex": "0a10ffffffffffffffffffffffffffffffff"
+    },
+    {
+      "about": "an RFC 9562 UUID of version 4",
+      "case": "version_4",
+      "expect": "version:4",
+      "kind": "RoleId",
+      "protojson": {
+        "value": "AZKQpHs8TS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c4d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c4d2e8f00112233445566"
+    },
+    {
+      "about": "variant bits 0xx: refused before the version is read",
+      "case": "variant_ncs",
+      "expect": "variant",
+      "kind": "RoleId",
+      "protojson": {
+        "value": "AZKQpHs8fS4PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e0f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e0f00112233445566"
+    },
+    {
+      "about": "variant bits 110: refused",
+      "case": "variant_microsoft",
+      "expect": "variant",
+      "kind": "RoleId",
+      "protojson": {
+        "value": "AZKQpHs8fS7PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2ecf00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2ecf00112233445566"
+    },
+    {
+      "about": "the required message is missing; distinct from an empty one",
+      "case": "absent",
+      "expect": "missing",
+      "kind": "RoleId",
+      "protojson": null,
+      "value_hex": null,
+      "wire_hex": null
+    },
+    {
+      "about": "a UUIDv7 of the RFC 9562 variant",
+      "case": "valid",
+      "expect": "valid",
+      "kind": "GroupId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e8f00112233445566"
+    },
+    {
+      "about": "a present message with no bytes; ProtoJSON {} and wire empty",
+      "case": "empty",
+      "expect": "length:0",
+      "kind": "GroupId",
+      "protojson": {},
+      "value_hex": "",
+      "wire_hex": ""
+    },
+    {
+      "about": "15 bytes",
+      "case": "short",
+      "expect": "length:15",
+      "kind": "GroupId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RV"
+      },
+      "value_hex": "019290a47b3c7d2e8f001122334455",
+      "wire_hex": "0a0f019290a47b3c7d2e8f001122334455"
+    },
+    {
+      "about": "17 bytes",
+      "case": "long",
+      "expect": "length:17",
+      "kind": "GroupId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZnc="
+      },
+      "value_hex": "019290a47b3c7d2e8f0011223344556677",
+      "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
+    },
+    {
+      "about": "the nil UUID: the system project, refused as any other kind",
+      "case": "nil",
+      "expect": "nil",
+      "kind": "GroupId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAA=="
+      },
+      "value_hex": "00000000000000000000000000000000",
+      "wire_hex": "0a1000000000000000000000000000000000"
+    },
+    {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "GroupId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
+    },
+    {
+      "about": "the max UUID",
+      "case": "max",
+      "expect": "max",
+      "kind": "GroupId",
+      "protojson": {
+        "value": "/////////////////////w=="
+      },
+      "value_hex": "ffffffffffffffffffffffffffffffff",
+      "wire_hex": "0a10ffffffffffffffffffffffffffffffff"
+    },
+    {
+      "about": "an RFC 9562 UUID of version 4",
+      "case": "version_4",
+      "expect": "version:4",
+      "kind": "GroupId",
+      "protojson": {
+        "value": "AZKQpHs8TS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c4d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c4d2e8f00112233445566"
+    },
+    {
+      "about": "variant bits 0xx: refused before the version is read",
+      "case": "variant_ncs",
+      "expect": "variant",
+      "kind": "GroupId",
+      "protojson": {
+        "value": "AZKQpHs8fS4PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e0f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e0f00112233445566"
+    },
+    {
+      "about": "variant bits 110: refused",
+      "case": "variant_microsoft",
+      "expect": "variant",
+      "kind": "GroupId",
+      "protojson": {
+        "value": "AZKQpHs8fS7PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2ecf00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2ecf00112233445566"
+    },
+    {
+      "about": "the required message is missing; distinct from an empty one",
+      "case": "absent",
+      "expect": "missing",
+      "kind": "GroupId",
+      "protojson": null,
+      "value_hex": null,
+      "wire_hex": null
+    },
+    {
+      "about": "a UUIDv7 of the RFC 9562 variant",
+      "case": "valid",
+      "expect": "valid",
+      "kind": "RoleAssignmentId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e8f00112233445566"
+    },
+    {
+      "about": "a present message with no bytes; ProtoJSON {} and wire empty",
+      "case": "empty",
+      "expect": "length:0",
+      "kind": "RoleAssignmentId",
+      "protojson": {},
+      "value_hex": "",
+      "wire_hex": ""
+    },
+    {
+      "about": "15 bytes",
+      "case": "short",
+      "expect": "length:15",
+      "kind": "RoleAssignmentId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RV"
+      },
+      "value_hex": "019290a47b3c7d2e8f001122334455",
+      "wire_hex": "0a0f019290a47b3c7d2e8f001122334455"
+    },
+    {
+      "about": "17 bytes",
+      "case": "long",
+      "expect": "length:17",
+      "kind": "RoleAssignmentId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZnc="
+      },
+      "value_hex": "019290a47b3c7d2e8f0011223344556677",
+      "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
+    },
+    {
+      "about": "the nil UUID: the system project, refused as any other kind",
+      "case": "nil",
+      "expect": "nil",
+      "kind": "RoleAssignmentId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAA=="
+      },
+      "value_hex": "00000000000000000000000000000000",
+      "wire_hex": "0a1000000000000000000000000000000000"
+    },
+    {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "RoleAssignmentId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
+    },
+    {
+      "about": "the max UUID",
+      "case": "max",
+      "expect": "max",
+      "kind": "RoleAssignmentId",
+      "protojson": {
+        "value": "/////////////////////w=="
+      },
+      "value_hex": "ffffffffffffffffffffffffffffffff",
+      "wire_hex": "0a10ffffffffffffffffffffffffffffffff"
+    },
+    {
+      "about": "an RFC 9562 UUID of version 4",
+      "case": "version_4",
+      "expect": "version:4",
+      "kind": "RoleAssignmentId",
+      "protojson": {
+        "value": "AZKQpHs8TS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c4d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c4d2e8f00112233445566"
+    },
+    {
+      "about": "variant bits 0xx: refused before the version is read",
+      "case": "variant_ncs",
+      "expect": "variant",
+      "kind": "RoleAssignmentId",
+      "protojson": {
+        "value": "AZKQpHs8fS4PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e0f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e0f00112233445566"
+    },
+    {
+      "about": "variant bits 110: refused",
+      "case": "variant_microsoft",
+      "expect": "variant",
+      "kind": "RoleAssignmentId",
+      "protojson": {
+        "value": "AZKQpHs8fS7PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2ecf00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2ecf00112233445566"
+    },
+    {
+      "about": "the required message is missing; distinct from an empty one",
+      "case": "absent",
+      "expect": "missing",
+      "kind": "RoleAssignmentId",
+      "protojson": null,
+      "value_hex": null,
+      "wire_hex": null
+    },
+    {
+      "about": "a UUIDv7 of the RFC 9562 variant",
+      "case": "valid",
+      "expect": "valid",
+      "kind": "CedarPolicyId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e8f00112233445566"
+    },
+    {
+      "about": "a present message with no bytes; ProtoJSON {} and wire empty",
+      "case": "empty",
+      "expect": "length:0",
+      "kind": "CedarPolicyId",
+      "protojson": {},
+      "value_hex": "",
+      "wire_hex": ""
+    },
+    {
+      "about": "15 bytes",
+      "case": "short",
+      "expect": "length:15",
+      "kind": "CedarPolicyId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RV"
+      },
+      "value_hex": "019290a47b3c7d2e8f001122334455",
+      "wire_hex": "0a0f019290a47b3c7d2e8f001122334455"
+    },
+    {
+      "about": "17 bytes",
+      "case": "long",
+      "expect": "length:17",
+      "kind": "CedarPolicyId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZnc="
+      },
+      "value_hex": "019290a47b3c7d2e8f0011223344556677",
+      "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
+    },
+    {
+      "about": "the nil UUID: the system project, refused as any other kind",
+      "case": "nil",
+      "expect": "nil",
+      "kind": "CedarPolicyId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAA=="
+      },
+      "value_hex": "00000000000000000000000000000000",
+      "wire_hex": "0a1000000000000000000000000000000000"
+    },
+    {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "CedarPolicyId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
+    },
+    {
+      "about": "the max UUID",
+      "case": "max",
+      "expect": "max",
+      "kind": "CedarPolicyId",
+      "protojson": {
+        "value": "/////////////////////w=="
+      },
+      "value_hex": "ffffffffffffffffffffffffffffffff",
+      "wire_hex": "0a10ffffffffffffffffffffffffffffffff"
+    },
+    {
+      "about": "an RFC 9562 UUID of version 4",
+      "case": "version_4",
+      "expect": "version:4",
+      "kind": "CedarPolicyId",
+      "protojson": {
+        "value": "AZKQpHs8TS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c4d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c4d2e8f00112233445566"
+    },
+    {
+      "about": "variant bits 0xx: refused before the version is read",
+      "case": "variant_ncs",
+      "expect": "variant",
+      "kind": "CedarPolicyId",
+      "protojson": {
+        "value": "AZKQpHs8fS4PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e0f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e0f00112233445566"
+    },
+    {
+      "about": "variant bits 110: refused",
+      "case": "variant_microsoft",
+      "expect": "variant",
+      "kind": "CedarPolicyId",
+      "protojson": {
+        "value": "AZKQpHs8fS7PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2ecf00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2ecf00112233445566"
+    },
+    {
+      "about": "the required message is missing; distinct from an empty one",
+      "case": "absent",
+      "expect": "missing",
+      "kind": "CedarPolicyId",
+      "protojson": null,
+      "value_hex": null,
+      "wire_hex": null
+    },
+    {
+      "about": "a UUIDv7 of the RFC 9562 variant",
+      "case": "valid",
+      "expect": "valid",
+      "kind": "AccessRequestId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e8f00112233445566"
+    },
+    {
+      "about": "a present message with no bytes; ProtoJSON {} and wire empty",
+      "case": "empty",
+      "expect": "length:0",
+      "kind": "AccessRequestId",
+      "protojson": {},
+      "value_hex": "",
+      "wire_hex": ""
+    },
+    {
+      "about": "15 bytes",
+      "case": "short",
+      "expect": "length:15",
+      "kind": "AccessRequestId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RV"
+      },
+      "value_hex": "019290a47b3c7d2e8f001122334455",
+      "wire_hex": "0a0f019290a47b3c7d2e8f001122334455"
+    },
+    {
+      "about": "17 bytes",
+      "case": "long",
+      "expect": "length:17",
+      "kind": "AccessRequestId",
+      "protojson": {
+        "value": "AZKQpHs8fS6PABEiM0RVZnc="
+      },
+      "value_hex": "019290a47b3c7d2e8f0011223344556677",
+      "wire_hex": "0a11019290a47b3c7d2e8f0011223344556677"
+    },
+    {
+      "about": "the nil UUID: the system project, refused as any other kind",
+      "case": "nil",
+      "expect": "nil",
+      "kind": "AccessRequestId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAA=="
+      },
+      "value_hex": "00000000000000000000000000000000",
+      "wire_hex": "0a1000000000000000000000000000000000"
+    },
+    {
+      "about": "15 zero bytes and 0x01: a built-in role, refused as any other kind",
+      "case": "builtin",
+      "expect": "variant",
+      "kind": "AccessRequestId",
+      "protojson": {
+        "value": "AAAAAAAAAAAAAAAAAAAAAQ=="
+      },
+      "value_hex": "00000000000000000000000000000001",
+      "wire_hex": "0a1000000000000000000000000000000001"
+    },
+    {
+      "about": "the max UUID",
+      "case": "max",
+      "expect": "max",
+      "kind": "AccessRequestId",
+      "protojson": {
+        "value": "/////////////////////w=="
+      },
+      "value_hex": "ffffffffffffffffffffffffffffffff",
+      "wire_hex": "0a10ffffffffffffffffffffffffffffffff"
+    },
+    {
+      "about": "an RFC 9562 UUID of version 4",
+      "case": "version_4",
+      "expect": "version:4",
+      "kind": "AccessRequestId",
+      "protojson": {
+        "value": "AZKQpHs8TS6PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c4d2e8f00112233445566",
+      "wire_hex": "0a10019290a47b3c4d2e8f00112233445566"
+    },
+    {
+      "about": "variant bits 0xx: refused before the version is read",
+      "case": "variant_ncs",
+      "expect": "variant",
+      "kind": "AccessRequestId",
+      "protojson": {
+        "value": "AZKQpHs8fS4PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2e0f00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2e0f00112233445566"
+    },
+    {
+      "about": "variant bits 110: refused",
+      "case": "variant_microsoft",
+      "expect": "variant",
+      "kind": "AccessRequestId",
+      "protojson": {
+        "value": "AZKQpHs8fS7PABEiM0RVZg=="
+      },
+      "value_hex": "019290a47b3c7d2ecf00112233445566",
+      "wire_hex": "0a10019290a47b3c7d2ecf00112233445566"
+    },
+    {
+      "about": "the required message is missing; distinct from an empty one",
+      "case": "absent",
+      "expect": "missing",
+      "kind": "AccessRequestId",
       "protojson": null,
       "value_hex": null,
       "wire_hex": null
