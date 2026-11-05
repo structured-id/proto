@@ -24,6 +24,8 @@ syntax = "proto3";
 
 package sid.v1.authn;
 
+import "sid/v1/ids/ids.proto";
+
 // One generation of a native session's refresh credentials, delivered in
 // `sid-native-credentials-bin` response metadata by a native ceremony
 // completion, a refresh and a redelivery of that refresh. The client
@@ -95,9 +97,10 @@ message RefreshNativeSessionRequest {
 
 // The refreshed session. Its credentials are in the response metadata.
 message RefreshNativeSessionResponse {
-  // Server-assigned session identifier (UUIDv7) of the refreshed session:
-  // the same session, never a new one. Not a credential.
-  string session_id = 1;
+  // The refreshed session: the same session, never a new one. Not a
+  // credential.
+  sid.v1.ids.SessionId session_id = 3;
+  reserved 1;
   // Seconds until the delivered access token expires.
   int64 expires_in = 2;
 }

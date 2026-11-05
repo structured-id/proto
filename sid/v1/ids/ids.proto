@@ -39,6 +39,75 @@ message OpaqueLoginId {
   bytes value = 1;
 }
 
+// An authenticated session of a Profile: the reference session management
+// (listing, revocation, sign-out) names. Not a credential; holding it
+// authorizes nothing.
+message SessionId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// One authentication credential of a Profile (a password, passkey, TOTP or
+// recovery code set): the reference management and change operations name.
+// Never the secret or the WebAuthn credential ID of the authenticator.
+message CredentialId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// One emailed one-time code from its request to its verification: the
+// reference verify and resend carry. It carries no part of the code.
+message OtpSessionId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// One magic link from its request to its verification: the reference the
+// link carries beside its secret token. It authorizes nothing without that
+// token.
+message MagicLinkId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// One two-phase step-up of a session (a WebAuthn assertion) from its
+// challenge to its completion: the reference to the challenge the server
+// keeps for that session only.
+message StepUpChallengeId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// One password reset from its emailed link to its completion: the reference
+// the link carries beside its secret token. It authorizes nothing without
+// that token.
+message ResetSessionId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// One upgrade of an imported password to OPAQUE from its start to its
+// finish: the reference to the upgrade state the server keeps between the
+// two steps. It carries no part of that state.
+message ImportedPasswordUpgradeId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
 // A non-human actor (a service, bot or agent) with its own SID credentials.
 // Not a Binding, a Profile or a device, whatever its bytes.
 message MachineUserId {
