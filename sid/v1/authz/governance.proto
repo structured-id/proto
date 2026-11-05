@@ -10,6 +10,7 @@ import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
 import "sid/v1/common/operation.proto";
 import "sid/v1/common/pagination.proto";
+import "sid/v1/ids/ids.proto";
 
 // ────────────────────────────────────────────────────────────────────────────
 // GovernanceService: access lifecycle (4 RPCs)
@@ -34,7 +35,10 @@ service GovernanceService {
   rpc DecideRequest(DecideRequestRequest) returns (DecideRequestResponse) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { post: "/v1/governance/access-requests/{request_id}/decide" body: "*" };
+    option (google.api.http) = {
+      post: "/v1/governance/access-requests/{request_id.value}/decide"
+      body: "*"
+    };
   }
 
   // Grant temporary role with auto-expiry.
@@ -63,9 +67,9 @@ enum AccessRequestStatus {
 // ══════════════════════════════════════════════════════════════════════════
 
 message AccessRequestMessage {
-  // Profile asking for the role (UUID). The caller itself, or anyone when an
+  // Profile asking for the role. The caller itself, or anyone when an
   // administrator files the request on its behalf.
-  string requester_profile_id = 1;
+  sid.v1.ids.ProfileId requester_profile_id = 1;
   // Key of the requested role within `project_id`. A role the project does
   // not define is NOT_FOUND; nothing is stored.
   string requested_role = 2;
@@ -74,13 +78,14 @@ message AccessRequestMessage {
   // How long the role is wanted; absent = permanent. On approval the
   // assignment expires after it.
   optional google.protobuf.Duration requested_duration = 4;
-  // Project (UUID) whose role is requested: roles are defined per project.
-  // An unknown project is NOT_FOUND.
-  string project_id = 5;
+  // Project whose role is requested: roles are defined per project. An
+  // unknown project is NOT_FOUND.
+  sid.v1.ids.ProjectId project_id = 5;
 }
 
 message AccessRequestResponse {
-  string request_id = 1;
+  // The request filed, as SID issued it.
+  sid.v1.ids.AccessRequestId request_id = 1;
   AccessRequestStatus status = 2;
   google.protobuf.Timestamp created_at = 3;
 }
@@ -95,8 +100,10 @@ message ListPendingRequestsResponse {
 }
 
 message AccessRequestDetail {
-  string request_id = 1;
-  string requester_profile_id = 2;
+  // The request.
+  sid.v1.ids.AccessRequestId request_id = 1;
+  // The Profile asking for the role.
+  sid.v1.ids.ProfileId requester_profile_id = 2;
   string requester_display_name = 3;
   string requested_role = 4;
   string justification = 5;
@@ -107,8 +114,8 @@ message AccessRequestDetail {
 }
 
 message DecideRequestRequest {
-  // Access request (UUID) being decided.
-  string request_id = 1;
+  // Access request being decided.
+  sid.v1.ids.AccessRequestId request_id = 1;
   // Approve (grant the role) or deny. An approval and the role assignment it
   // makes are recorded together: when the role can no longer be assigned
   // (it was deleted) the call fails FAILED_PRECONDITION and the request
@@ -119,7 +126,8 @@ message DecideRequestRequest {
 }
 
 message DecideRequestResponse {
-  string request_id = 1;
+  // The request decided.
+  sid.v1.ids.AccessRequestId request_id = 1;
   AccessRequestStatus status = 2;
 }
 
@@ -128,19 +136,20 @@ message DecideRequestResponse {
 // ══════════════════════════════════════════════════════════════════════════
 
 message GrantTemporaryRoleRequest {
-  // Profile receiving the role (UUID); an unknown profile is NOT_FOUND.
-  string profile_id = 1;
+  // Profile receiving the role; an unknown profile is NOT_FOUND.
+  sid.v1.ids.ProfileId profile_id = 1;
   // Key of the role within `project_id`; an unknown role is NOT_FOUND.
   string role = 2;
   // When the assignment is revoked automatically; must be in the future.
   google.protobuf.Timestamp expires_at = 3;
   // Why the role is granted, recorded in the audit trail.
   string justification = 4;
-  // Project (UUID) whose role is granted: roles are defined per project.
-  string project_id = 5;
+  // Project whose role is granted: roles are defined per project.
+  sid.v1.ids.ProjectId project_id = 5;
 }
 
 message GrantTemporaryRoleResponse {
-  string assignment_id = 1;
+  // The assignment made; it is revoked at `expires_at`.
+  sid.v1.ids.RoleAssignmentId assignment_id = 1;
   google.protobuf.Timestamp expires_at = 2;
 }
