@@ -276,11 +276,8 @@ message ReactivateMachineUserRequest {
 message AddMachineCredentialRequest {
   sid.v1.ids.MachineUserId machine_user_id = 1;
   MachineCredentialType credential_type = 2;
-  // For private_key_jwt: the JWS algorithm (RFC 7518 §3.1), e.g. "ES256".
-  string algorithm = 3;
-  // For private_key_jwt: the public key, a DER-encoded SubjectPublicKeyInfo
-  // (RFC 5280 §4.1.2.7). Its private key never reaches SID.
-  bytes public_key = 4;
+  string algorithm = 3;           // For private_key_jwt: "RS256", "ES256"
+  string public_key_pem = 4;     // For private_key_jwt: PEM-encoded public key
   google.protobuf.Timestamp expires_at = 5;
 }
 
@@ -306,11 +303,9 @@ message ListMachineCredentialsResponse {
 
 message RotateMachineCredentialRequest {
   sid.v1.ids.MachineUserId machine_user_id = 1;
-  // Key ID of the credential to rotate.
-  string kid = 2;
-  // For a new private_key_jwt credential: as AddMachineCredentialRequest.
-  string algorithm = 3;
-  bytes public_key = 4;
+  string kid = 2;                // Old credential kid to rotate
+  string algorithm = 3;          // For new private_key_jwt
+  string public_key_pem = 4;    // For new private_key_jwt
   google.protobuf.Timestamp expires_at = 5;
 }
 
