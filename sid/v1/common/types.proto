@@ -17,3 +17,15 @@ message SortOrder {
   string field = 1;       // Field name to sort by
   bool descending = 2;    // true = DESC, false = ASC (default)
 }
+
+// One IP host address as API data, such as the address a stored session or
+// audit record holds. It is never a client's statement about its own
+// address. A field of this type that is absent means the address is unknown
+// or was not recorded.
+message IpAddress {
+  // Exactly 4 bytes (IPv4) or 16 bytes (IPv6) in network byte order; the
+  // length is the family. Empty or any other length is invalid. Zero
+  // addresses are addresses, not absence. An IPv4-mapped IPv6 address
+  // (RFC 4291 section 2.5.5.2) is 16 bytes and stays IPv6.
+  bytes value = 1;
+}
