@@ -10,13 +10,16 @@ import "google/protobuf/empty.proto";
 import "sid/v1/authz/authz.proto";
 import "google/api/annotations.proto";
 import "sid/v1/common/operation.proto";
+import "sid/v1/ids/ids.proto";
 
 // Project is a container for related applications that share authorization scope.
 message Project {
-  string id = 1;
+  sid.v1.ids.ProjectId id = 1;
   string name = 2;
   string description = 3;
-  string owner_profile_id = 4;
+  // Profile that owns the project; absent for the system project and once
+  // its owner is gone.
+  sid.v1.ids.ProfileId owner_profile_id = 4;
   bool is_system = 5;
   google.protobuf.Timestamp created_at = 6;
   google.protobuf.Timestamp updated_at = 7;
@@ -29,11 +32,11 @@ message Project {
 // secret or callback of its own, and a client obtains tokens only for
 // resources it has explicit access to.
 message Application {
-  // Server-assigned application identifier (UUIDv7). Stable for the
-  // application's lifetime; not a credential and not a token audience.
-  string id = 1;
-  // Project (UUID) whose authorization vocabulary the application uses.
-  string project_id = 2;
+  // Server-assigned application identifier. Stable for the application's
+  // lifetime; not a credential and not a token audience.
+  sid.v1.ids.ApplicationId id = 1;
+  // Project whose authorization vocabulary the application uses.
+  sid.v1.ids.ProjectId project_id = 2;
   // Name shown to administrators.
   string name = 3;
   // The OAuth client role, when the application has one.
@@ -64,10 +67,10 @@ enum SystemIntegration {
 message OAuthClient {
   // OAuth `client_id`, assigned by the server; unique within the installation.
   string client_id = 1;
-  // Application (UUIDv7) whose client role this is.
-  string application_id = 2;
-  // Project (UUID) of the application.
-  string project_id = 3;
+  // Application whose client role this is.
+  sid.v1.ids.ApplicationId application_id = 2;
+  // Project of the application.
+  sid.v1.ids.ProjectId project_id = 3;
   // Client name shown to users (RFC 7591 §2 `client_name`).
   string name = 4;
   // Kind of client software; decides whether it can hold a secret.
@@ -89,11 +92,11 @@ message OAuthClient {
   optional google.protobuf.Timestamp client_secret_expires_at = 17;
   // Registered through Dynamic Client Registration (RFC 7591).
   bool dynamically_registered = 18;
-  // Recipient organization of this client (UUIDv7). A pairwise recipient's
-  // subject is the stored BindingId of the (Profile, organization) pair, so
-  // every client of one organization sees the same subject for a user and
-  // redirect domains do not change it. Assigned at registration.
-  optional string org_id = 19;
+  // Recipient organization of this client. A pairwise recipient's subject is
+  // the stored BindingId of the (Profile, organization) pair, so every client
+  // of one organization sees the same subject for a user and redirect domains
+  // do not change it. Assigned at registration.
+  sid.v1.ids.OrgId org_id = 19;
   // Exact OIDC issuer identifier this client is registered under, the
   // canonical URL `https://<host>/i/<handle>`. Part of the connection details
   // a relying party configures verbatim: it discovers endpoints at
@@ -101,12 +104,11 @@ message OAuthClient {
   // (issuer, sub). Assigned by the server at registration and never changed
   // by an ordinary update; every client has one.
   string issuer = 20;
-  // The protected resource (ProtectedResource.id, UUIDv7) a token is issued
-  // for when a token request names none (RFC 8707 §2). Effective only while
-  // the client has access to that resource. Without it, a request naming no
-  // resource is refused with `invalid_target`; no other audience is
-  // substituted.
-  optional string default_resource_id = 21;
+  // The protected resource (ProtectedResource.id) a token is issued for when
+  // a token request names none (RFC 8707 §2). Effective only while the client
+  // has access to that resource. Without it, a request naming no resource is
+  // refused with `invalid_target`; no other audience is substituted.
+  sid.v1.ids.ResourceId default_resource_id = 21;
   // Stored revision of the client role.
   uint64 revision = 22;
   // The client's registered public signing keys (RFC 7591 §2 `jwks`), the
@@ -121,12 +123,12 @@ message OAuthClient {
 // The protected-resource role of an application: an API or application at
 // which access tokens are accepted and access is enforced.
 message ProtectedResource {
-  // Server-assigned resource identifier (UUIDv7), used to manage the resource
-  // and its access. Not the token audience.
-  string id = 1;
-  // Application (UUIDv7) holding this role; absent once the resource is
-  // retired with its application.
-  optional string application_id = 2;
+  // Server-assigned resource identifier, used to manage the resource and its
+  // access. Not the token audience.
+  sid.v1.ids.ResourceId id = 1;
+  // Application holding this role; absent once the resource is retired with
+  // its application.
+  sid.v1.ids.ApplicationId application_id = 2;
   // The resource indicator (RFC 8707 §2): an absolute URI without a fragment,
   // in canonical form, e.g. `https://api.example.com/orders`. It is the `aud`
   // of every access token issued for this resource and the `resource` value
@@ -164,8 +166,8 @@ message ResourceAccess {
   // Identifier (RFC 6749 §2.2) of the client given access: an OAuth client
   // of an application, or a machine user requesting tokens for itself.
   string client_id = 1;
-  // The resource (ProtectedResource.id, UUIDv7) it may obtain tokens for.
-  string resource_id = 2;
+  // The resource (ProtectedResource.id) it may obtain tokens for.
+  sid.v1.ids.ResourceId resource_id = 2;
   // Scopes this access grants; always a subset of the resource's scopes.
   repeated string scopes = 3;
   google.protobuf.Timestamp created_at = 4;
@@ -187,8 +189,9 @@ enum SubjectType {
 
 // Initial Access Token constrains DCR registrations.
 message InitialAccessToken {
-  string id = 1;
-  string project_id = 2;
+  sid.v1.ids.InitialAccessTokenId id = 1;
+  // Project the clients registered with this token join.
+  sid.v1.ids.ProjectId project_id = 2;
   uint32 max_clients = 3;
   uint32 clients_registered = 4;
   repeated string allowed_scopes = 5;
@@ -196,7 +199,8 @@ message InitialAccessToken {
   repeated string allowed_redirect_patterns = 7;
   google.protobuf.Timestamp expires_at = 8;
   google.protobuf.Timestamp created_at = 9;
-  string created_by = 10;
+  // Administrator Profile that created the token.
+  sid.v1.ids.ProfileId created_by = 10;
   bool revoked = 11;
 }
 
@@ -224,7 +228,7 @@ service ProjectService {
   }
   rpc GetProject(GetProjectRequest) returns (Project) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { get: "/v1/projects/{id}" };
+    option (google.api.http) = { get: "/v1/projects/{id.value}" };
   }
   rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
@@ -233,12 +237,12 @@ service ProjectService {
   rpc UpdateProject(UpdateProjectRequest) returns (Project) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { patch: "/v1/projects/{id}" body: "*" };
+    option (google.api.http) = { patch: "/v1/projects/{id.value}" body: "*" };
   }
   rpc DeleteProject(DeleteProjectRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { delete: "/v1/projects/{id}" };
+    option (google.api.http) = { delete: "/v1/projects/{id.value}" };
   }
 
   // Applications within a project. Creating one registers the roles it
@@ -248,27 +252,30 @@ service ProjectService {
   rpc CreateApplication(CreateApplicationRequest) returns (CreateApplicationResponse) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { post: "/v1/projects/{project_id}/applications" body: "*" };
+    option (google.api.http) = {
+      post: "/v1/projects/{project_id.value}/applications"
+      body: "*"
+    };
   }
   rpc GetApplication(GetApplicationRequest) returns (Application) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { get: "/v1/applications/{id}" };
+    option (google.api.http) = { get: "/v1/applications/{id.value}" };
   }
   rpc ListApplications(ListApplicationsRequest) returns (ListApplicationsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { get: "/v1/projects/{project_id}/applications" };
+    option (google.api.http) = { get: "/v1/projects/{project_id.value}/applications" };
   }
   rpc UpdateApplication(UpdateApplicationRequest) returns (Application) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { patch: "/v1/applications/{id}" body: "*" };
+    option (google.api.http) = { patch: "/v1/applications/{id.value}" body: "*" };
   }
   // Removes the application: its client role and the client's access are
   // deleted, its resource role is retired and access to it ends.
   rpc DeleteApplication(DeleteApplicationRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { delete: "/v1/applications/{id}" };
+    option (google.api.http) = { delete: "/v1/applications/{id.value}" };
   }
 
   // Client role. An application has at most one: a new addition to one that
@@ -278,7 +285,10 @@ service ProjectService {
   rpc AddClientRole(AddClientRoleRequest) returns (CreateApplicationResponse) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { post: "/v1/applications/{application_id}/client" body: "*" };
+    option (google.api.http) = {
+      post: "/v1/applications/{application_id.value}/client"
+      body: "*"
+    };
   }
   rpc UpdateClientRole(UpdateClientRoleRequest) returns (Application) {
     option idempotency_level = IDEMPOTENT;
@@ -291,30 +301,38 @@ service ProjectService {
   rpc AddResourceRole(AddResourceRoleRequest) returns (Application) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { post: "/v1/applications/{application_id}/resource" body: "*" };
+    option (google.api.http) = {
+      post: "/v1/applications/{application_id.value}/resource"
+      body: "*"
+    };
   }
   rpc UpdateResourceRole(UpdateResourceRoleRequest) returns (ProtectedResource) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { patch: "/v1/resources/{resource_id}" body: "*" };
+    option (google.api.http) = { patch: "/v1/resources/{resource_id.value}" body: "*" };
   }
 
   // Client-to-resource access.
   rpc SetResourceAccess(SetResourceAccessRequest) returns (ResourceAccess) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { put: "/v1/clients/{client_id}/resources/{resource_id}" body: "*" };
+    option (google.api.http) = {
+      put: "/v1/clients/{client_id}/resources/{resource_id.value}"
+      body: "*"
+    };
   }
   rpc RemoveResourceAccess(RemoveResourceAccessRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { delete: "/v1/clients/{client_id}/resources/{resource_id}" };
+    option (google.api.http) = {
+      delete: "/v1/clients/{client_id}/resources/{resource_id.value}"
+    };
   }
   rpc ListResourceAccess(ListResourceAccessRequest) returns (ListResourceAccessResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = {
       get: "/v1/clients/{client_id}/resources"
-      additional_bindings { get: "/v1/resources/{resource_id}/clients" }
+      additional_bindings { get: "/v1/resources/{resource_id.value}/clients" }
     };
   }
 
@@ -322,12 +340,14 @@ service ProjectService {
   rpc AddRole(AddRoleRequest) returns (sid.v1.authz.Role) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { post: "/v1/projects/{project_id}/roles" body: "*" };
+    option (google.api.http) = { post: "/v1/projects/{project_id.value}/roles" body: "*" };
   }
   rpc RemoveRole(RemoveRoleRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { delete: "/v1/projects/{project_id}/roles/{role_id}" };
+    option (google.api.http) = {
+      delete: "/v1/projects/{project_id.value}/roles/{role_id.value}"
+    };
   }
   // ListRoles is already defined in AuthzService; reuse authz.proto messages.
 
@@ -365,16 +385,16 @@ service ProjectService {
   rpc CreateInitialAccessToken(CreateInitialAccessTokenRequest) returns (CreateInitialAccessTokenResponse) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { post: "/v1/projects/{project_id}/iat" body: "*" };
+    option (google.api.http) = { post: "/v1/projects/{project_id.value}/iat" body: "*" };
   }
   rpc ListInitialAccessTokens(ListInitialAccessTokensRequest) returns (ListInitialAccessTokensResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { get: "/v1/projects/{project_id}/iat" };
+    option (google.api.http) = { get: "/v1/projects/{project_id.value}/iat" };
   }
   rpc RevokeInitialAccessToken(RevokeInitialAccessTokenRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { delete: "/v1/projects/iat/{id}" };
+    option (google.api.http) = { delete: "/v1/projects/iat/{id.value}" };
   }
 }
 
@@ -383,11 +403,12 @@ service ProjectService {
 message CreateProjectRequest {
   string name = 1;
   string description = 2;
-  string owner_profile_id = 3;
+  // Profile to own the project; absent, the caller owns it.
+  sid.v1.ids.ProfileId owner_profile_id = 3;
 }
 
 message GetProjectRequest {
-  string id = 1;
+  sid.v1.ids.ProjectId id = 1;
 }
 
 message ListProjectsRequest {
@@ -401,13 +422,13 @@ message ListProjectsResponse {
 }
 
 message UpdateProjectRequest {
-  string id = 1;
+  sid.v1.ids.ProjectId id = 1;
   optional string name = 2;
   optional string description = 3;
 }
 
 message DeleteProjectRequest {
-  string id = 1;
+  sid.v1.ids.ProjectId id = 1;
 }
 
 // ── Application messages ──
@@ -453,14 +474,14 @@ message ResourceRoleSettings {
 }
 
 message CreateApplicationRequest {
-  string project_id = 1;
+  sid.v1.ids.ProjectId project_id = 1;
   string name = 2;
   // At least one role is required.
   optional ClientRoleSettings client = 3;
   optional ResourceRoleSettings resource = 4;
-  // Recipient organization (UUIDv7). Empty means the installation's
-  // organization; naming any other organization is refused.
-  optional string org_id = 5;
+  // Recipient organization. Absent means the installation's organization;
+  // naming any other organization is refused.
+  sid.v1.ids.OrgId org_id = 5;
 }
 
 // The application, and the client secret when a client role that holds a
@@ -472,11 +493,11 @@ message CreateApplicationResponse {
 }
 
 message GetApplicationRequest {
-  string id = 1;
+  sid.v1.ids.ApplicationId id = 1;
 }
 
 message ListApplicationsRequest {
-  string project_id = 1;
+  sid.v1.ids.ProjectId project_id = 1;
   int32 page_size = 2;
   string page_token = 3;
 }
@@ -487,17 +508,17 @@ message ListApplicationsResponse {
 }
 
 message UpdateApplicationRequest {
-  string id = 1;
+  sid.v1.ids.ApplicationId id = 1;
   optional string name = 2;
 }
 
 message DeleteApplicationRequest {
-  string id = 1;
+  sid.v1.ids.ApplicationId id = 1;
 }
 
 message AddClientRoleRequest {
-  // Application (UUIDv7) without a client role yet; ALREADY_EXISTS otherwise.
-  string application_id = 1;
+  // Application without a client role yet; ALREADY_EXISTS otherwise.
+  sid.v1.ids.ApplicationId application_id = 1;
   ClientRoleSettings settings = 2;
 }
 
@@ -516,19 +537,25 @@ message UpdateClientRoleRequest {
   // users to another identifier is an explicit account migration, never an
   // update.
   optional string subject_type = 7;
-  // The resource (ProtectedResource.id) tokens are for when a request names
-  // none. The client must already have access to it (INVALID_ARGUMENT,
-  // field `default_resource_id`, otherwise). An empty value removes the
-  // default.
-  optional string default_resource_id = 8;
+  // The default resource tokens are for when a request names none; left
+  // out, it is unchanged (see DefaultResource).
+  DefaultResource default_resource = 8;
   // Replaces the post-logout redirect URIs (see ClientRoleSettings); left out,
   // they are unchanged.
   optional UriList post_logout_redirect_uris = 9;
 }
 
+// A client's default resource, set as a whole by an update.
+message DefaultResource {
+  // The resource (ProtectedResource.id) tokens are for when a request names
+  // none. The client must already have access to it (INVALID_ARGUMENT, field
+  // `default_resource`, otherwise). Absent removes the default.
+  sid.v1.ids.ResourceId resource_id = 1;
+}
+
 message AddResourceRoleRequest {
-  // Application (UUIDv7) without a resource role yet; ALREADY_EXISTS otherwise.
-  string application_id = 1;
+  // Application without a resource role yet; ALREADY_EXISTS otherwise.
+  sid.v1.ids.ApplicationId application_id = 1;
   ResourceRoleSettings settings = 2;
 }
 
@@ -538,7 +565,7 @@ message ScopeList {
 }
 
 message UpdateResourceRoleRequest {
-  string resource_id = 1;
+  sid.v1.ids.ResourceId resource_id = 1;
   // Replaces the scopes the resource understands. Access already granted
   // keeps its scopes but grants only those the resource still understands.
   optional ScopeList scopes = 2;
@@ -553,8 +580,8 @@ message SetResourceAccessRequest {
   // user (served by the installation organization's issuer). Unknown to both
   // is NOT_FOUND.
   string client_id = 1;
-  // The resource (ProtectedResource.id, UUIDv7).
-  string resource_id = 2;
+  // The resource (ProtectedResource.id).
+  sid.v1.ids.ResourceId resource_id = 2;
   // Replaces the scopes of this access. Each must be a scope of the resource
   // (INVALID_ARGUMENT otherwise). The client and the resource must belong to
   // the same issuer (FAILED_PRECONDITION, ISSUER_MISMATCH), and a retired
@@ -565,15 +592,15 @@ message SetResourceAccessRequest {
 message RemoveResourceAccessRequest {
   // Identifier of the OAuth client or machine user losing access.
   string client_id = 1;
-  // The resource (ProtectedResource.id, UUIDv7).
-  string resource_id = 2;
+  // The resource (ProtectedResource.id).
+  sid.v1.ids.ResourceId resource_id = 2;
 }
 
 message ListResourceAccessRequest {
   // Every access of one client, or every access to one resource.
   oneof subject {
     string client_id = 1;
-    string resource_id = 2;
+    sid.v1.ids.ResourceId resource_id = 2;
   }
 }
 
@@ -584,7 +611,7 @@ message ListResourceAccessResponse {
 // ── Role messages (AddRole/RemoveRole specific to ProjectService) ──
 
 message AddRoleRequest {
-  string project_id = 1;
+  sid.v1.ids.ProjectId project_id = 1;
   string key = 2;
   string display_name = 3;
   optional string description = 4;
@@ -593,8 +620,8 @@ message AddRoleRequest {
 }
 
 message RemoveRoleRequest {
-  string project_id = 1;
-  string role_id = 2;
+  sid.v1.ids.ProjectId project_id = 1;
+  sid.v1.ids.RoleId role_id = 2;
 }
 
 // ── Dynamic Client Registration messages (RFC 7591/7592) ──
@@ -688,7 +715,7 @@ message DeleteRegisteredClientRequest {
 // ── Initial Access Token messages ──
 
 message CreateInitialAccessTokenRequest {
-  string project_id = 1;
+  sid.v1.ids.ProjectId project_id = 1;
   uint32 max_clients = 2;
   repeated string allowed_scopes = 3;
   repeated string allowed_grant_types = 4;
@@ -705,7 +732,7 @@ message CreateInitialAccessTokenResponse {
 }
 
 message ListInitialAccessTokensRequest {
-  string project_id = 1;
+  sid.v1.ids.ProjectId project_id = 1;
 }
 
 message ListInitialAccessTokensResponse {
@@ -713,5 +740,5 @@ message ListInitialAccessTokensResponse {
 }
 
 message RevokeInitialAccessTokenRequest {
-  string id = 1;
+  sid.v1.ids.InitialAccessTokenId id = 1;
 }
