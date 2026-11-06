@@ -274,3 +274,21 @@ message AccessRequestId {
   // invalid. Issued by SID; compared by exact byte equality.
   bytes value = 1;
 }
+
+// One initial access token for dynamic client registration (RFC 7591 §3):
+// the reference its listing and revocation name. Never the bearer value.
+message InitialAccessTokenId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// One personal access token of a Profile: the reference its listing,
+// revocation and audit name. Never the token itself.
+message PatId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}

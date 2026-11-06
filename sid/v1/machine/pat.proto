@@ -11,6 +11,7 @@ package sid.v1.machine;
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
 import "sid/v1/common/operation.proto";
+import "sid/v1/ids/ids.proto";
 
 // PatService manages personal access tokens for programmatic API access.
 service PatService {
@@ -27,14 +28,14 @@ service PatService {
   }
   rpc GetPat(GetPatRequest) returns (PatResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { get: "/v1/pats/{pat_id}" };
+    option (google.api.http) = { get: "/v1/pats/{pat_id.value}" };
   }
   rpc RevokePat(RevokePatRequest) returns (RevokePatResponse) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       natural: "a revoked token is never reactivated: a repeat finds it revoked and answers as the first"
     };
-    option (google.api.http) = { delete: "/v1/pats/{pat_id}" };
+    option (google.api.http) = { delete: "/v1/pats/{pat_id.value}" };
   }
 
   // Token exchange (opaque-JWT-swap model).
@@ -56,7 +57,7 @@ service PatService {
     option (sid.v1.common.retry) = {
       natural: "a revoked token is never reactivated: a repeat finds it revoked and answers as the first"
     };
-    option (google.api.http) = { delete: "/v1/admin/pats/{pat_id}" };
+    option (google.api.http) = { delete: "/v1/admin/pats/{pat_id.value}" };
   }
 }
 
@@ -70,8 +71,9 @@ enum PatStatus {
 
 // PAT metadata (returned in responses — NEVER includes token plaintext).
 message Pat {
-  string id = 1;
-  string profile_id = 2;
+  sid.v1.ids.PatId id = 1;
+  // Profile the token acts for.
+  sid.v1.ids.ProfileId profile_id = 2;
   string name = 3;
   string description = 4;
   string token_prefix = 5;           // "sid_pat_XXXXXXXX" for identification.
@@ -97,7 +99,7 @@ message CreatePatRequest {
 }
 
 message CreatePatResponse {
-  string pat_id = 1;
+  sid.v1.ids.PatId pat_id = 1;
   string token = 2;                  // Plaintext — shown ONCE, never stored.
   string token_prefix = 3;
   Pat metadata = 4;
@@ -110,7 +112,7 @@ message ListPatsResponse {
 }
 
 message GetPatRequest {
-  string pat_id = 1;
+  sid.v1.ids.PatId pat_id = 1;
 }
 
 message PatResponse {
@@ -118,7 +120,7 @@ message PatResponse {
 }
 
 message RevokePatRequest {
-  string pat_id = 1;
+  sid.v1.ids.PatId pat_id = 1;
 }
 
 message RevokePatResponse {}
@@ -146,5 +148,5 @@ message ListAllPatsResponse {
 }
 
 message AdminRevokePatRequest {
-  string pat_id = 1;
+  sid.v1.ids.PatId pat_id = 1;
 }
