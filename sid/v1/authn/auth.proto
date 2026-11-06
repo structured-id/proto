@@ -1182,8 +1182,8 @@ message ValidateSessionRequest {
 message ValidateSessionResponse {
   // Whether the session is active and not expired.
   bool valid = 1;
-  // Profile ID of the session owner (UUID). Set only when valid=true.
-  optional string profile_id = 2;
+  // Local profile that owns the session. Set only when valid=true.
+  sid.v1.ids.ProfileId profile_id = 2;
   // Scopes granted to this session.
   repeated string scopes = 3;
   // Session expiration timestamp. Set only when valid=true.
@@ -1653,7 +1653,8 @@ message ConfirmIdpLinkResponse {
 message ListUserOrganizationsRequest {}
 
 message UserOrganization {
-  string id = 1;
+  // The organization, as the selection names it.
+  sid.v1.ids.OrgId id = 1;
   string name = 2;
   string display_name = 3;
   optional string logo_url = 4;
@@ -1665,7 +1666,8 @@ message ListUserOrganizationsResponse {
 }
 
 message SelectOrganizationRequest {
-  string organization_id = 1;
+  // Organization the sign-in continues in.
+  sid.v1.ids.OrgId organization_id = 1;
 }
 
 message SelectOrganizationResponse {
