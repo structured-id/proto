@@ -9,6 +9,7 @@ package sid.v1.admin;
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
 import "sid/v1/common/operation.proto";
+import "sid/v1/ids/ids.proto";
 
 service SecurityService {
   // ── Password Policy ──
@@ -440,7 +441,8 @@ message SecurityPolicyResponse {
 }
 
 message ApplicationOverride {
-  string application_id = 1;
+  // OAuth client whose role settings override the policy (RFC 6749 §2.2).
+  string client_id = 1;
   string application_name = 2;
   optional string min_auth_level = 3;
   optional string enforcement_mode = 4;
@@ -458,8 +460,10 @@ message GetEffectivePolicyRequest {
 
 // Request for enforcement evaluation.
 message EvaluateEnforcementRequest {
-  string profile_id = 1;
-  string client_id = 2;  // Which application
+  // Local profile whose current state is evaluated.
+  sid.v1.ids.ProfileId profile_id = 1;
+  // OAuth client whose effective policy applies (RFC 6749 §2.2).
+  string client_id = 2;
 }
 
 message EvaluateEnforcementResponse {

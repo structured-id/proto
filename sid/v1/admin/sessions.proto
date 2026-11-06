@@ -9,6 +9,7 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
 import "sid/v1/common/operation.proto";
+import "sid/v1/ids/ids.proto";
 
 // SessionService provides admin-level session management across all users.
 // Per-user sessions are available via IdentityService.ListSessions.
@@ -31,7 +32,7 @@ service SessionService {
     option (sid.v1.common.retry) = {
       natural: "an ended session stays ended and is never resumed: a repeat finds none and answers as the first"
     };
-    option (google.api.http) = { delete: "/v1/admin/sessions/{session_id}" };
+    option (google.api.http) = { delete: "/v1/admin/sessions/{session_id.value}" };
   }
 
   // Revoke all sessions for a specific application.
@@ -63,8 +64,10 @@ enum SessionAuthMethod {
 // ── Messages ──
 
 message AdminSession {
-  string session_id = 1;
-  string profile_id = 2;
+  // The session.
+  sid.v1.ids.SessionId session_id = 1;
+  // Local profile signed in by the session.
+  sid.v1.ids.ProfileId profile_id = 2;
   string display_name = 3;
   string email = 4;
   // Application (client) that initiated the session.
@@ -103,7 +106,8 @@ message AdminListSessionsRequest {
   string page_token = 2;
   // Filters.
   string client_id = 3;
-  string profile_id = 4;
+  // Only sessions of this local profile; absent lists every profile.
+  sid.v1.ids.ProfileId profile_id = 4;
   string ip_address = 5;
   SessionAuthMethod auth_method = 6;
   google.protobuf.Timestamp started_after = 7;
@@ -120,7 +124,8 @@ message AdminListSessionsResponse {
 message GetSessionStatsRequest {}
 
 message AdminRevokeSessionRequest {
-  string session_id = 1;
+  // Session to end.
+  sid.v1.ids.SessionId session_id = 1;
 }
 
 message RevokeApplicationSessionsRequest {

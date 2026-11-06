@@ -12,6 +12,7 @@ import "google/protobuf/struct.proto";
 import "google/api/annotations.proto";
 import "sid/v1/common/operation.proto";
 import "sid/v1/identity/identity.proto";
+import "sid/v1/ids/ids.proto";
 
 // AdminService provides privileged operations for instance administrators.
 service AdminService {
@@ -31,38 +32,38 @@ service AdminService {
   rpc AdminUpdateProfile(AdminUpdateProfileRequest) returns (AdminUpdateProfileResponse) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { patch: "/v1/admin/profiles/{profile_id}" body: "*" };
+    option (google.api.http) = { patch: "/v1/admin/profiles/{profile_id.value}" body: "*" };
   }
 
   // Revoke all sessions for a profile (force logout).
   rpc RevokeAllSessions(RevokeAllSessionsRequest) returns (RevokeAllSessionsResponse) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { delete: "/v1/admin/profiles/{profile_id}/sessions" };
+    option (google.api.http) = { delete: "/v1/admin/profiles/{profile_id.value}/sessions" };
   }
 
   // ── Profile Metadata (free-form key-value storage) ──
 
   rpc ListProfileMetadata(ListProfileMetadataRequest) returns (ListProfileMetadataResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { get: "/v1/admin/profiles/{profile_id}/metadata" };
+    option (google.api.http) = { get: "/v1/admin/profiles/{profile_id.value}/metadata" };
   }
 
   rpc GetProfileMetadata(GetProfileMetadataRequest) returns (ProfileMetadataEntry) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { get: "/v1/admin/profiles/{profile_id}/metadata/{key}" };
+    option (google.api.http) = { get: "/v1/admin/profiles/{profile_id.value}/metadata/{key}" };
   }
 
   rpc SetProfileMetadata(SetProfileMetadataRequest) returns (ProfileMetadataEntry) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { put: "/v1/admin/profiles/{profile_id}/metadata/{key}" body: "*" };
+    option (google.api.http) = { put: "/v1/admin/profiles/{profile_id.value}/metadata/{key}" body: "*" };
   }
 
   rpc DeleteProfileMetadata(DeleteProfileMetadataRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { delete: "/v1/admin/profiles/{profile_id}/metadata/{key}" };
+    option (google.api.http) = { delete: "/v1/admin/profiles/{profile_id.value}/metadata/{key}" };
   }
 }
 
@@ -77,8 +78,8 @@ message ClaimInstanceRequest {
 // ── Admin Update Profile ──
 
 message AdminUpdateProfileRequest {
-  // Target profile UUID. Admin specifies which profile to update.
-  string profile_id = 1;
+  // Local profile the administrator updates.
+  sid.v1.ids.ProfileId profile_id = 1;
   // New profile status. Server validates transition (e.g., ACTIVE→SUSPENDED allowed,
   // CLOSED→ACTIVE not allowed). Zero value = no change.
   sid.v1.identity.ProfileStatus profile_status = 2;
@@ -89,13 +90,15 @@ message AdminUpdateProfileRequest {
 }
 
 message AdminUpdateProfileResponse {
-  string profile_id = 1;
+  // Profile the update was applied to.
+  sid.v1.ids.ProfileId profile_id = 1;
 }
 
 // ── Revoke All Sessions ──
 
 message RevokeAllSessionsRequest {
-  string profile_id = 1;
+  // Local profile whose every session ends.
+  sid.v1.ids.ProfileId profile_id = 1;
 }
 
 message RevokeAllSessionsResponse {
@@ -105,32 +108,45 @@ message RevokeAllSessionsResponse {
 // ── Profile Metadata ──
 
 message ProfileMetadataEntry {
-  string profile_id = 1;
+  // Local profile the entry belongs to.
+  sid.v1.ids.ProfileId profile_id = 1;
+  // Administrator-chosen key, unique within the profile.
   string key = 2;
+  // Free-form value stored under the key.
   google.protobuf.Value value = 3;
+  // When the value was last written, set by the server.
   google.protobuf.Timestamp updated_at = 4;
 }
 
 message ListProfileMetadataRequest {
-  string profile_id = 1;
+  // Local profile whose entries are listed.
+  sid.v1.ids.ProfileId profile_id = 1;
 }
 
 message ListProfileMetadataResponse {
+  // Every entry of the profile.
   repeated ProfileMetadataEntry entries = 1;
 }
 
 message GetProfileMetadataRequest {
-  string profile_id = 1;
+  // Local profile the entry belongs to.
+  sid.v1.ids.ProfileId profile_id = 1;
+  // Key of the entry.
   string key = 2;
 }
 
 message SetProfileMetadataRequest {
-  string profile_id = 1;
+  // Local profile the entry belongs to.
+  sid.v1.ids.ProfileId profile_id = 1;
+  // Key of the entry; an existing value under it is replaced.
   string key = 2;
+  // Value to store.
   google.protobuf.Value value = 3;
 }
 
 message DeleteProfileMetadataRequest {
-  string profile_id = 1;
+  // Local profile the entry belongs to.
+  sid.v1.ids.ProfileId profile_id = 1;
+  // Key of the entry to delete.
   string key = 2;
 }

@@ -292,3 +292,28 @@ message PatId {
   // invalid. Issued by SID; compared by exact byte equality.
   bytes value = 1;
 }
+
+// One branding configuration of a project, from draft to archive.
+message BrandingConfigId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// One action a project runs at a hook point of a sign-in or registration flow.
+message FlowActionId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// One invitation to register: the reference its listing and revocation name.
+// Never the invite code a registrant presents.
+message InviteId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
