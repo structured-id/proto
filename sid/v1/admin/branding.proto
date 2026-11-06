@@ -9,6 +9,7 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
 import "sid/v1/common/operation.proto";
+import "sid/v1/ids/ids.proto";
 
 // BrandingService manages per-project branding configurations.
 // Each project can have multiple configs (draft, published, archived).
@@ -18,40 +19,40 @@ service BrandingService {
   // Returns NOT_FOUND if no published config exists.
   rpc GetPublishedBranding(GetPublishedBrandingRequest) returns (BrandingConfig) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { get: "/v1/projects/{project_id}/branding" };
+    option (google.api.http) = { get: "/v1/projects/{project_id.value}/branding" };
   }
 
   // Get a specific branding config by ID.
   rpc GetBrandingConfig(GetBrandingConfigRequest) returns (BrandingConfig) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { get: "/v1/projects/{project_id}/branding/{config_id}" };
+    option (google.api.http) = { get: "/v1/projects/{project_id.value}/branding/{config_id.value}" };
   }
 
   // List all branding configs for a project (all statuses).
   rpc ListBrandingConfigs(ListBrandingConfigsRequest) returns (ListBrandingConfigsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { get: "/v1/projects/{project_id}/branding/configs" };
+    option (google.api.http) = { get: "/v1/projects/{project_id.value}/branding/configs" };
   }
 
   // Create a new branding config (always starts as draft).
   rpc CreateBrandingConfig(CreateBrandingConfigRequest) returns (BrandingConfig) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { post: "/v1/projects/{project_id}/branding/configs" body: "*" };
+    option (google.api.http) = { post: "/v1/projects/{project_id.value}/branding/configs" body: "*" };
   }
 
   // Update an existing branding config (draft or published).
   rpc UpdateBrandingConfig(UpdateBrandingConfigRequest) returns (BrandingConfig) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { patch: "/v1/projects/{project_id}/branding/{config_id}" body: "*" };
+    option (google.api.http) = { patch: "/v1/projects/{project_id.value}/branding/{config_id.value}" body: "*" };
   }
 
   // Publish a draft config. Archives the currently published config (if any).
   rpc PublishBrandingConfig(PublishBrandingConfigRequest) returns (BrandingConfig) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { post: "/v1/projects/{project_id}/branding/{config_id}/publish" body: "*" };
+    option (google.api.http) = { post: "/v1/projects/{project_id.value}/branding/{config_id.value}/publish" body: "*" };
   }
 
   // Delete a branding config. Cannot delete a published config — archive or replace first.
@@ -60,7 +61,7 @@ service BrandingService {
     option (sid.v1.common.retry) = {
       natural: "a config id is never reused, so a deleted config stays deleted: a repeat finds none and answers as the first; a published config is refused either way"
     };
-    option (google.api.http) = { delete: "/v1/projects/{project_id}/branding/{config_id}" };
+    option (google.api.http) = { delete: "/v1/projects/{project_id.value}/branding/{config_id.value}" };
   }
 
   // Validate WCAG contrast ratios for a set of color token pairs.
@@ -73,8 +74,10 @@ service BrandingService {
 // ── Messages ──
 
 message BrandingConfig {
-  string id = 1;
-  string project_id = 2;
+  // The configuration.
+  sid.v1.ids.BrandingConfigId id = 1;
+  // Project whose sign-in pages it styles.
+  sid.v1.ids.ProjectId project_id = 2;
   BrandingStatus status = 3;
   DesignTokens tokens = 4;
   BrandingAssets assets = 5;
@@ -179,16 +182,20 @@ enum WcagLevel {
 // ── Request/Response ──
 
 message GetPublishedBrandingRequest {
-  string project_id = 1;
+  // Project whose published configuration is read.
+  sid.v1.ids.ProjectId project_id = 1;
 }
 
 message GetBrandingConfigRequest {
-  string project_id = 1;
-  string config_id = 2;
+  // Project the configuration belongs to.
+  sid.v1.ids.ProjectId project_id = 1;
+  // Configuration to read.
+  sid.v1.ids.BrandingConfigId config_id = 2;
 }
 
 message ListBrandingConfigsRequest {
-  string project_id = 1;
+  // Project whose configurations are listed.
+  sid.v1.ids.ProjectId project_id = 1;
 }
 
 message ListBrandingConfigsResponse {
@@ -196,7 +203,8 @@ message ListBrandingConfigsResponse {
 }
 
 message CreateBrandingConfigRequest {
-  string project_id = 1;
+  // Project the new draft belongs to.
+  sid.v1.ids.ProjectId project_id = 1;
   // Optional initial values. Omitted fields use SID defaults.
   DesignTokens tokens = 2;
   BrandingAssets assets = 3;
@@ -205,8 +213,10 @@ message CreateBrandingConfigRequest {
 }
 
 message UpdateBrandingConfigRequest {
-  string project_id = 1;
-  string config_id = 2;
+  // Project the configuration belongs to.
+  sid.v1.ids.ProjectId project_id = 1;
+  // Configuration to update.
+  sid.v1.ids.BrandingConfigId config_id = 2;
   DesignTokens tokens = 3;
   BrandingAssets assets = 4;
   DarkModeConfig dark_mode = 5;
@@ -214,13 +224,17 @@ message UpdateBrandingConfigRequest {
 }
 
 message PublishBrandingConfigRequest {
-  string project_id = 1;
-  string config_id = 2;
+  // Project the configuration belongs to.
+  sid.v1.ids.ProjectId project_id = 1;
+  // Draft to publish.
+  sid.v1.ids.BrandingConfigId config_id = 2;
 }
 
 message DeleteBrandingConfigRequest {
-  string project_id = 1;
-  string config_id = 2;
+  // Project the configuration belongs to.
+  sid.v1.ids.ProjectId project_id = 1;
+  // Configuration to delete.
+  sid.v1.ids.BrandingConfigId config_id = 2;
 }
 
 message ValidateContrastRequest {
