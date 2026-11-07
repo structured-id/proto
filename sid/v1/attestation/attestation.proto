@@ -11,6 +11,8 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
 import "sid/v1/common/operation.proto";
+import "sid/v1/identity/identity.proto";
+import "sid/v1/ids/ids.proto";
 
 // Attestation format reported by the device.
 enum AttestationFormat {
@@ -20,10 +22,11 @@ enum AttestationFormat {
   ATTESTATION_FORMAT_TPM = 3;           // TPM 2.0 attestation
   ATTESTATION_FORMAT_ANDROID_KEY = 4;   // Android Keystore attestation
   ATTESTATION_FORMAT_APPLE = 5;         // Apple App Attest / Secure Enclave
-  ATTESTATION_FORMAT_FIDO_U2F = 6;     // FIDO U2F attestation
+  ATTESTATION_FORMAT_FIDO_U2F = 6;      // FIDO U2F attestation
 }
 
-// Type of hardware key storage on the device.
+// Type of hardware key storage the device reports. Self-asserted: it raises
+// no assurance unless verified attestation establishes it.
 enum KeyStorageType {
   KEY_STORAGE_TYPE_UNSPECIFIED = 0;
   KEY_STORAGE_TYPE_SOFTWARE = 1;        // Software-only key (no hardware backing)
@@ -43,97 +46,251 @@ enum AttestationStatus {
   ATTESTATION_STATUS_REVOKED = 5;       // Key has been revoked
 }
 
-// Device attestation record — cryptographic identity of a device.
+// What a device-key enrollment ceremony does. A proof made for one purpose
+// is refused for the other.
+enum DeviceEnrollmentPurpose {
+  DEVICE_ENROLLMENT_PURPOSE_UNSPECIFIED = 0;
+  // Bind the first key of a new device, or of a device that has metadata
+  // and no live key.
+  DEVICE_ENROLLMENT_PURPOSE_ENROLL = 1;
+  // Replace the live key of an enrolled device with a new one.
+  DEVICE_ENROLLMENT_PURPOSE_ROTATE = 2;
+}
+
+// Device attestation record: the key bound to a device and the evidence
+// recorded with it.
 message DeviceAttestation {
-  string id = 1;                                    // Attestation record ID (UUIDv7)
-  string device_id = 2;                             // Attested device (`Device.id` in sid-identity, UUIDv7)
-  string profile_id = 3;                            // Owner profile
-  AttestationFormat format = 4;                     // Attestation format
-  KeyStorageType key_storage = 5;                   // Hardware key type
-  AttestationStatus status = 6;                     // Verification status
-  bytes device_public_key = 7;                      // Device public key (DER-encoded)
-  optional bytes attestation_object = 8;            // Raw attestation blob (platform-specific)
-  optional bytes attestation_certificate = 9;       // Leaf certificate from attestation chain
-  optional string aaguid = 10;                      // Authenticator Attestation GUID (WebAuthn)
-  optional string credential_id = 11;               // Bound credential ID (WebAuthn/OPAQUE)
-  google.protobuf.Timestamp created_at = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional google.protobuf.Timestamp revoked_at = 14;
+  // This attestation record, issued by SID when the key is bound.
+  sid.v1.ids.DeviceAttestationId id = 1;
+
+  // The device the key is bound to (`Device.id` in sid-identity).
+  sid.v1.ids.DeviceId device_id = 2;
+
+  // The Profile that owns the device, resolved by SID at enrollment from the
+  // authorized context, never from a client field.
+  sid.v1.ids.ProfileId profile_id = 3;
+
+  // Attestation format the device presented.
+  AttestationFormat format = 4;
+
+  // Key storage the device reported; self-asserted unless `status` is
+  // VERIFIED.
+  KeyStorageType key_storage = 5;
+
+  // Verification status of the attestation. A key whose possession was
+  // proven but whose attestation was not verified is UNVERIFIED.
+  AttestationStatus status = 6;
+
+  // The device's public key as a JSON Web Key (RFC 7517) holding public
+  // members only, UTF-8 JSON. Its RFC 7638 thumbprint names the key in the
+  // enrollment proofs.
+  string public_jwk = 7;
+
+  // Raw attestation blob in its platform format, as presented.
+  optional bytes attestation_object = 8;
+
+  // Leaf certificate of the attestation chain, as presented.
+  optional bytes attestation_certificate = 9;
+
+  // Authenticator Attestation GUID (WebAuthn), as presented.
+  optional string aaguid = 10;
+
+  // When the key was bound.
+  google.protobuf.Timestamp created_at = 11;
+
+  // When the record last changed (rotation, revocation).
+  google.protobuf.Timestamp updated_at = 12;
+
+  // When the key was revoked; absent while it is live.
+  optional google.protobuf.Timestamp revoked_at = 13;
 }
 
 // ── Attestation Service RPCs ──
+//
+// Device-key proofs. Every proof is a compact JWS (RFC 7515) signed by the
+// key it speaks for, with the protected header `typ` "sid-device-key+jwt",
+// an asymmetric `alg` (ES256, ES384, PS256, PS384, PS512, RS256, RS384,
+// RS512 or EdDSA) and `jwk`, the signer's public key (public members only).
+// Its claims bind the proof to one ceremony and one effect:
+//
+//   chl      the ceremony's challenge, base64url without padding
+//   purpose  "enroll", "rotate-new" or "rotate-current"
+//   iss      the issuer URL the ceremony was started at
+//   dev      the device, its DeviceId as a hyphenated UUID
+//   key      the RFC 7638 SHA-256 thumbprint (base64url) of the proposed key
+//
+// An enrollment carries one proof by the proposed key ("enroll"). A
+// rotation carries two: one by the proposed key ("rotate-new") and one by
+// the device's current key ("rotate-current"), whose `key` claim names the
+// proposed key, so the current key approves that exact replacement. The
+// proofs are verified against the ceremony the server keeps, never against
+// values the request repeats.
 
 service AttestationService {
-  // Register a device key with platform attestation: stores the attestation
-  // data and marks the device as hardware_attested; a server that verifies
-  // attestation also checks the chain and the AAGUID policy. A device that
-  // already has a live attestation is refused (ATTESTATION_ALREADY_EXISTS);
-  // a retry answers with the attestation the first call registered.
-  rpc RegisterDeviceKey(RegisterDeviceKeyRequest) returns (DeviceAttestation) {
+  // Start a device-key ceremony: enrollment of a new device or of an
+  // existing device without a live key, or rotation of an enrolled device's
+  // key. Requires authorized bootstrap or sufficient current authentication
+  // of the device's owner. For a new device SID allocates its DeviceId in
+  // the pending ceremony; nothing is enrolled, trusted or authorized until
+  // the ceremony finishes. Each call issues a new single-use challenge.
+  rpc StartDeviceEnrollment(StartDeviceEnrollmentRequest) returns (DeviceEnrollmentChallenge) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (google.api.http) = { post: "/v1/attestation/enrollments" body: "*" };
+  }
+
+  // Finish an enrollment ceremony: the proposed key proves possession, and
+  // the device, its key binding, the consumed ceremony, the audit record and
+  // the outcome commit together. A retry of the same operation answers with
+  // the recorded outcome; a ceremony that expired, was finished or whose
+  // device was removed meanwhile completes nothing.
+  rpc FinishDeviceEnrollment(FinishDeviceEnrollmentRequest) returns (DeviceAttestation) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { post: "/v1/attestation/devices/{device_id}/keys" body: "*" };
+    option (google.api.http) = { post: "/v1/attestation/enrollments/{enrollment_id.value}/finish" body: "*" };
   }
 
   // Get attestation details for a device.
   rpc GetDeviceAttestation(GetDeviceAttestationRequest) returns (DeviceAttestation) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { get: "/v1/attestation/devices/{device_id}" };
+    option (google.api.http) = { get: "/v1/attestation/devices/{device_id.value}" };
   }
 
-  // Rotate a device key (triggered by OS update or manual re-attestation).
+  // Finish a rotation ceremony: the proposed key proves possession, the
+  // current key approves that exact replacement, and the old binding is
+  // retired and the new one committed together with the consumed ceremony,
+  // the audit record and the outcome. A lost key is not rotated: it is
+  // replaced through sufficient authentication or recovery and a new
+  // enrollment.
   rpc RotateDeviceKey(RotateDeviceKeyRequest) returns (DeviceAttestation) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { post: "/v1/attestation/devices/{device_id}/rotate" body: "*" };
+    option (google.api.http) = { post: "/v1/attestation/enrollments/{enrollment_id.value}/rotate" body: "*" };
   }
 
   // Revoke a device key (device removed or compromised).
   rpc RevokeDeviceKey(RevokeDeviceKeyRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
-    option (google.api.http) = { post: "/v1/attestation/devices/{device_id}/revoke" body: "*" };
+    option (google.api.http) = { post: "/v1/attestation/devices/{device_id.value}/revoke" body: "*" };
   }
 
   // List all attestations for a profile.
   rpc ListDeviceAttestations(ListDeviceAttestationsRequest) returns (ListDeviceAttestationsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = { get: "/v1/attestation/profiles/{profile_id}/devices" };
+    option (google.api.http) = { get: "/v1/attestation/profiles/{profile_id.value}/devices" };
   }
 }
 
 // ── Request/Response Messages ──
 
-message RegisterDeviceKeyRequest {
-  string device_id = 1;                     // Device to register key for (`Device.id`, UUIDv7)
-  AttestationFormat format = 2;             // Attestation format
-  KeyStorageType key_storage = 3;           // Hardware key type
-  bytes device_public_key = 4;              // Device public key (DER-encoded)
-  optional bytes attestation_object = 5;    // Raw attestation blob
-  optional bytes attestation_certificate = 6; // Leaf certificate
-  optional string aaguid = 7;              // Authenticator AAGUID
-  optional string credential_id = 8;       // Bound credential ID
+message StartDeviceEnrollmentRequest {
+  // What the ceremony does.
+  DeviceEnrollmentPurpose purpose = 1;
+
+  // The device the ceremony targets: required for a rotation, and for the
+  // enrollment of a device that already has metadata; absent to enroll a
+  // new device, whose id SID allocates. A target to authorize, never
+  // evidence of identity or authority.
+  optional sid.v1.ids.DeviceId device_id = 2;
+
+  // Form factor of a new device, as the client describes it. Descriptive
+  // only; ignored for an existing device.
+  sid.v1.identity.DeviceType device_type = 3;
+
+  // Operating system name and version of a new device, as the client
+  // reports it. Self-asserted, informational only.
+  optional string os_info = 4;
+
+  // User-given label of a new device.
+  optional string display_name = 5;
+}
+
+// The challenge a ceremony's proofs answer.
+message DeviceEnrollmentChallenge {
+  // The ceremony, named by the finishing call.
+  sid.v1.ids.DeviceEnrollmentId enrollment_id = 1;
+
+  // The device the ceremony binds a key to: the one allocated for a new
+  // device or the requested one. The proofs name it in their `dev` claim.
+  sid.v1.ids.DeviceId device_id = 2;
+
+  // Fresh random challenge (32 bytes) the proofs carry in their `chl`
+  // claim. Single-use, bound to this ceremony only.
+  bytes challenge = 3;
+
+  // When the ceremony expires; a later finish completes nothing.
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+message FinishDeviceEnrollmentRequest {
+  // The ceremony StartDeviceEnrollment issued, of purpose ENROLL.
+  sid.v1.ids.DeviceEnrollmentId enrollment_id = 1;
+
+  // The proposed key's proof of possession, purpose "enroll"; its `jwk`
+  // header is the key bound to the device.
+  string proof = 2;
+
+  // Attestation format of the optional attestation below.
+  AttestationFormat format = 3;
+
+  // Key storage the device reports; recorded as reported, raising no
+  // assurance without verified attestation.
+  KeyStorageType key_storage = 4;
+
+  // Raw attestation blob in its platform format.
+  optional bytes attestation_object = 5;
+
+  // Leaf certificate of the attestation chain.
+  optional bytes attestation_certificate = 6;
+
+  // Authenticator Attestation GUID (WebAuthn).
+  optional string aaguid = 7;
 }
 
 message GetDeviceAttestationRequest {
-  string device_id = 1;                     // Device to fetch attestation for (`Device.id`, UUIDv7)
+  // Device to fetch the attestation of.
+  sid.v1.ids.DeviceId device_id = 1;
 }
 
 message RotateDeviceKeyRequest {
-  string device_id = 1;                             // Device whose key is rotated (`Device.id`, UUIDv7)
-  bytes new_device_public_key = 2;                  // New public key
-  optional bytes new_attestation_object = 3;        // New attestation blob
-  optional bytes new_attestation_certificate = 4;   // New leaf certificate
+  // The ceremony StartDeviceEnrollment issued, of purpose ROTATE.
+  sid.v1.ids.DeviceEnrollmentId enrollment_id = 1;
+
+  // The proposed key's proof of possession, purpose "rotate-new".
+  string new_key_proof = 2;
+
+  // The current key's approval of this replacement, purpose
+  // "rotate-current", naming the proposed key in its `key` claim.
+  string current_key_proof = 3;
+
+  // Attestation format of the new key's optional attestation below.
+  AttestationFormat format = 4;
+
+  // Key storage the device reports for the new key; recorded as reported,
+  // raising no assurance without verified attestation.
+  KeyStorageType key_storage = 5;
+
+  // Attestation of the new key, in its platform format.
+  optional bytes attestation_object = 6;
+
+  // Leaf certificate of the new key's attestation chain.
+  optional bytes attestation_certificate = 7;
+
+  // Authenticator Attestation GUID (WebAuthn) of the new key.
+  optional string aaguid = 8;
 }
 
 message RevokeDeviceKeyRequest {
-  string device_id = 1;                     // Device whose key is revoked (`Device.id`, UUIDv7)
+  // Device whose key is revoked.
+  sid.v1.ids.DeviceId device_id = 1;
 }
 
 message ListDeviceAttestationsRequest {
-  string profile_id = 1;
+  // Profile whose device keys are listed.
+  sid.v1.ids.ProfileId profile_id = 1;
 }
 
 message ListDeviceAttestationsResponse {
+  // The Profile's device key attestations, live and revoked.
   repeated DeviceAttestation attestations = 1;
 }
