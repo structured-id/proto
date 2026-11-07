@@ -55,6 +55,25 @@ message DeviceId {
   bytes value = 1;
 }
 
+// One device-key ceremony (an enrollment or a key rotation) from its start
+// to its finish: the reference to the challenge the server keeps for it.
+// It authorizes nothing without the proofs the ceremony asks for.
+message DeviceEnrollmentId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
+// One key binding of a device: the reference its listing and audit name.
+// Not the key itself and not the device.
+message DeviceAttestationId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
 // A Profile's identity at one organization: the pairwise subject that
 // organization's services see. Opaque and unlinkable across organizations;
 // it never carries or reveals a ProfileId.
