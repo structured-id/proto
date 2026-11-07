@@ -135,6 +135,9 @@ service AttestationService {
   // the ceremony finishes. Each call issues a new single-use challenge.
   rpc StartDeviceEnrollment(StartDeviceEnrollmentRequest) returns (DeviceEnrollmentChallenge) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "each start opens its own pending ceremony with its own single-use challenge; nothing is enrolled before its finish"
+    };
     option (google.api.http) = { post: "/v1/attestation/enrollments" body: "*" };
   }
 
