@@ -7,6 +7,7 @@ package sid.v1.federation;
 
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/authn/auth.proto";
 import "sid/v1/common/operation.proto";
 import "sid/v1/ids/ids.proto";
 
@@ -211,13 +212,31 @@ message HandleUpstreamCallbackResponse {
 }
 
 message UpstreamAuthSuccess {
-  // The session the brokered sign-in opened.
+  // The session the brokered sign-in opened, or its pending context when
+  // `second_factors` or `enrollable_factors` is set.
   sid.v1.ids.SessionId session_id = 1;
   // Seconds until the delivered credential expires. The session's credential
-  // is delivered as for sid.v1.OpaqueLoginFinishResponse, never in this
+  // is delivered as for sid.v1.authn.OpaqueLoginFinishResponse, never in this
   // message.
   int64 expires_in = 2;
   bool new_profile_created = 3;
+  // Set by the server when the login requirements or the account's enabled
+  // protection need a second factor beyond the provider's sign-in and the
+  // account has one of these enrolled. The delivered credential is then a
+  // pending context that authorizes only completing the sign-in with one of
+  // these methods (VerifyTotp for STEP_UP_METHOD_TOTP), as after a password.
+  // Empty when the session is complete.
+  repeated sid.v1.authn.StepUpMethod second_factors = 4;
+  // The CSRF token a browser sends in `X-CSRF-Token` when it completes the
+  // pending context with its cookie; set only with `second_factors` or
+  // `enrollable_factors` on a browser delivery, in this response to the
+  // configured sign-in page's origin. It authenticates nothing by itself.
+  optional string browser_csrf = 5;
+  // Set when this sign-in owes a second factor, the account has never
+  // enrolled one and it may enroll one of these first: the pending context
+  // then authorizes only that enrollment and completing the sign-in with
+  // the new factor. Empty on an account with established protection.
+  repeated sid.v1.authn.StepUpMethod enrollable_factors = 6;
 }
 
 message UpstreamLinkingRequired {
