@@ -1,0 +1,82 @@
+// StructuredID platform CA publication.
+// The read-only statement of the platform intermediates a verifier of SID
+// credentials may terminate a certificate path at, served by the platform at
+// its configured HTTPS origin and identified from its authenticated DNS.
+// It carries public certificates only; it admits nothing by being reachable.
+syntax = "proto3";
+
+package sid.v1.federation;
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+// PlatformCaService publishes the admitted platform CA set.
+service PlatformCaService {
+  // The current admitted set, the same for every caller.
+  rpc GetPlatformCas(GetPlatformCasRequest) returns (PlatformCas) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/.well-known/sid-ca/index.json" };
+  }
+}
+
+// The admitted set takes no input: the platform publishes one statement.
+message GetPlatformCasRequest {}
+
+// The admitted platform CA set at one revision.
+message PlatformCas {
+  // Monotonic revision of the set, advanced by every lifecycle transition of
+  // a published generation. A verifier never accepts a revision lower than
+  // one it has already accepted.
+  uint64 revision = 1;
+
+  // Every published platform intermediate generation, including withdrawn
+  // ones, so a withdrawal reaches a verifier and an older copy cannot erase
+  // it. A generation that was never activated is not published.
+  repeated PlatformCa generations = 2;
+
+  // Root certificates (DER) above the generations, for chain continuity and
+  // status evidence. A verifier may ignore them: accepting a credential under
+  // an admitted generation does not require its Root.
+  repeated bytes roots = 3;
+
+  // When the platform made this statement.
+  google.protobuf.Timestamp issued_at = 4;
+
+  // The time by which a verifier must obtain a newer statement; after it the
+  // states below are not current evidence and the verifier refreshes or
+  // reports the status unavailable, never assumes it unchanged.
+  google.protobuf.Timestamp next_update = 5;
+}
+
+// One platform intermediate generation and what a verifier may do with it.
+message PlatformCa {
+  // The generation's number, monotonic from 1 across the platform's
+  // intermediates.
+  uint32 generation = 1;
+
+  // The intermediate's certificate (DER), with its ECDSA P-256 key and, for
+  // a PQ verifier, its ML-DSA-65 key in subjectAltPublicKeyInfo.
+  bytes certificate = 2;
+
+  // What a verifier may anchor on this generation for.
+  PlatformCaState state = 3;
+
+  // For a verification-only generation, the end of its overlap: paths through
+  // it are not accepted after this time even while its certificate is valid.
+  // Absent for the other states.
+  google.protobuf.Timestamp overlap_end = 4;
+}
+
+// The admitted state of a platform intermediate generation.
+enum PlatformCaState {
+  // Not a valid state; a verifier refuses a generation that carries it.
+  PLATFORM_CA_STATE_UNSPECIFIED = 0;
+  // The generation currently issuing; paths through it are accepted.
+  PLATFORM_CA_STATE_ACTIVE = 1;
+  // Replaced by a newer generation; paths through it are accepted only until
+  // its overlap end.
+  PLATFORM_CA_STATE_VERIFICATION_ONLY = 2;
+  // Withdrawn; no path through it is accepted, including descendants a
+  // verifier has never seen.
+  PLATFORM_CA_STATE_WITHDRAWN = 3;
+}
