@@ -3,11 +3,11 @@
 // itself: by its purpose, not by its HTTP method, its retry rule or whether
 // its implementation writes a row. A serving guard admits each call during
 // maintenance by this declaration read from the descriptors, so no method
-// list lives in code. Maintenance has two levels: the backup level keeps
-// only authentication (the sign-in with the writes it needs, permission
-// checks and audit) so a coherent backup can be taken; full maintenance
-// refuses sign-in as well, except an entry its scope keeps open. Neither
-// grants a permission the call would otherwise lack.
+// list lives in code. Maintenance has two levels: the backup level refuses
+// only changes (sign-in with the writes it needs, reads and audit go on);
+// full maintenance refuses the user-facing surface, sign-in included,
+// except an entry its scope keeps open. Neither grants a permission the
+// call would otherwise lack.
 syntax = "proto3";
 
 package sid.v1.common;
@@ -27,8 +27,8 @@ enum MaintenancePurpose {
   // maintenance only for an entry the scope keeps open, such as authorized
   // management.
   MAINTENANCE_PURPOSE_SIGN_IN = 1;
-  // Reads the caller's own data and changes nothing. Refused during either
-  // level.
+  // Reads the caller's own data and changes nothing. Kept during backup
+  // maintenance; refused during full maintenance.
   MAINTENANCE_PURPOSE_READ = 2;
   // A change: registration, a profile, setting, contact or credential
   // change (removing a passkey or ending another session included), a
