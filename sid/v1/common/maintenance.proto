@@ -1,0 +1,50 @@
+// StructuredID maintenance purpose of a method.
+// What a method does as maintenance classifies it, declared on the method
+// itself: by its purpose, not by its HTTP method, its retry rule or whether
+// its implementation writes a row. A serving guard admits each call during
+// maintenance by this declaration read from the descriptors, so no method
+// list lives in code. Maintenance has two levels: the backup (mutation-only)
+// level keeps sign-in and reads and refuses changes; full maintenance refuses
+// the user-facing surface as well. Neither grants a permission the call
+// would otherwise lack.
+syntax = "proto3";
+
+package sid.v1.common;
+
+import "google/protobuf/descriptor.proto";
+
+// The maintenance purpose of one method.
+enum MaintenancePurpose {
+  // Not a purpose; never declared.
+  MAINTENANCE_PURPOSE_UNSPECIFIED = 0;
+  // A step of signing in: resolving the login, its challenges and factors
+  // (including the enrollment a sign-in's policy requires before it
+  // completes), the decision of a sign-in to a service, the session it
+  // establishes or renews, and the context the signed-in page reads to go
+  // on. Kept during backup maintenance with the writes the sign-in needs
+  // (challenge, replay, attempt and session state); during full maintenance
+  // only for an entry the scope keeps open, such as authorized management.
+  MAINTENANCE_PURPOSE_SIGN_IN = 1;
+  // Reads the caller's own data and changes nothing. Kept during backup
+  // maintenance; refused during full maintenance.
+  MAINTENANCE_PURPOSE_READ = 2;
+  // A business change: registration, a profile, setting, contact or
+  // credential change, a password change or reset. Refused during either
+  // level.
+  MAINTENANCE_PURPOSE_CHANGE = 3;
+  // Security containment that only takes access away, such as ending a
+  // session or removing a credential the holder no longer trusts. Kept
+  // during backup maintenance; refused during full maintenance with the rest
+  // of the user-facing surface.
+  MAINTENANCE_PURPOSE_CONTAINMENT = 4;
+  // Use of a credential already issued, by the application holding it
+  // (validation, introspection, revocation): kept during either level, as
+  // applications keep using issued credentials under their normal lifetime.
+  MAINTENANCE_PURPOSE_ISSUED_CREDENTIAL = 5;
+}
+
+extend google.protobuf.MethodOptions {
+  // The maintenance purpose of the method. A service whose calls a
+  // maintenance guard admits declares it on every method.
+  MaintenancePurpose maintenance = 51202;
+}
