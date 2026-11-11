@@ -179,8 +179,11 @@ message AdminEnvelope {
   // group cannot be deleted while an envelope names it.
   sid.v1.ids.GroupId recipient_group_id = 5;
 
-  // The longest validity an administered assignment may be given; every
-  // administered assignment expires. Must be positive, whole seconds.
+  // The longest validity an administered assignment may be given, positive
+  // whole seconds; unset when the envelope adds no limit of its own, so an
+  // assignment made under it may have an explicitly chosen end or none. The
+  // administrative assignment's own expiry still bounds what it grants, and
+  // a redelegated envelope only narrows its parent's limit.
   google.protobuf.Duration max_validity = 6;
 }
 
