@@ -3,10 +3,11 @@
 // itself: by its purpose, not by its HTTP method, its retry rule or whether
 // its implementation writes a row. A serving guard admits each call during
 // maintenance by this declaration read from the descriptors, so no method
-// list lives in code. Maintenance has two levels: the backup (mutation-only)
-// level keeps sign-in and reads and refuses changes; full maintenance refuses
-// the user-facing surface as well. Neither grants a permission the call
-// would otherwise lack.
+// list lives in code. Maintenance has two levels: the backup level keeps
+// only authentication (the sign-in with the writes it needs, permission
+// checks and audit) so a coherent backup can be taken; full maintenance
+// refuses sign-in as well, except an entry its scope keeps open. Neither
+// grants a permission the call would otherwise lack.
 syntax = "proto3";
 
 package sid.v1.common;
@@ -22,25 +23,22 @@ enum MaintenancePurpose {
   // completes), the decision of a sign-in to a service, the session it
   // establishes or renews, and the context the signed-in page reads to go
   // on. Kept during backup maintenance with the writes the sign-in needs
-  // (challenge, replay, attempt and session state); during full maintenance
-  // only for an entry the scope keeps open, such as authorized management.
+  // (challenge, replay, attempt and session state, audit); during full
+  // maintenance only for an entry the scope keeps open, such as authorized
+  // management.
   MAINTENANCE_PURPOSE_SIGN_IN = 1;
-  // Reads the caller's own data and changes nothing. Kept during backup
-  // maintenance; refused during full maintenance.
-  MAINTENANCE_PURPOSE_READ = 2;
-  // A business change: registration, a profile, setting, contact or
-  // credential change, a password change or reset. Refused during either
+  // Reads the caller's own data and changes nothing. Refused during either
   // level.
+  MAINTENANCE_PURPOSE_READ = 2;
+  // A change: registration, a profile, setting, contact or credential
+  // change (removing a passkey or ending another session included), a
+  // password change or reset. Refused during either level.
   MAINTENANCE_PURPOSE_CHANGE = 3;
-  // Security containment that only takes access away, such as ending a
-  // session or removing a credential the holder no longer trusts. Kept
-  // during backup maintenance; refused during full maintenance with the rest
-  // of the user-facing surface.
-  MAINTENANCE_PURPOSE_CONTAINMENT = 4;
   // Use of a credential already issued, by the application holding it
-  // (validation, introspection, revocation): kept during either level, as
-  // applications keep using issued credentials under their normal lifetime.
-  MAINTENANCE_PURPOSE_ISSUED_CREDENTIAL = 5;
+  // (validation, introspection, revocation): a permission check, kept
+  // during either level, as applications keep using issued credentials
+  // under their normal lifetime.
+  MAINTENANCE_PURPOSE_ISSUED_CREDENTIAL = 4;
 }
 
 extend google.protobuf.MethodOptions {
