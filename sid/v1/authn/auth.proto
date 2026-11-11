@@ -10,6 +10,7 @@ import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
 import "sid/v1/authn/native_session.proto";
 import "sid/v1/authn/password_history.proto";
+import "sid/v1/common/maintenance.proto";
 import "sid/v1/common/operation.proto";
 import "sid/v1/ids/ids.proto";
 
@@ -18,10 +19,12 @@ service AuthService {
   // OPAQUE password authentication (RFC 9807). Self-registration runs
   // through OpaqueZkppRegistrationStart and OpaqueZkppRegistrationFinish.
   rpc OpaqueLoginStart(OpaqueLoginStartRequest) returns (OpaqueLoginStartResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { post: "/v1/auth/opaque/login/start" body: "*" };
   }
   rpc OpaqueLoginFinish(OpaqueLoginFinishRequest) returns (OpaqueLoginFinishResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 9807 §6: the login state is consumed by its finish; a repeat finds none and creates no session"
@@ -34,6 +37,7 @@ service AuthService {
   // (which may create or replace the owner's history key), so a retry is a new
   // operation, not the same answer.
   rpc OpaqueZkppRegistrationStart(OpaqueZkppRegistrationStartRequest) returns (OpaqueZkppRegistrationStartResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 9807 §5: each start opens its own pending registration; nothing is registered before its finish"
@@ -41,6 +45,7 @@ service AuthService {
     option (google.api.http) = { post: "/v1/auth/opaque-zkpp/registration/start" body: "*" };
   }
   rpc OpaqueZkppRegistrationFinish(OpaqueZkppRegistrationFinishRequest) returns (OpaqueZkppRegistrationFinishResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 9807 §5: the registration's pending operation is consumed by its commit, which records its own outcome for a retry of the same operation"
@@ -50,6 +55,7 @@ service AuthService {
   // Counts a current-password attempt when the request carries KE1, so a
   // retry is not free.
   rpc PasswordChangeChallenge(PasswordChangeChallengeRequest) returns (PasswordChangeChallengeResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "each challenge opens its own pending change; nothing changes before its finish"
@@ -57,6 +63,7 @@ service AuthService {
     option (google.api.http) = { post: "/v1/auth/password/change/challenge" body: "*" };
   }
   rpc PasswordChangeExecute(PasswordChangeExecuteRequest) returns (PasswordChangeExecuteResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "an OPAQUE step of the change (RFC 9807 §5): it changes no account state, and the change commits only in its single-use finish"
@@ -66,6 +73,7 @@ service AuthService {
   // Answers nothing beyond success, so it returns Empty rather than an empty
   // message of its own; this API keeps no type aliases for older clients.
   rpc PasswordChangeFinish(PasswordChangeFinishRequest) returns (google.protobuf.Empty) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       ceremony: "the change's pending operation is consumed by its commit: a repeat finds none and changes nothing"
@@ -80,16 +88,19 @@ service AuthService {
   // so the timer never fires late; it asks for the current password when the
   // timer fires, exactly then and not before.
   rpc GetPasswordChangeRequirement(google.protobuf.Empty) returns (google.protobuf.Duration) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_READ;
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { get: "/v1/auth/password/change/requirement" };
   }
 
   // WebAuthn (passkeys).
   rpc WebAuthnRegistrationStart(WebAuthnRegistrationStartRequest) returns (WebAuthnRegistrationStartResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { post: "/v1/auth/webauthn/registration/start" body: "*" };
   }
   rpc WebAuthnRegistrationFinish(WebAuthnRegistrationFinishRequest) returns (WebAuthnRegistrationFinishResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       ceremony: "WebAuthn §13.4.3: the challenge is single-use; a repeat finds it spent and registers nothing"
@@ -97,10 +108,12 @@ service AuthService {
     option (google.api.http) = { post: "/v1/auth/webauthn/registration/finish" body: "*" };
   }
   rpc WebAuthnAuthenticationStart(WebAuthnAuthenticationStartRequest) returns (WebAuthnAuthenticationStartResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { post: "/v1/auth/webauthn/authentication/start" body: "*" };
   }
   rpc WebAuthnAuthenticationFinish(WebAuthnAuthenticationFinishRequest) returns (WebAuthnAuthenticationFinishResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "WebAuthn §13.4.3: the challenge is single-use; a repeat finds it spent and creates no session"
@@ -118,6 +131,7 @@ service AuthService {
   // token after consent and redirects the browser itself; the issuer's
   // browser authorization endpoint (OidcProviderService) runs the same logic.
   rpc OAuth2Authorize(OAuth2AuthorizeRequest) returns (OAuth2AuthorizeResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 6749 §4.1.2: each authorization request issues its own single-use code"
@@ -132,6 +146,7 @@ service AuthService {
   // page asks for any credential: INVALID_ARGUMENT, ErrorInfo reason
   // INVALID_FIELD_VALUE, BadRequest field `authorization_request`.
   rpc GetSignInContext(GetSignInContextRequest) returns (SignInContext) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { post: "/v1/auth/sign-in/context" body: "*" };
   }
@@ -145,6 +160,7 @@ service AuthService {
   // secret in the body, or with HTTP Basic in the `authorization` metadata
   // (RFC 6749 §2.3.1), never both.
   rpc OAuth2Token(OAuth2TokenRequest) returns (OAuth2TokenResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 6749 §4.1.2 and §10.4: a code or rotated refresh token is consumed once; a second use is refused, never answered with tokens"
@@ -153,12 +169,14 @@ service AuthService {
   // A client assertion is recorded against replay, so the call is not free
   // of effects (as OidcProviderService.Introspect).
   rpc OAuth2Introspect(OAuth2IntrospectRequest) returns (OAuth2IntrospectResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_ISSUED_CREDENTIAL;
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 7523 §3: a client assertion's jti is admitted once; the answer otherwise only reads the token"
     };
   }
   rpc OAuth2Revoke(OAuth2RevokeRequest) returns (OAuth2RevokeResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_ISSUED_CREDENTIAL;
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 7009 §2.2: revoking a revoked or unknown token answers success and changes nothing"
@@ -168,12 +186,14 @@ service AuthService {
   // Device Authorization Grant (RFC 8628): the device starts here and polls
   // OAuth2Token with the device_code grant (RFC 8628 §3.4).
   rpc StartDeviceAuthorization(DeviceAuthorizationRequest) returns (DeviceAuthorizationResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 8628 §3.2: each request issues its own device and user codes"
     };
   }
   rpc SubmitDeviceUserCode(SubmitDeviceUserCodeRequest) returns (SubmitDeviceUserCodeResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 8628 §3.3: a user code is decided once; a repeat is refused as decided and changes nothing"
@@ -184,6 +204,7 @@ service AuthService {
   // ── Magic Link (passwordless, corporate profiles) ──
 
   rpc RequestMagicLink(RequestMagicLinkRequest) returns (RequestMagicLinkResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "each request issues its own single-use link under the delivery rate limit; no account state changes"
@@ -192,6 +213,7 @@ service AuthService {
   }
 
   rpc VerifyMagicLink(VerifyMagicLinkRequest) returns (VerifyMagicLinkResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "the link is single-use: a repeat finds it spent and creates no session"
@@ -201,10 +223,12 @@ service AuthService {
 
   // Legacy password migration (on-login OPAQUE re-registration).
   rpc LegacyMigrateStart(LegacyMigrateStartRequest) returns (LegacyMigrateStartResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { post: "/v1/auth/legacy/migrate/start" body: "*" };
   }
   rpc LegacyMigrateFinish(LegacyMigrateFinishRequest) returns (LegacyMigrateFinishResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "the migration state is taken by its first finish: a repeat finds none and replaces nothing"
@@ -217,6 +241,7 @@ service AuthService {
   // presented credential in request metadata; the access token and the next
   // generation in response metadata.
   rpc RefreshNativeSession(RefreshNativeSessionRequest) returns (RefreshNativeSessionResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       ceremony: "a generation rotates once: a retry of the same exchange within the redelivery window, with any credential of the rotated generation and a fresh proof, answers the committed generation; after the window, or for another exchange, a rotated credential is refused"
@@ -226,18 +251,21 @@ service AuthService {
 
   // Session validation.
   rpc ValidateSession(ValidateSessionRequest) returns (ValidateSessionResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_ISSUED_CREDENTIAL;
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { post: "/v1/auth/sessions/validate" body: "*" };
   }
 
   // Unified login flow: resolve principal → available auth methods.
   rpc ResolvePrincipal(ResolvePrincipalRequest) returns (ResolvePrincipalResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { post: "/v1/auth/resolve" body: "*" };
   }
 
   // ZKPP password policy: current policy version and parameters.
   rpc GetZkppPolicy(GetZkppPolicyRequest) returns (GetZkppPolicyResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_READ;
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { get: "/v1/auth/opaque-zkpp/policy" };
   }
@@ -245,6 +273,7 @@ service AuthService {
   // Submit a deferred ZK proof for a credential registered without WASM.
   // Must be called within 24h of registration from a WASM-capable device.
   rpc SubmitDeferredZkProof(SubmitDeferredZkProofRequest) returns (SubmitDeferredZkProofResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       natural: "a credential's deferred proof is recorded once and never withdrawn: a repeat finds it proven, records nothing and answers as the first"
@@ -254,7 +283,10 @@ service AuthService {
 
   // ── MFA TOTP ──
 
+  // A sign-in's policy may require this enrollment before it completes, so
+  // it is a step of signing in.
   rpc StartTotpEnrollment(StartTotpEnrollmentRequest) returns (TotpEnrollmentChallenge) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "each start opens its own pending enrollment; nothing is enrolled before its finish"
@@ -262,6 +294,7 @@ service AuthService {
     option (google.api.http) = { post: "/v1/auth/mfa/totp/enroll/start" body: "*" };
   }
   rpc FinishTotpEnrollment(FinishTotpEnrollmentRequest) returns (FinishTotpEnrollmentResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       ceremony: "the pending enrollment is taken by its first finish: a repeat finds none and enrolls nothing"
@@ -269,6 +302,7 @@ service AuthService {
     option (google.api.http) = { post: "/v1/auth/mfa/totp/enroll/finish" body: "*" };
   }
   rpc VerifyTotp(VerifyTotpRequest) returns (MfaVerifyResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 6238 §5.2: a time step's code is accepted once; a replayed code is refused"
@@ -279,6 +313,7 @@ service AuthService {
   // ── MFA SMS ──
 
   rpc VerifySmsMfa(VerifySmsMfaRequest) returns (MfaVerifyResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "the SMS code is consumed by its first valid use; wrong codes count toward the challenge's attempt limit"
@@ -286,6 +321,7 @@ service AuthService {
     option (google.api.http) = { post: "/v1/auth/mfa/sms/verify" body: "*" };
   }
   rpc ResendSmsMfa(ResendSmsMfaRequest) returns (ResendSmsMfaResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "a new code replaces the challenge's previous one under the rate limit; no account state changes"
@@ -299,11 +335,13 @@ service AuthService {
   // hashes, so it is refused with FAILED_PRECONDITION
   // (OPERATION_RESULT_UNAVAILABLE, RECOVERY_CODES_ISSUED).
   rpc GenerateRecoveryCodes(GenerateRecoveryCodesRequest) returns (GenerateRecoveryCodesResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/auth/mfa/recovery/generate" body: "*" };
   }
   rpc VerifyRecoveryCode(VerifyRecoveryCodeRequest) returns (MfaVerifyResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "each recovery code is consumed once; a repeat of a used code is refused"
@@ -314,6 +352,7 @@ service AuthService {
   // ── OTP verification (email/phone, non-MFA) ──
 
   rpc RequestOtp(RequestOtpRequest) returns (RequestOtpResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "each request opens its own code session under the rate limit; no account state changes"
@@ -321,6 +360,7 @@ service AuthService {
     option (google.api.http) = { post: "/v1/auth/otp/request" body: "*" };
   }
   rpc VerifyOtp(VerifyOtpRequest) returns (VerifyOtpResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "the code session is consumed by its first valid code; wrong codes count toward its attempt limit"
@@ -328,6 +368,7 @@ service AuthService {
     option (google.api.http) = { post: "/v1/auth/otp/verify" body: "*" };
   }
   rpc ResendOtp(ResendOtpRequest) returns (ResendOtpResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "a new code replaces the session's previous one under the rate limit; no account state changes"
@@ -338,6 +379,7 @@ service AuthService {
   // ── Email/Phone verification ──
 
   rpc ResendEmailVerification(ResendEmailVerificationRequest) returns (ResendEmailVerificationResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "each request sends a new single-use verification link replacing the previous one, under the delivery rate limit; no account state changes"
@@ -345,6 +387,7 @@ service AuthService {
     option (google.api.http) = { post: "/v1/auth/email/verify/resend" body: "*" };
   }
   rpc VerifyPhone(VerifyPhoneRequest) returns (VerifyPhoneResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "the verification code is consumed by its first valid use; wrong codes count toward its attempt limit"
@@ -352,6 +395,7 @@ service AuthService {
     option (google.api.http) = { post: "/v1/auth/phone/verify" body: "*" };
   }
   rpc ResendPhoneVerification(ResendPhoneVerificationRequest) returns (ResendPhoneVerificationResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "a new code replaces the previous one under the rate limit; no account state changes"
@@ -362,6 +406,7 @@ service AuthService {
   // ── IdP linking ──
 
   rpc ConfirmIdpLink(ConfirmIdpLinkRequest) returns (ConfirmIdpLinkResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "the pending link is taken by its confirmation: a repeat finds none and links nothing"
@@ -372,10 +417,12 @@ service AuthService {
   // ── Organization selector (multi-org login) ──
 
   rpc ListUserOrganizations(ListUserOrganizationsRequest) returns (ListUserOrganizationsResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { get: "/v1/auth/orgs" };
   }
   rpc SelectOrganization(SelectOrganizationRequest) returns (SelectOrganizationResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "the pending sign-in's selection step is consumed once: a repeat finds the sign-in completed and issues nothing"
@@ -386,10 +433,12 @@ service AuthService {
   // ── Terms acceptance ──
 
   rpc GetTerms(GetTermsRequest) returns (GetTermsResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { get: "/v1/auth/terms" };
   }
   rpc AcceptTerms(AcceptTermsRequest) returns (AcceptTermsResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "the pending sign-in's terms step is consumed by its acceptance: a repeat finds the step done and issues nothing"
@@ -400,6 +449,7 @@ service AuthService {
   // ── CIBA consent ──
 
   rpc ApproveCiba(ApproveCibaRequest) returns (CibaConsentResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "OpenID CIBA Core 1.0: an authentication request is decided once by its user; a repeat is refused as decided and changes nothing"
@@ -407,6 +457,7 @@ service AuthService {
     option (google.api.http) = { post: "/v1/auth/ciba/approve" body: "*" };
   }
   rpc DenyCiba(DenyCibaRequest) returns (CibaConsentResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "OpenID CIBA Core 1.0: an authentication request is decided once by its user; a repeat is refused as decided and changes nothing"
@@ -417,6 +468,7 @@ service AuthService {
   // ── Captcha ──
 
   rpc VerifyCaptcha(VerifyCaptchaRequest) returns (VerifyCaptchaResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "a solution counts once, for the challenge a sign-in was asked"
@@ -427,10 +479,12 @@ service AuthService {
   // ── Dynamic prompt (custom auth steps) ──
 
   rpc GetDynamicPrompt(GetDynamicPromptRequest) returns (DynamicPrompt) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { get: "/v1/auth/prompt/{prompt_id}" };
   }
   rpc SubmitDynamicPrompt(SubmitDynamicPromptRequest) returns (SubmitDynamicPromptResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "the prompt step is consumed by its first submission: a repeat finds it answered and changes nothing"
@@ -442,6 +496,7 @@ service AuthService {
 
   // Generic step-up Phase 1: request challenge (WebAuthn). Skip for TOTP/recovery.
   rpc RequestStepUp(RequestStepUpRequest) returns (StepUpChallenge) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "each request opens its own single-use challenge; nothing is elevated before it completes"
@@ -451,6 +506,7 @@ service AuthService {
 
   // Generic step-up Phase 2: submit proof → elevate session → rotate token.
   rpc CompleteStepUp(CompleteStepUpRequest) returns (CompleteStepUpResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "its proof counts once: a TOTP time step, recovery code or passkey challenge is spent by its first use, so a repeat elevates nothing"
@@ -463,6 +519,7 @@ service AuthService {
   // Delete an MFA credential (TOTP, WebAuthn, Recovery).
   // Requires elevated session (step-up auth) before calling.
   rpc DeleteMfaCredential(DeleteMfaCredentialRequest) returns (DeleteMfaCredentialResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/auth/mfa/credentials:delete" body: "*" };
@@ -471,6 +528,7 @@ service AuthService {
   // ── Account deletion confirmation ──
 
   rpc ConfirmAccountDeletion(ConfirmAccountDeletionRequest) returns (ConfirmAccountDeletionResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "the deletion confirmation token is single-use: a repeat finds it spent and deletes nothing more"
@@ -480,6 +538,7 @@ service AuthService {
 
   // Password reset flow (magic link → new OPAQUE credential).
   rpc RequestPasswordReset(RequestPasswordResetRequest) returns (RequestPasswordResetResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "each request issues its own single-use reset link under the delivery rate limit; no account state changes"
@@ -487,6 +546,7 @@ service AuthService {
     option (google.api.http) = { post: "/v1/auth/password/reset/request" body: "*" };
   }
   rpc VerifyPasswordReset(VerifyPasswordResetRequest) returns (VerifyPasswordResetResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "the reset link is consumed once into a reset session"
@@ -496,6 +556,7 @@ service AuthService {
   // OPAQUE registration start of the replacement password, under the verified
   // reset's operation.
   rpc ExecutePasswordReset(ExecutePasswordResetRequest) returns (ExecutePasswordResetResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "an OPAQUE step of the reset (RFC 9807 §5): it changes no account state, and the reset commits only in its single-use completion"
@@ -505,6 +566,7 @@ service AuthService {
   // The completion's result is recorded with it, keyed by the reset's
   // operation and its final record: a retry gets the recorded answer.
   rpc CompletePasswordReset(CompletePasswordResetRequest) returns (CompletePasswordResetResponse) {
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       ceremony: "the reset session is consumed by the password it sets, and its result is recorded under the reset's operation: a retry of that operation gets the recorded answer and changes nothing"
