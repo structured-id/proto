@@ -330,7 +330,8 @@ service AuthzService {
   // holder and scope, assigning and revoking, each end within its bounds.
   // Anything not covered is PERMISSION_DENIED and nothing changes. Another
   // revision is FAILED_PRECONDITION (ErrorInfo reason
-  // ROLE_ASSIGNMENT_SET_CHANGED) and nothing changes. A retry under the
+  // sid.v1.common.ErrorReason.ROLE_ASSIGNMENT_SET_CHANGED, metadata
+  // currentRevision) and nothing changes. A retry under the
   // command's operation context answers the recorded result.
   rpc SetRoleAssignments(SetRoleAssignmentsRequest) returns (SetRoleAssignmentsResponse) {
     option idempotency_level = IDEMPOTENT;
