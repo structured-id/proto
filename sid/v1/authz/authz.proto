@@ -317,6 +317,26 @@ service AuthzService {
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { get: "/v1/authz/assignments" };
   }
+  // Make one holder's assignments of the managed roles in one exact scope
+  // exactly the requested ones, in one commit at the installation and only
+  // at `expected_revision`, as ListRoleAssignments read it for that set.
+  // A held assignment of the requested role and end stays; every other
+  // assignment of a managed role is revoked and each missing one assigned.
+  // Assignments of other roles, and administrative or policy assignments,
+  // are not touched. Every request moves the set's revision, an empty or
+  // unchanged one included, so a change decided against an older state
+  // never commits after it. The caller's role administration must cover the
+  // whole request, the empty one included: every managed role for this
+  // holder and scope, assigning and revoking, each end within its bounds.
+  // Anything not covered is PERMISSION_DENIED and nothing changes. Another
+  // revision is FAILED_PRECONDITION (ErrorInfo reason
+  // ROLE_ASSIGNMENT_SET_CHANGED) and nothing changes. A retry under the
+  // command's operation context answers the recorded result.
+  rpc SetRoleAssignments(SetRoleAssignmentsRequest) returns (SetRoleAssignmentsResponse) {
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = { keyed: true };
+    option (google.api.http) = { post: "/v1/authz/assignment-sets" body: "*" };
+  }
 
   // Group management.
   rpc CreateGroup(CreateGroupRequest) returns (CreateGroupResponse) {
@@ -683,11 +703,70 @@ message ListRoleAssignmentsRequest {
     string oauth_client_id = 5;
     // Assignments held by this SCIM provisioning connector.
     sid.v1.ids.ProvisioningConnectorId provisioning_connector_id = 6;
+    // Exactly one holder's assignments in one exact scope, with that set's
+    // revision. A caller that may not read the whole set is refused
+    // (PERMISSION_DENIED), never answered with part of it.
+    RoleAssignmentSet assignment_set = 7;
   }
 }
 
 message ListRoleAssignmentsResponse {
   repeated RoleAssignment assignments = 1;
+  // The revision of the set `assignment_set` named, which SetRoleAssignments
+  // takes as `expected_revision`; unset for every other filter, which names
+  // no single set.
+  optional uint64 set_revision = 2;
+}
+
+// One holder's assignments in one exact scope: the unit SetRoleAssignments
+// replaces and whose revision orders its changes.
+message RoleAssignmentSet {
+  // The holder, as RoleAssignment names it.
+  oneof holder {
+    // A Profile of this installation.
+    sid.v1.ids.ProfileId profile_id = 1;
+    // A group of this installation.
+    sid.v1.ids.GroupId group_id = 2;
+    // A machine user of this installation.
+    sid.v1.ids.MachineUserId machine_user_id = 3;
+    // `client_id` of an independent confidential OAuth client.
+    string oauth_client_id = 4;
+    // A SCIM provisioning connector.
+    sid.v1.ids.ProvisioningConnectorId provisioning_connector_id = 5;
+  }
+  // The exact scope, as RoleAssignment.scope; unset for the holder's
+  // unscoped assignments only, never every scope.
+  optional string scope = 6;
+}
+
+// One assignment SetRoleAssignments leaves the holder with.
+message RequestedAssignment {
+  // The role, one of the request's managed roles, each at most once.
+  sid.v1.ids.RoleId role_id = 1;
+  // When it ends, chosen by the caller; unset for no end. Must be in the
+  // future and within the caller's administration bounds.
+  optional google.protobuf.Timestamp expires_at = 2;
+}
+
+message SetRoleAssignmentsRequest {
+  // The holder and scope whose assignments are set.
+  RoleAssignmentSet assignment_set = 1;
+  // The roles this request manages, at least one; listing a role grants no
+  // authority over it. Assignments of other roles stay.
+  repeated sid.v1.ids.RoleId managed_role_ids = 2;
+  // The assignments of managed roles the holder has afterwards; empty for
+  // none.
+  repeated RequestedAssignment assignments = 3;
+  // The set's revision the request was decided against, from
+  // ListRoleAssignments for this set.
+  uint64 expected_revision = 4;
+}
+
+message SetRoleAssignmentsResponse {
+  // The set's revision after the request.
+  uint64 revision = 1;
+  // The holder's assignments of the managed roles afterwards.
+  repeated RoleAssignment assignments = 2;
 }
 
 // ── Group management ─────────────────────────────────────────────────
