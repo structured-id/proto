@@ -183,6 +183,10 @@ enum ErrorReason {
   // Self-registration was deliberately closed. Not a store that cannot answer,
   // nor a setting never initialized.
   REGISTRATION_DISABLED = 72;
+  // A role assignment set is no longer at the revision the replacement was
+  // decided against: nothing was written. ErrorInfo metadata `currentRevision`
+  // carries the set's revision; the caller reads the set again and decides.
+  ROLE_ASSIGNMENT_SET_CHANGED = 73;
 
   // ── RESOURCE_EXHAUSTED ─────────────────────────────────────
 
