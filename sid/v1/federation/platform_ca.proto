@@ -65,6 +65,19 @@ message PlatformCa {
   // it are not accepted after this time even while its certificate is valid.
   // Absent for the other states.
   google.protobuf.Timestamp overlap_end = 4;
+
+  // The generation's CRL (DER, RFC 5280 section 5): the CA certificates this
+  // intermediate issued and revoked, complete for that scope, issued by the
+  // generation's own keys (named by its authority key identifier) with
+  // ECDSA P-256 in the standard fields and ML-DSA-65 as the X.509 alternative
+  // signature. Present for an active or verification-only generation; absent
+  // for a withdrawn one, through which no path is accepted anyway. A verifier
+  // authenticates it under this generation's certificate, never accepts a CRL
+  // number lower than one it accepted for the generation, keeps every
+  // revocation it has seen, and treats a missing CRL or one past its
+  // nextUpdate as no evidence of status: it refreshes or refuses the path
+  // that needs the status, never assumes the certificate good.
+  bytes crl = 5;
 }
 
 // The admitted state of a platform intermediate generation.
