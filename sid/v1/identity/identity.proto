@@ -156,10 +156,21 @@ enum EmailLabel {
   EMAIL_LABEL_CUSTOM = 5;
 }
 
+// Who a Profile record of this installation belongs to.
 enum ProfileType {
   PROFILE_TYPE_UNSPECIFIED = 0;
+  // Owned by its user, not by an organization.
   PROFILE_TYPE_PERSONAL = 1;
+  // Owned by this installation's organization.
   PROFILE_TYPE_CORPORATE = 2;
+  // This installation's local reference to an identity it admitted through
+  // federation: another SID installation signs that identity in, and this
+  // one keeps the record its sessions and permissions attach to. It is not
+  // a third kind of Profile at the issuing side and tells nothing about
+  // what that side holds. Such a record has no local credentials, login
+  // names or keys, and is never one of this installation's own Personal or
+  // Corporate Profiles.
+  PROFILE_TYPE_FEDERATED = 3;
 }
 
 enum ProfileStatus {
