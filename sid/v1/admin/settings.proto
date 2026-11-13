@@ -168,28 +168,78 @@ message UpdateRealmRequest {
 
 message GetLoginSettingsRequest {}
 
+// The login settings of the organization this installation serves, as its
+// administrator reads them. A setting the installation does not serve is
+// absent, never a stored `false`.
 message LoginSettings {
-  bool self_registration = 1;
-  bool forgot_password = 2;
-  bool remember_me = 3;
-  bool verify_email = 4;
-  bool login_with_email = 5;
-  bool identity_first_login = 6;
+  // Whether visitors may create their own accounts. Server-stored; absent
+  // where the installation does not serve it.
+  optional bool self_registration = 1;
+  // Whether the sign-in page offers the password reset. Server-stored; absent
+  // where the installation does not serve it.
+  optional bool forgot_password = 2;
+  // Whether the sign-in page offers to keep the browser signed in.
+  // Server-stored; absent where the installation does not serve it.
+  optional bool remember_me = 3;
+  // Whether a new account must confirm its email address. Server-stored;
+  // absent where the installation does not serve it.
+  optional bool verify_email = 4;
+  // Whether an email address is accepted as the sign-in name. Server-stored;
+  // absent where the installation does not serve it.
+  optional bool login_with_email = 5;
+  // Whether the sign-in page asks for the name first and the method after.
+  // Server-stored; absent where the installation does not serve it.
+  optional bool identity_first_login = 6;
+  // Names of the roles a new account receives. Server-stored; empty where
+  // none is set or the installation does not serve it.
   repeated string default_roles = 7;
+  // Names of the groups a new account joins. Server-stored; empty where none
+  // is set or the installation does not serve it.
   repeated string default_groups = 8;
+  // What a new account must complete at its first sign-in. Server-stored;
+  // empty where none is set or the installation does not serve it.
   repeated RequiredAction required_actions = 9;
+  // Whether this organization, as the recipient of a federated sign-in,
+  // admits Personal Profiles. Set by its administrator; off until set.
+  // Independent of allow_foreign_corporate_profiles: incoming federated
+  // sign-in is available when either is on. Concerns the sign-in of an
+  // existing external identity only: not a registration mode and not
+  // federation enrollment.
+  bool allow_personal_profiles = 10;
+  // Whether this organization, as the recipient of a federated sign-in,
+  // admits Corporate Profiles issued by other organizations. Set by its
+  // administrator; off until set. A Corporate Profile this organization
+  // issued itself is not a foreign one and is not governed by this setting.
+  bool allow_foreign_corporate_profiles = 11;
 }
 
+// The settings to change; an absent field keeps its stored value. A field of
+// a setting the installation does not serve is refused with
+// FEATURE_NOT_AVAILABLE and nothing is changed.
 message UpdateLoginSettingsRequest {
+  // As LoginSettings.self_registration.
   optional bool self_registration = 1;
+  // As LoginSettings.forgot_password.
   optional bool forgot_password = 2;
+  // As LoginSettings.remember_me.
   optional bool remember_me = 3;
+  // As LoginSettings.verify_email.
   optional bool verify_email = 4;
+  // As LoginSettings.login_with_email.
   optional bool login_with_email = 5;
+  // As LoginSettings.identity_first_login.
   optional bool identity_first_login = 6;
+  // As LoginSettings.default_roles; a non-empty list replaces the stored one.
   repeated string default_roles = 7;
+  // As LoginSettings.default_groups; a non-empty list replaces the stored one.
   repeated string default_groups = 8;
+  // As LoginSettings.required_actions; a non-empty list replaces the stored
+  // one.
   repeated RequiredAction required_actions = 9;
+  // As LoginSettings.allow_personal_profiles.
+  optional bool allow_personal_profiles = 10;
+  // As LoginSettings.allow_foreign_corporate_profiles.
+  optional bool allow_foreign_corporate_profiles = 11;
 }
 
 enum RequiredAction {
