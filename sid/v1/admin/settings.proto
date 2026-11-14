@@ -8,6 +8,7 @@ package sid.v1.admin;
 import "google/protobuf/empty.proto";
 import "google/api/annotations.proto";
 import "sid/v1/common/operation.proto";
+import "sid/v1/ids/ids.proto";
 
 // ────────────────────────────────────────────────────────────────────────────
 // RealmService — General instance settings, login config, session & token config
@@ -210,7 +211,30 @@ message LoginSettings {
   // admits Corporate Profiles issued by other organizations. Set by its
   // administrator; off until set. A Corporate Profile this organization
   // issued itself is not a foreign one and is not governed by this setting.
+  // On its own this admits no organization: see
+  // admitted_source_organizations.
   bool allow_foreign_corporate_profiles = 11;
+  // The organizations whose Corporate Profiles this organization admits
+  // while allow_foreign_corporate_profiles is on. Set by its administrator;
+  // empty until set, and an empty list admits no Corporate Profile of
+  // another organization. Sorted by id, each id once. Naming an organization
+  // gives its Profiles no role or permission here, and nothing in the
+  // opposite direction.
+  repeated sid.v1.ids.OrgId admitted_source_organizations = 12;
+  // How many times what these settings admit was changed: 0 while nothing
+  // was ever changed, one more after each change of a switch or of the
+  // admitted organizations; a command that changes nothing keeps it.
+  // Server-assigned; orders a published copy of the settings against a later
+  // change, and one revision never names two different contents.
+  uint64 revision = 13;
+}
+
+// The complete list of organizations whose Corporate Profiles a recipient
+// organization admits.
+message AdmittedSourceOrganizations {
+  // The admitted organizations, at most 1024, in any order; a repeated id
+  // counts once. Empty admits none.
+  repeated sid.v1.ids.OrgId organizations = 1;
 }
 
 // The settings to change; an absent field keeps its stored value. A field of
@@ -240,6 +264,10 @@ message UpdateLoginSettingsRequest {
   optional bool allow_personal_profiles = 10;
   // As LoginSettings.allow_foreign_corporate_profiles.
   optional bool allow_foreign_corporate_profiles = 11;
+  // Replaces LoginSettings.admitted_source_organizations whole: an
+  // organization left out is no longer admitted, and a present empty list
+  // admits none. Absent keeps the stored list.
+  optional AdmittedSourceOrganizations admitted_source_organizations = 12;
 }
 
 enum RequiredAction {
