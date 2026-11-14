@@ -256,6 +256,8 @@ enum ErrorReason {
   ORGANIZATION_NOT_FOUND = 133;
   // The organization has no provisioning connector with this identifier.
   PROVISIONING_CONNECTOR_NOT_FOUND = 134;
+  // The installation has no entry connection with this handle.
+  ENTRY_CONNECTION_NOT_FOUND = 135;
 
   // ── ALREADY_EXISTS (continued) ─────────────────────────────
 
@@ -266,6 +268,9 @@ enum ErrorReason {
   // The device already has a live key attestation; RotateDeviceKey replaces
   // its key.
   ATTESTATION_ALREADY_EXISTS = 122;
+  // The issuer already has an entry connection in this installation: one
+  // issuer has one connection.
+  ENTRY_CONNECTION_ALREADY_EXISTS = 123;
 
   // ── UNKNOWN ────────────────────────────────────────────────
 
