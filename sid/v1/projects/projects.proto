@@ -454,6 +454,21 @@ message ClientRoleSettings {
   // validated like redirect URIs for the client's type; an invalid one is
   // INVALID_ARGUMENT, field `post_logout_redirect_uris`.
   repeated string post_logout_redirect_uris = 6;
+  // For a client that is another organization's SID federation site: that
+  // site's signed admission statement exactly as its FederationSiteService
+  // .SignSiteAdmission returned it (SiteAdmission.statement: a General JSON
+  // JWS of type `sid-login-admission+jws` carrying the site's participant
+  // certificate and path). The installation verifies it under its platform
+  // CA set and status
+  // policy before anything is created: the client's organization is the
+  // authenticated participant organization, and its single redirect URI is
+  // derived from the site's admitted endpoint mount and the shared
+  // federation callback route. So `redirect_uris` is left empty, the
+  // request's `org_id` is absent or names that same organization, and the
+  // type is web; otherwise INVALID_ARGUMENT, field `participant_admission`,
+  // and nothing is created. A statement that does not verify is refused the
+  // same way. Each site of an organization is its own client.
+  optional bytes participant_admission = 7;
 }
 
 // A list of URIs, set as a whole by an update.
@@ -479,8 +494,9 @@ message CreateApplicationRequest {
   // At least one role is required.
   optional ClientRoleSettings client = 3;
   optional ResourceRoleSettings resource = 4;
-  // Recipient organization. Absent means the installation's organization;
-  // naming any other organization is refused.
+  // Recipient organization. Absent means the installation's organization,
+  // or, for a client with `participant_admission`, the organization that
+  // statement authenticates. Naming any other organization is refused.
   sid.v1.ids.OrgId org_id = 5;
 }
 
@@ -525,6 +541,9 @@ message AddClientRoleRequest {
 message UpdateClientRoleRequest {
   string client_id = 1;
   optional string name = 2;
+  // Replaces the redirect URIs when given. A client registered from a
+  // federation site's admission has the one URI derived from that site's
+  // mount: replacing it is INVALID_ARGUMENT, field `redirect_uris`.
   repeated string redirect_uris = 3;
   repeated string allowed_scopes = 4;
   repeated string grant_types = 5;

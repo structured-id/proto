@@ -9,18 +9,43 @@ package sid.v1.federation;
 
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "google/api/httpbody.proto";
 
-// PlatformCaService publishes the admitted platform CA set.
+// PlatformCaService publishes the admitted platform CA set and, separately,
+// the current revocation status of what each generation issued. The set
+// carries certificates and their admission only, never status: status
+// changes with every revocation and is read where and when it is needed.
 service PlatformCaService {
   // The current admitted set, the same for every caller.
   rpc GetPlatformCas(GetPlatformCasRequest) returns (PlatformCas) {
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = { get: "/.well-known/sid-ca/index.json" };
   }
+
+  // The current CRL of one published generation: a google.api.HttpBody of
+  // content type `application/pkix-crl` holding the DER CRL (RFC 5280
+  // section 5). It is built from the issuer's live revocation records, so a
+  // revocation committed before the call is in it; it is signed again when
+  // that state changes or its freshness is renewed, not on every read. An
+  // entry is dropped only after one regular CRL issued past its
+  // certificate's expiry listed it (RFC 5280 section 3.3). A generation that
+  // is not published, or withdrawn, is NOT_FOUND; one whose status cannot be
+  // stated now (an unfinished restore) is UNAVAILABLE, never a list that
+  // omits what it does not know.
+  rpc GetPlatformCaCrl(GetPlatformCaCrlRequest) returns (google.api.HttpBody) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/.well-known/sid-ca/{generation}/crl" };
+  }
 }
 
 // The admitted set takes no input: the platform publishes one statement.
 message GetPlatformCasRequest {}
+
+// Which generation's CRL is read.
+message GetPlatformCaCrlRequest {
+  // The generation's number, as PlatformCa.generation states it.
+  uint32 generation = 1;
+}
 
 // The admitted platform CA set at one revision.
 message PlatformCas {
@@ -65,19 +90,6 @@ message PlatformCa {
   // it are not accepted after this time even while its certificate is valid.
   // Absent for the other states.
   google.protobuf.Timestamp overlap_end = 4;
-
-  // The generation's CRL (DER, RFC 5280 section 5): the CA certificates this
-  // intermediate issued and revoked, complete for that scope, issued by the
-  // generation's own keys (named by its authority key identifier) with
-  // ECDSA P-256 in the standard fields and ML-DSA-65 as the X.509 alternative
-  // signature. Present for an active or verification-only generation; absent
-  // for a withdrawn one, through which no path is accepted anyway. A verifier
-  // authenticates it under this generation's certificate, never accepts a CRL
-  // number lower than one it accepted for the generation, keeps every
-  // revocation it has seen, and treats a missing CRL or one past its
-  // nextUpdate as no evidence of status: it refreshes or refuses the path
-  // that needs the status, never assumes the certificate good.
-  bytes crl = 5;
 }
 
 // The admitted state of a platform intermediate generation.
