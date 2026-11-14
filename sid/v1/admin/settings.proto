@@ -227,6 +227,50 @@ message LoginSettings {
   // Server-assigned; orders a published copy of the settings against a later
   // change, and one revision never names two different contents.
   uint64 revision = 13;
+  // What this organization requires to be known of withdrawals before it
+  // relies on the Binding Passport of an identity signing in from outside.
+  // Always present: until an administrator sets it, the default requires a
+  // list within its time from the passport's issuer and takes the
+  // authorities above that issuer on what the installation holds. It admits
+  // nobody by itself, and changing it is a change of these settings.
+  StatusPolicy status_policy = 14;
+}
+
+// What must be known of withdrawals before a presented certificate is
+// relied on. A withdrawal the installation has seen refuses the certificate
+// under every policy, as does an expired certificate, one issued for another
+// recipient and a bad signature: the policy decides only the case where
+// nothing says the certificate was withdrawn and nothing current says it was
+// not. An issuer that cannot be reached never switches the policy.
+message StatusPolicy {
+  // Required of the issuer of the presented Binding Passport itself: the
+  // platform for a Personal Profile's, the issuing organization for a
+  // Corporate Profile's. Required in a change.
+  StatusRequirement issuer = 1;
+  // Required of the authorities above that issuer, and of the platform's
+  // statement of which of its generations stand. Required in a change.
+  StatusRequirement authorities = 2;
+}
+
+// What is required of the status one authority publishes of the
+// certificates it issued.
+message StatusRequirement {
+  // Absent: a list of the authority within its time is required, and
+  // without one the certificate is not decided. Present: the certificate is
+  // admitted without such a list, within these limits; the sign-in is then
+  // recorded with its status as stale or unknown, never as shown good.
+  optional OfflineStatusLimits offline = 1;
+}
+
+// What an offline requirement admits. Each absence it permits is named:
+// nothing is permitted by not being mentioned.
+message OfflineStatusLimits {
+  // Whether a certificate is admitted when no list of its issuer was ever
+  // held by this installation.
+  bool missing = 1;
+  // How long past its time, in seconds, a held list still admits. Absent
+  // sets no limit; 0 admits no expired list.
+  optional uint64 max_stale_seconds = 2;
 }
 
 // The complete list of organizations whose Corporate Profiles a recipient
@@ -268,6 +312,9 @@ message UpdateLoginSettingsRequest {
   // organization left out is no longer admitted, and a present empty list
   // admits none. Absent keeps the stored list.
   optional AdmittedSourceOrganizations admitted_source_organizations = 12;
+  // Replaces LoginSettings.status_policy whole; both of its requirements
+  // are then required. Absent keeps the stored policy.
+  optional StatusPolicy status_policy = 13;
 }
 
 enum RequiredAction {
