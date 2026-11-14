@@ -1,0 +1,259 @@
+// StructuredID federated entry: signing in at this installation with an
+// identity another SID installation issues.
+//
+// To receive such sign-ins this installation is registered as a client at
+// the issuing installation. An entry connection is the record of one such
+// registration: the exact issuer, this installation's client there with its
+// credential, and the exact address the issuer returns the browser to. A
+// connection is transport configuration only: whether an identity signed in
+// through it is let in is decided by the installation's login settings
+// (sid.v1.admin.LoginSettings) and then by its ordinary permissions.
+syntax = "proto3";
+
+package sid.v1.federation;
+
+import "google/api/annotations.proto";
+import "google/api/httpbody.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "sid/v1/common/operation.proto";
+import "sid/v1/ids/ids.proto";
+
+// EntryConnectionService manages the installation's entry connections. Every
+// RPC but ListSignInConnections requires the administrator role. A connection
+// the installation's provisioning set (ENTRY_CONNECTION_OWNER_PROVISIONING)
+// is listed and never created, changed or removed here.
+service EntryConnectionService {
+  rpc ListEntryConnections(ListEntryConnectionsRequest) returns (ListEntryConnectionsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = {get: "/v1/admin/entry-connections"};
+  }
+  // Register a connection. The answer names the callback to register at the
+  // issuer as this client's redirect URI. An issuer that already has a
+  // connection is refused: one issuer has one connection.
+  rpc CreateEntryConnection(CreateEntryConnectionRequest) returns (EntryConnection) {
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {keyed: true};
+    option (google.api.http) = {
+      post: "/v1/admin/entry-connections"
+      body: "*"
+    };
+  }
+  // Change what may change in a connection: its name, its client and
+  // credential, whether it is enabled. Its issuer, source organization and
+  // callback are its identity: another issuer is another connection.
+  rpc UpdateEntryConnection(UpdateEntryConnectionRequest) returns (EntryConnection) {
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {keyed: true};
+    option (google.api.http) = {
+      patch: "/v1/admin/entry-connections/{handle}"
+      body: "*"
+    };
+  }
+  // Remove a connection: entries started through it complete nothing.
+  rpc RemoveEntryConnection(RemoveEntryConnectionRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "a connection handle is never reused, so a removed connection stays removed: a repeat removes nothing and answers as the first"
+    };
+    option (google.api.http) = {delete: "/v1/admin/entry-connections/{handle}"};
+  }
+
+  // The enabled connections of one issuer of this installation, as its
+  // sign-in page offers them. Public: it names no issuer, client or
+  // organization.
+  rpc ListSignInConnections(ListSignInConnectionsRequest) returns (ListSignInConnectionsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = {get: "/i/{issuer_handle}/auth/federation/connections"};
+  }
+}
+
+// FederatedEntryService carries one sign-in through a connection (OpenID
+// Connect Core 1.0 §3.1). Both endpoints are browser navigations below the
+// installation issuer the user signs in at. They read no session cookie;
+// the return completes only the entry its state names.
+service FederatedEntryService {
+  // Start an entry: a redirect to the connection's issuer, asking for the
+  // subject, nonce and PKCE challenge of this entry. The entry continues at
+  // `rd`, which must be an authorization continuation of this same
+  // installation issuer; anything else is answered with a page, never
+  // redirected. Each call starts a new entry.
+  rpc StartFederatedEntry(StartFederatedEntryRequest) returns (google.api.HttpBody) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "each call starts a new entry with its own state, nonce and PKCE challenge (OpenID Connect Core 1.0 §3.1.2.1, RFC 7636 §4.1); nothing is replayed, and an unfinished entry simply expires"
+    };
+    option (google.api.http) = {get: "/i/{issuer_handle}/auth/federation/{connection}/start"};
+  }
+
+  // The issuer's return (OpenID Connect Core 1.0 §3.1.2.5) to the callback
+  // of the connection the entry was started through: the entry its `state`
+  // names is completed once. An admitted entry answers with the session
+  // cookie and a redirect to the authorization it continues; a refused,
+  // unknown or replayed one with a page and no session. An error return
+  // (`error`) completes nothing (§3.1.2.6).
+  rpc CompleteFederatedEntry(CompleteFederatedEntryRequest) returns (google.api.HttpBody) {
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "the entry its state names completes once and its code is exchanged once (RFC 6749 §4.1.2, OpenID Connect Core 1.0 §3.1.2.5); the same browser repeating a return whose response was lost gets the same session again, and any other repeat completes nothing"
+    };
+    option (google.api.http) = {get: "/i/{issuer_handle}/auth/federation/{connection}/callback"};
+  }
+}
+
+// Who may write a connection.
+enum EntryConnectionOwner {
+  ENTRY_CONNECTION_OWNER_UNSPECIFIED = 0;
+  // Set by the installation's provisioning. Read-only to administrators.
+  ENTRY_CONNECTION_OWNER_PROVISIONING = 1;
+  // Managed by the installation's administrators.
+  ENTRY_CONNECTION_OWNER_ADMINISTRATION = 2;
+}
+
+// One registered connection, as an administrator reads it. The client
+// credential is write-only and never part of an answer.
+message EntryConnection {
+  // The connection's routing name: 32 lowercase hex characters, generated by
+  // the server, never reused. It names the connection in every RPC and in
+  // the browser's start and callback routes.
+  string handle = 1;
+  // Who may write the connection; set by the server.
+  EntryConnectionOwner owner = 2;
+  // How the sign-in page names the connection; presentation only, at most
+  // 128 characters.
+  string name = 3;
+  // The issuer identifier of the issuing installation, exactly as its ID
+  // Tokens name it (OpenID Connect Core 1.0 §1.2): an https URL without
+  // query or fragment.
+  string issuer = 4;
+  // The organization whose installation issues there, when the registration
+  // names one: a Corporate Profile signed in through the connection is
+  // refused unless it is that organization's. Absent for an issuer that
+  // signs in identities of more than one origin.
+  sid.v1.ids.OrgId source_organization = 5;
+  // The handle of this installation's issuer whose sign-in the connection
+  // serves: the `<handle>` segment of `https://<host>/i/<handle>`.
+  string issuer_handle = 6;
+  // The exact redirect URI to register at the issuer for this client,
+  // computed by the server from the installation issuer's URL and the
+  // connection's handle.
+  string callback = 7;
+  // This installation's client id at the issuer.
+  string client_id = 8;
+  // Whether entries are started and completed through the connection now.
+  bool enabled = 9;
+  // The stored revision: a change or removal names the revision it read and
+  // applies only over it.
+  uint64 revision = 10;
+  // When the connection was registered and last changed; set by the server.
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+message ListEntryConnectionsRequest {}
+
+message ListEntryConnectionsResponse {
+  // Every connection of the installation, oldest first.
+  repeated EntryConnection connections = 1;
+}
+
+message CreateEntryConnectionRequest {
+  // As EntryConnection.name; required.
+  string name = 1;
+  // As EntryConnection.issuer; required.
+  string issuer = 2;
+  // As EntryConnection.source_organization; optional.
+  sid.v1.ids.OrgId source_organization = 3;
+  // As EntryConnection.issuer_handle; required, an issuer of this
+  // installation.
+  string issuer_handle = 4;
+  // As EntryConnection.client_id; required.
+  string client_id = 5;
+  // The client secret the issuer registered for `client_id`, sent to its
+  // token endpoint as `client_secret_basic` (RFC 6749 §2.3.1). Plaintext
+  // here; sealed by the server before it is stored and never returned.
+  string client_secret = 6;
+  // Whether the connection is enabled once registered.
+  bool enabled = 7;
+}
+
+message UpdateEntryConnectionRequest {
+  // The connection to change.
+  string handle = 1;
+  // The revision the change was decided on (EntryConnection.revision); a
+  // connection changed since is ABORTED with nothing changed.
+  uint64 revision = 2;
+  // As EntryConnection.name, when it changes.
+  optional string name = 3;
+  // As EntryConnection.client_id, when it changes.
+  optional string client_id = 4;
+  // The new client secret, when it changes; as
+  // CreateEntryConnectionRequest.client_secret.
+  optional string client_secret = 5;
+  // As EntryConnection.enabled, when it changes.
+  optional bool enabled = 6;
+}
+
+message RemoveEntryConnectionRequest {
+  // The connection to remove.
+  string handle = 1;
+  // The revision the removal was decided on (EntryConnection.revision); a
+  // connection changed since is ABORTED and stays.
+  uint64 revision = 2;
+}
+
+message ListSignInConnectionsRequest {
+  // The opaque handle of the installation issuer the user signs in at,
+  // bound from the path. 32 lowercase hex characters.
+  string issuer_handle = 1;
+}
+
+// A connection as the sign-in page offers it.
+message SignInConnection {
+  // The connection's routing name: the `{connection}` segment of the start
+  // route `/i/{issuer_handle}/auth/federation/{connection}/start`.
+  string handle = 1;
+  // As EntryConnection.name.
+  string name = 2;
+}
+
+message ListSignInConnectionsResponse {
+  // The enabled connections of the issuer, oldest first.
+  repeated SignInConnection connections = 1;
+}
+
+// The start of an entry, as the sign-in page or the authorization endpoint
+// sends the browser to it.
+message StartFederatedEntryRequest {
+  // The opaque handle of the installation issuer the user signs in at:
+  // the `<handle>` path segment of `https://<host>/i/<handle>`. 32 lowercase
+  // hex characters.
+  string issuer_handle = 1;
+  // The connection the entry goes through (EntryConnection.handle), bound
+  // from the path. The browser names a registered connection; it never
+  // supplies an issuer, an endpoint or a credential.
+  string connection = 2;
+  // The authorization continuation the entry returns to, as the
+  // authorization endpoint names it: this issuer's authorization endpoint
+  // with the reference of the request it kept.
+  string rd = 3;
+}
+
+// The issuer's return to the connection's registered redirect URI, as its
+// query carries it.
+message CompleteFederatedEntryRequest {
+  // As StartFederatedEntryRequest.issuer_handle.
+  string issuer_handle = 1;
+  // The connection whose callback the return reached, bound from the path.
+  string connection = 2;
+  // The authorization code the issuer issued for this entry; empty on an
+  // error return.
+  string code = 3;
+  // The state this installation sent with the entry, echoed by the issuer.
+  string state = 4;
+  // The error code of an error return (RFC 6749 §4.1.2.1), else empty.
+  string error = 5;
+  // The issuer identifier of the return (RFC 9207 §2), when the issuer
+  // sends one; when present it must be the connection's issuer exactly.
+  string iss = 6;
+}
