@@ -272,6 +272,24 @@ enum ErrorReason {
   // issuer has one connection.
   ENTRY_CONNECTION_ALREADY_EXISTS = 123;
 
+  // ── PERMISSION_DENIED (continued) ──────────────────────────
+
+  // A site's admission statement is not authentic for what it states: its
+  // participant certificate is not on an admitted path, not for the
+  // federation participant purpose, known revoked, or does not enroll the
+  // statement's organization, site and entry, or the statement is outside
+  // its time. Publishing the same statement again cannot succeed.
+  SITE_ADMISSION_NOT_AUTHENTIC = 136;
+
+  // ── FAILED_PRECONDITION (continued) ────────────────────────
+
+  // A site's admission statement repeats a settings revision already held
+  // for its entry with other conditions; one revision names one content.
+  SITE_ADMISSION_REVISION_CONFLICT = 137;
+  // A newer settings revision is already held for the statement's entry:
+  // the older statement has nothing left to deliver.
+  SITE_ADMISSION_SUPERSEDED = 138;
+
   // ── UNKNOWN ────────────────────────────────────────────────
 
   // The operation's outcome cannot be established yet; retry it with the
