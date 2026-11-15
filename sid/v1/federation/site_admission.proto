@@ -37,7 +37,7 @@ service SiteAdmissionService {
   // SITE_ADMISSION_REVISION_CONFLICT), and a lower revision is refused
   // (FAILED_PRECONDITION, SITE_ADMISSION_SUPERSEDED): the newer statement
   // already stands, so the publisher of the older one has nothing left to
-  // deliver.
+  // deliver. All three reasons are sid.v1.common.ErrorReason values.
   rpc PublishSiteAdmission(PublishSiteAdmissionRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
