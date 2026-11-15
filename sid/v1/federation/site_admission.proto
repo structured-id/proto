@@ -1,0 +1,59 @@
+// StructuredID site admission publication: an enrolled federation site
+// hands the platform its current signed statement of whom it admits
+// (sid.v1.federation.SiteAdmission), so the platform offers a user only
+// the Profiles that site admits when it coordinates their sign-in there.
+//
+// Served by the platform. The statement authenticates itself: it is signed
+// with the key of the site's participant certificate and names the site's
+// organization, site and entry, which the certificate scopes. No other
+// credential is read, and publishing changes no registration, client,
+// redirect URI or grant: it only replaces the conditions the platform
+// filters a user's choices with. The site decides every arrival again
+// from its own settings; a statement the platform holds never admits anyone
+// there.
+syntax = "proto3";
+
+package sid.v1.federation;
+
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+import "sid/v1/common/operation.proto";
+
+// SiteAdmissionService takes an enrolled site's admission statements.
+service SiteAdmissionService {
+  // Publish the site's statement for one of its entries. It is accepted
+  // when its participant certificate stands on a path to an admitted
+  // platform intermediate, is not known revoked, is for the federation
+  // participant purpose and enrolls exactly the statement's organization,
+  // site and entry, and when the statement is within its time; otherwise
+  // PERMISSION_DENIED (ErrorInfo reason SITE_ADMISSION_NOT_AUTHENTIC), or
+  // UNAVAILABLE while the certificate's status cannot be read.
+  //
+  // A statement of a higher settings revision than the one held for that
+  // entry replaces it, removals and closed switches included. The same
+  // revision again with the same conditions is accepted and changes
+  // nothing, also when it was signed anew after the site's key was renewed.
+  // The same revision with other conditions is refused (FAILED_PRECONDITION,
+  // SITE_ADMISSION_REVISION_CONFLICT), and a lower revision is refused
+  // (FAILED_PRECONDITION, SITE_ADMISSION_SUPERSEDED): the newer statement
+  // already stands, so the publisher of the older one has nothing left to
+  // deliver.
+  rpc PublishSiteAdmission(PublishSiteAdmissionRequest) returns (google.protobuf.Empty) {
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "a statement is held by its entry and settings revision: publishing the same revision with the same conditions again changes nothing"
+    };
+    option (google.api.http) = {
+      post: "/v1/federation/site-admissions"
+      body: "*"
+    };
+  }
+}
+
+message PublishSiteAdmissionRequest {
+  // The site's signed statement, exactly as SignSiteAdmission produced it:
+  // a JWS in the General JSON Serialization of type
+  // `sid-login-admission+jws`, carrying the site's certificate and the
+  // certificates above it. Public material.
+  bytes statement = 1;
+}
