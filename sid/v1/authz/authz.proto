@@ -302,9 +302,15 @@ service AuthzService {
     option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/authz/roles/{id.value}" };
   }
+  // A managing service with its own token for the authorization API carrying
+  // `authz.administer` also updates roles, assigns them and administers
+  // policies, within its current role administration.
   rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse) {
     option idempotency_level = IDEMPOTENT;
-    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_CLIENT]
+      scopes: ["authz.administer"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/authz/roles/{id.value}" body: "*" };
   }
@@ -323,19 +329,28 @@ service AuthzService {
   // Role assignment.
   rpc AssignRole(AssignRoleRequest) returns (AssignRoleResponse) {
     option idempotency_level = IDEMPOTENT;
-    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_CLIENT]
+      scopes: ["authz.administer"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/authz/assignments" body: "*" };
   }
   rpc RevokeRole(RevokeRoleRequest) returns (RevokeRoleResponse) {
     option idempotency_level = IDEMPOTENT;
-    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_CLIENT]
+      scopes: ["authz.administer"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/authz/assignments/{assignment_id.value}" };
   }
   rpc ListRoleAssignments(ListRoleAssignmentsRequest) returns (ListRoleAssignmentsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_CLIENT]
+      scopes: ["authz.administer"]
+    } };
     option (google.api.http) = { get: "/v1/authz/assignments" };
   }
   // Make one holder's assignments of the managed roles in one exact scope
@@ -356,7 +371,10 @@ service AuthzService {
   // command's operation context answers the recorded result.
   rpc SetRoleAssignments(SetRoleAssignmentsRequest) returns (SetRoleAssignmentsResponse) {
     option idempotency_level = IDEMPOTENT;
-    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_CLIENT]
+      scopes: ["authz.administer"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/authz/assignment-sets" body: "*" };
   }
@@ -415,30 +433,45 @@ service AuthzService {
   // Policy management (Cedar ABAC).
   rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse) {
     option idempotency_level = IDEMPOTENT;
-    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_CLIENT]
+      scopes: ["authz.administer"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/authz/policies" body: "*" };
   }
   rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_CLIENT]
+      scopes: ["authz.administer"]
+    } };
     option (google.api.http) = { get: "/v1/authz/policies/{id.value}" };
   }
   rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse) {
     option idempotency_level = IDEMPOTENT;
-    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_CLIENT]
+      scopes: ["authz.administer"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/authz/policies/{id.value}" body: "*" };
   }
   rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse) {
     option idempotency_level = IDEMPOTENT;
-    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_CLIENT]
+      scopes: ["authz.administer"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/authz/policies/{id.value}" };
   }
   rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_CLIENT]
+      scopes: ["authz.administer"]
+    } };
     option (google.api.http) = { get: "/v1/authz/policies" };
   }
 
