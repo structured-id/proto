@@ -8,6 +8,7 @@ package sid.v1.authz;
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 import "sid/v1/common/pagination.proto";
 import "sid/v1/ids/ids.proto";
@@ -21,6 +22,7 @@ service GovernanceService {
   // Request access to a role/permission.
   rpc RequestAccess(AccessRequestMessage) returns (AccessRequestResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/governance/access-requests" body: "*" };
   }
@@ -28,12 +30,14 @@ service GovernanceService {
   // List pending access requests (for approver dashboard).
   rpc ListPendingRequests(ListPendingRequestsRequest) returns (ListPendingRequestsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/governance/access-requests" };
   }
 
   // Approve or deny an access request.
   rpc DecideRequest(DecideRequestRequest) returns (DecideRequestResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = {
       post: "/v1/governance/access-requests/{request_id.value}/decide"
@@ -44,6 +48,7 @@ service GovernanceService {
   // Grant temporary role with auto-expiry.
   rpc GrantTemporaryRole(GrantTemporaryRoleRequest) returns (GrantTemporaryRoleResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/governance/temporary-roles" body: "*" };
   }

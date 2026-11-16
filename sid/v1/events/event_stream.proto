@@ -6,6 +6,7 @@ syntax = "proto3";
 package sid.v1.events;
 
 import "google/protobuf/timestamp.proto";
+import "sid/v1/common/access.proto";
 
 // ────────────────────────────────────────────────────────────────────────────
 // EventStreamService: real-time event streaming
@@ -16,11 +17,13 @@ service EventStreamService {
   // Client specifies event types + optional filters.
   rpc Subscribe(SubscribeRequest) returns (stream CloudEvent) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
   }
 
   // Replay events from a point in time (catch-up after disconnect).
   rpc Replay(ReplayRequest) returns (stream CloudEvent) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
   }
 }
 

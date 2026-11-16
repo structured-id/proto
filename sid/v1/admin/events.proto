@@ -9,6 +9,7 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/struct.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -20,16 +21,19 @@ service EventService {
 
   rpc ListEvents(ListEventsRequest) returns (ListEventsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/events" };
   }
 
   rpc GetEvent(GetEventRequest) returns (Event) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/events/{event_id}" };
   }
 
   rpc GetUserTimeline(GetUserTimelineRequest) returns (ListEventsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/events/user/{profile_id}" };
   }
 
@@ -37,11 +41,13 @@ service EventService {
 
   rpc ListAdminEvents(ListAdminEventsRequest) returns (ListAdminEventsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/events/admin" };
   }
 
   rpc GetAdminEvent(GetAdminEventRequest) returns (AdminEvent) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/events/admin/{event_id}" };
   }
 
@@ -49,11 +55,13 @@ service EventService {
 
   rpc GetEventConfig(google.protobuf.Empty) returns (EventConfig) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/events/config" };
   }
 
   rpc UpdateEventConfig(EventConfig) returns (EventConfig) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/events/config" body: "*" };
   }
@@ -66,16 +74,19 @@ service EventService {
 service AuditService {
   rpc GetAuditTrail(GetAuditTrailRequest) returns (GetAuditTrailResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/audit" };
   }
 
   rpc VerifyChain(VerifyChainRequest) returns (VerifyChainResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { post: "/v1/admin/audit/verify" body: "*" };
   }
 
   rpc ExportAuditTrail(ExportAuditTrailRequest) returns (ExportAuditTrailResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { post: "/v1/admin/audit/export" body: "*" };
   }
 }

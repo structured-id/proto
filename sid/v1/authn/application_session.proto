@@ -11,6 +11,7 @@ package sid.v1.authn;
 
 import "google/api/annotations.proto";
 import "google/api/httpbody.proto";
+import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 
 service ApplicationSessionService {
@@ -27,6 +28,7 @@ service ApplicationSessionService {
   // Records a single-use sign-in on every call, so a repeat is another
   // sign-in.
   rpc StartSignIn(StartSignInRequest) returns (google.api.HttpBody) {
+    option (sid.v1.common.access) = { open: "RFC 6749 §4.1.1: the browser starts a sign-in before it has a session" };
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 6749 §10.12: each call records its own single-use sign-in state; nothing else changes before its callback"
@@ -50,6 +52,7 @@ service ApplicationSessionService {
   //
   // Consumes the sign-in its `state` names, so a repeat is refused.
   rpc CompleteSignIn(CompleteSignInRequest) returns (google.api.HttpBody) {
+    option (sid.v1.common.access) = { open: "RFC 6749 §4.1.2: the issuer's authorization response and its recorded state authenticate the call" };
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 6749 §10.12: the sign-in its state names is consumed by its completion; a repeat is refused and creates no session"
@@ -71,6 +74,7 @@ service ApplicationSessionService {
   //
   // Extends the session's idle window; repeating it does nothing more.
   rpc GetApplicationSession(GetApplicationSessionRequest) returns (ApplicationSession) {
+    option (sid.v1.common.access) = { open: "the application session's own protected cookie authenticates the call" };
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       natural: "the call only moves the session's idle window to now: a repeat moves it to the same point again and changes nothing else"
@@ -90,6 +94,7 @@ service ApplicationSessionService {
   // A repeat finds no session and answers GRANT_OUTCOME_UNKNOWN; nothing more
   // is ended.
   rpc EndApplicationSession(EndApplicationSessionRequest) returns (EndApplicationSessionResponse) {
+    option (sid.v1.common.access) = { open: "the application session's own protected cookie authenticates the call" };
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       natural: "an ended session stays ended and is never resumed: a repeat finds no session, ends nothing more and answers GRANT_OUTCOME_UNKNOWN"
@@ -112,6 +117,7 @@ service ApplicationSessionService {
   // validate; 503 when the session store cannot be reached, so the issuer
   // retries.
   rpc ReceiveBackChannelLogout(BackChannelLogoutRequest) returns (google.api.HttpBody) {
+    option (sid.v1.common.access) = { open: "OpenID Connect Back-Channel Logout 1.0 §2.6: the issuer's signed logout token authenticates the call" };
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       natural: "an ended issuer session stays ended here: a repeat of the token, or a later token naming the same session, ends nothing more and answers 200 again"

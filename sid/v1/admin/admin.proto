@@ -10,11 +10,13 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/struct.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 import "sid/v1/identity/identity.proto";
 import "sid/v1/ids/ids.proto";
 
 // AdminService provides privileged operations for instance administrators.
+// Every method runs only in the caller's own interactive session.
 service AdminService {
   // Make the signed-in caller the first administrator of an unclaimed
   // installation, with the claim token from the service log. The token is
@@ -22,6 +24,7 @@ service AdminService {
   // is claimed; PERMISSION_DENIED for a token that does not match.
   rpc ClaimInstance(ClaimInstanceRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = {
       ceremony: "the installation claim is single-use: its token opens only an unclaimed installation, so a repeat is refused and changes nothing"
     };
@@ -31,6 +34,7 @@ service AdminService {
   // Update a profile with admin-only fields (status, roles, email verification).
   rpc AdminUpdateProfile(AdminUpdateProfileRequest) returns (AdminUpdateProfileResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/profiles/{profile_id.value}" body: "*" };
   }
@@ -38,6 +42,7 @@ service AdminService {
   // Revoke all sessions for a profile (force logout).
   rpc RevokeAllSessions(RevokeAllSessionsRequest) returns (RevokeAllSessionsResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/admin/profiles/{profile_id.value}/sessions" };
   }
@@ -46,22 +51,26 @@ service AdminService {
 
   rpc ListProfileMetadata(ListProfileMetadataRequest) returns (ListProfileMetadataResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/profiles/{profile_id.value}/metadata" };
   }
 
   rpc GetProfileMetadata(GetProfileMetadataRequest) returns (ProfileMetadataEntry) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/profiles/{profile_id.value}/metadata/{key}" };
   }
 
   rpc SetProfileMetadata(SetProfileMetadataRequest) returns (ProfileMetadataEntry) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/profiles/{profile_id.value}/metadata/{key}" body: "*" };
   }
 
   rpc DeleteProfileMetadata(DeleteProfileMetadataRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/admin/profiles/{profile_id.value}/metadata/{key}" };
   }

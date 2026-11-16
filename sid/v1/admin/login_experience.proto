@@ -6,6 +6,7 @@ package sid.v1.admin;
 
 import "google/protobuf/empty.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -18,18 +19,21 @@ service LoginExperienceService {
   // List all login screens with current text overrides.
   rpc ListScreens(google.protobuf.Empty) returns (ListScreensResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/login-experience/screens" };
   }
 
   // Get a single screen with its text keys and overrides.
   rpc GetScreen(GetScreenRequest) returns (LoginScreen) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/login-experience/screens/{screen_id}" };
   }
 
   // Preview a screen with current branding (returns HTML).
   rpc PreviewScreen(PreviewScreenRequest) returns (PreviewScreenResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/login-experience/screens/{screen_id}/preview" };
   }
 
@@ -38,6 +42,7 @@ service LoginExperienceService {
   // Update text overrides for a screen in a specific locale.
   rpc UpdateTextOverrides(UpdateTextOverridesRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/login-experience/screens/{screen_id}/text/{locale}" body: "*" };
   }
@@ -47,12 +52,14 @@ service LoginExperienceService {
   // Get headless API documentation (rendered markdown/HTML).
   rpc GetHeadlessApiDocs(google.protobuf.Empty) returns (HeadlessApiDocsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/login-experience/headless/docs" };
   }
 
   // Start an interactive test flow (for "Try it" API explorer).
   rpc StartTestFlow(StartTestFlowRequest) returns (TestFlowResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = {
       ceremony: "each start opens its own test flow session; nothing outside that session changes"
     };
@@ -62,6 +69,7 @@ service LoginExperienceService {
   // Submit a step in the interactive test flow.
   rpc SubmitTestFlowStep(SubmitTestFlowStepRequest) returns (TestFlowResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = {
       ceremony: "a test flow step is consumed by its first submission: a repeat finds it answered and advances nothing"
     };

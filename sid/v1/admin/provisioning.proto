@@ -13,6 +13,7 @@ package sid.v1.admin;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 import "sid/v1/ids/ids.proto";
 
@@ -23,6 +24,7 @@ service ProvisioningService {
   // Every connector of the organization, retired ones included, newest first.
   rpc ListProvisioningConnectors(ListProvisioningConnectorsRequest) returns (ListProvisioningConnectorsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/provisioning/connectors" };
   }
 
@@ -31,12 +33,14 @@ service ProvisioningService {
   // A retry returns the connector the first attempt created.
   rpc CreateInboundConnector(CreateInboundConnectorRequest) returns (ProvisioningConnector) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/provisioning/connectors" body: "*" };
   }
 
   rpc GetProvisioningConnector(GetProvisioningConnectorRequest) returns (ProvisioningConnector) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { post: "/v1/admin/provisioning/connectors:get" body: "*" };
   }
 
@@ -45,6 +49,7 @@ service ProvisioningService {
   // FAILED_PRECONDITION.
   rpc RenameProvisioningConnector(RenameProvisioningConnectorRequest) returns (ProvisioningConnector) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = {
       natural: "the rename names the revision it edits: a repeat names one the first rename moved past, so it is refused as changed and writes nothing over a later change"
     };
@@ -59,6 +64,7 @@ service ProvisioningService {
   // the first call left it and never moves it again after a later change.
   rpc ChangeProvisioningConnectorState(ChangeProvisioningConnectorStateRequest) returns (ProvisioningConnector) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/provisioning/connectors:state" body: "*" };
   }
@@ -66,6 +72,7 @@ service ProvisioningService {
   // What an inbound connector's SCIM client is configured with.
   rpc GetScimInboundConfig(GetScimInboundConfigRequest) returns (ScimInboundConfig) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { post: "/v1/admin/provisioning/connectors:scim-config" body: "*" };
   }
 
@@ -74,6 +81,7 @@ service ProvisioningService {
   // A connector's credentials, revoked ones included: metadata only.
   rpc ListConnectorCredentials(ListConnectorCredentialsRequest) returns (ListConnectorCredentialsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { post: "/v1/admin/provisioning/credentials:list" body: "*" };
   }
 
@@ -84,6 +92,7 @@ service ProvisioningService {
   // RotateConnectorCredential.
   rpc CreateConnectorCredential(CreateConnectorCredentialRequest) returns (IssuedConnectorCredential) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/provisioning/credentials" body: "*" };
   }
@@ -94,6 +103,7 @@ service ProvisioningService {
   // credential the first attempt issued, without its secret.
   rpc RotateConnectorCredential(RotateConnectorCredentialRequest) returns (IssuedConnectorCredential) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/provisioning/credentials:rotate" body: "*" };
   }
@@ -102,6 +112,7 @@ service ProvisioningService {
   // revoked is a no-op.
   rpc RevokeConnectorCredential(RevokeConnectorCredentialRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = {
       natural: "a revoked credential is never usable again: a repeat revokes nothing and answers as the first"
     };

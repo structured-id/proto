@@ -10,6 +10,7 @@ import "google/api/httpbody.proto";
 import "google/protobuf/empty.proto";
 import "sid/v1/authn/auth.proto";
 import "sid/v1/authn/sender_proof.proto";
+import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 import "sid/v1/ids/ids.proto";
 
@@ -23,6 +24,7 @@ service OidcProviderService {
   // the issuer path and the RFC 8414 well-known location with the issuer path
   // appended.
   rpc GetProviderMetadata(IssuerHandleRequest) returns (ProviderMetadata) {
+    option (sid.v1.common.access) = { open: "OpenID Connect Discovery 1.0 §4: public issuer metadata" };
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = {
       get: "/i/{issuer_handle}/.well-known/openid-configuration"
@@ -33,6 +35,7 @@ service OidcProviderService {
   // The issuer's JSON Web Key Set (RFC 7517 §5): the public keys that verify
   // its tokens. The response metadata carries `cache-control` for HTTP caches.
   rpc GetJwks(IssuerHandleRequest) returns (JsonWebKeySet) {
+    option (sid.v1.common.access) = { open: "RFC 7517 §5: the issuer's public signing keys" };
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = {get: "/i/{issuer_handle}/jwks"};
   }
@@ -46,6 +49,7 @@ service OidcProviderService {
   // proof is recorded against replay, so the call is not free of effects; a
   // repeat with the same proof is refused.
   rpc GetUserInfo(IssuerHandleRequest) returns (UserInfo) {
+    option (sid.v1.common.access) = { open: "OpenID Connect Core 1.0 §5.3: a protocol endpoint verifying the access token issued for its own UserInfo resource" };
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 9449 §11.1: a DPoP proof is admitted once; the request otherwise only reads"
@@ -55,6 +59,7 @@ service OidcProviderService {
 
   // UserInfo over POST (OIDC Core 1.0 §5.3.1); the same answer as GetUserInfo.
   rpc PostUserInfo(IssuerHandleRequest) returns (UserInfo) {
+    option (sid.v1.common.access) = { open: "OpenID Connect Core 1.0 §5.3: a protocol endpoint verifying the access token issued for its own UserInfo resource" };
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 9449 §11.1: a DPoP proof is admitted once; the request otherwise only reads"
@@ -75,6 +80,7 @@ service OidcProviderService {
   // redirected (RFC 6749 §4.1.2.1). The signed-in user's token, when a
   // gateway holds one, travels in the `authorization` metadata.
   rpc GetAuthorize(OAuth2AuthorizeRequest) returns (google.api.HttpBody) {
+    option (sid.v1.common.access) = { open: "RFC 6749 §3.1: the browser's authorization request, answered with the sign-in or the code" };
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 6749 §4.1.2: each authorization request issues its own single-use code"
@@ -86,6 +92,7 @@ service OidcProviderService {
   // §3.1.2.1); the same answer as GetAuthorize. Parameters it does not know
   // are ignored (RFC 6749 §3.1).
   rpc PostAuthorize(ProtocolRequest) returns (google.api.HttpBody) {
+    option (sid.v1.common.access) = { open: "RFC 6749 §3.1: the browser's authorization request, answered with the sign-in or the code" };
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 6749 §4.1.2: each authorization request issues its own single-use code"
@@ -109,6 +116,7 @@ service OidcProviderService {
   // confirmation page, which returns there after either choice. Otherwise the
   // answer is a page.
   rpc GetEndSession(EndSessionRequest) returns (google.api.HttpBody) {
+    option (sid.v1.common.access) = { open: "OpenID Connect RP-Initiated Logout 1.0 §2: the browser's logout request" };
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "OpenID RP-Initiated Logout 1.0: an ended session stays ended; a repeat finds nothing to end and signs nobody else out, and a confirmation is answered once"
@@ -122,6 +130,7 @@ service OidcProviderService {
   // issued for and returns to the post-logout redirect URI that page was
   // shown for, if any.
   rpc PostEndSession(ProtocolRequest) returns (google.api.HttpBody) {
+    option (sid.v1.common.access) = { open: "OpenID Connect RP-Initiated Logout 1.0 §2: the browser's logout request" };
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "OpenID RP-Initiated Logout 1.0: an ended session stays ended; a repeat finds nothing to end and signs nobody else out, and a confirmation is answered once"
@@ -147,6 +156,7 @@ service OidcProviderService {
   // JSON, 401 with a `www-authenticate` challenge for `invalid_client` when
   // the client used HTTP Basic, 400 otherwise.
   rpc Token(ProtocolRequest) returns (google.api.HttpBody) {
+    option (sid.v1.common.access) = { open: "RFC 6749 §3.2: token issuance; the client authenticates with the request (§2.3) and the grant proves the rest" };
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 6749 §4.1.2 and §10.4: a code or rotated refresh token is consumed once; a second use is refused, never answered with tokens"
@@ -161,6 +171,7 @@ service OidcProviderService {
   // for any token this issuer does not vouch for. A client assertion is
   // recorded against replay, so the call is not free of effects.
   rpc Introspect(ProtocolRequest) returns (google.api.HttpBody) {
+    option (sid.v1.common.access) = { open: "RFC 7662 §2.1: the inspector authenticates as a client with the request and is authorized for the token's resource" };
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 7523 §3: a client assertion's jti is admitted once; the answer otherwise only reads the token"
@@ -174,6 +185,7 @@ service OidcProviderService {
   // Token revocation (RFC 7009 §2): 200 with an empty body, also for a token
   // that is unknown or already revoked (RFC 7009 §2.2).
   rpc Revoke(ProtocolRequest) returns (google.api.HttpBody) {
+    option (sid.v1.common.access) = { open: "RFC 7009 §2.1: the client that obtained the token authenticates with the request" };
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 7009 §2.2: revoking a revoked or unknown token answers success and changes nothing"
@@ -187,6 +199,7 @@ service OidcProviderService {
   // Device authorization (RFC 8628 §3.1): RFC 8628 §3.2 JSON; a refusal is
   // RFC 6749 §5.2 JSON as at the token endpoint.
   rpc DeviceAuthorization(ProtocolRequest) returns (google.api.HttpBody) {
+    option (sid.v1.common.access) = { open: "RFC 8628 §3.1: the device asks for codes before any user signs in" };
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 8628 §3.2: each request issues its own device and user codes"
@@ -210,6 +223,7 @@ service OidcProviderService {
   // `invalid_client_metadata` or `invalid_redirect_uri` (RFC 7591 §3.2.2); a
   // missing or invalid initial access token is 401 (RFC 6750 §3.1).
   rpc Register(ProtocolRequest) returns (google.api.HttpBody) {
+    option (sid.v1.common.access) = { open: "RFC 7591 §3: dynamic registration, admitted by the issuer's registration policy and its initial access token" };
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 7591 §3: the client presents no operation key; each registration issues a new client, its secret and registration access token once"
@@ -224,6 +238,7 @@ service OidcProviderService {
   // registration, without its secret. An invalid registration access token,
   // or a client this issuer does not have, is 401 (RFC 7592 §2.1).
   rpc ReadRegistration(RegistrationRequest) returns (google.api.HttpBody) {
+    option (sid.v1.common.access) = { open: "RFC 7592 §2: the client's registration access token authenticates the call" };
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = {get: "/i/{issuer_handle}/oauth2/register/{client_id}"};
   }
@@ -232,6 +247,7 @@ service OidcProviderService {
   // metadata and is validated as a registration; a refused update changes
   // nothing.
   rpc UpdateRegistration(RegistrationRequest) returns (google.api.HttpBody) {
+    option (sid.v1.common.access) = { open: "RFC 7592 §2: the client's registration access token authenticates the call" };
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 7592 §2.2: the request carries the client's whole metadata and replaces it, so a repeat leaves the same registration"
@@ -244,6 +260,7 @@ service OidcProviderService {
 
   // Delete a registration (RFC 7592 §2.3): 204 with no body.
   rpc DeleteRegistration(RegistrationRequest) returns (google.api.HttpBody) {
+    option (sid.v1.common.access) = { open: "RFC 7592 §2: the client's registration access token authenticates the call" };
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 7592 §2.3: deletion invalidates the client and its registration access token, so a repeat is refused and changes nothing"
@@ -448,6 +465,7 @@ service OidcIssuerService {
   // handle; the caller refuses the request and never falls back to another
   // issuer.
   rpc GetOidcIssuer(GetOidcIssuerRequest) returns (OidcIssuer) {
+    option (sid.v1.common.access) = { open: "public trust material a verifier resolves before it can verify any token" };
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
@@ -457,6 +475,7 @@ service OidcIssuerService {
   // reason RESOURCE_NOT_FOUND and a ResourceInfo naming the indicator. The
   // caller refuses the route and never falls back to another target.
   rpc GetProtectedResource(GetProtectedResourceRequest) returns (ProtectedResourceTarget) {
+    option (sid.v1.common.access) = { open: "public registration of a resource a verifier resolves before it can verify any token" };
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
@@ -477,6 +496,7 @@ service OidcIssuerService {
   // admission cannot be decided the call is UNAVAILABLE, and the verifier
   // refuses the original request; it never admits it on its own.
   rpc AdmitSenderProof(AdmitSenderProofRequest) returns (google.protobuf.Empty) {
+    option (sid.v1.common.access) = { open: "the verifier authenticates with its own client credential and must be configured for the resource, as stated above" };
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 9449 §11.1: a proof is admitted once, for one original request; a repeat for that same request confirms the first answer, and any other use of the proof is refused as a replay"

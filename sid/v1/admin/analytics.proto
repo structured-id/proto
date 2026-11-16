@@ -7,35 +7,41 @@ package sid.v1.admin;
 
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/access.proto";
 
 service AnalyticsService {
   // Overview sparkline cards (6 metrics with 24h trend).
   rpc GetOverviewMetrics(GetOverviewMetricsRequest) returns (OverviewMetricsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/analytics/overview" };
   }
 
   // Auth activity time series (stacked: success/failure/mfa).
   rpc GetAuthActivity(TimeSeriesRequest) returns (TimeSeriesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/analytics/auth-activity" };
   }
 
   // Auth latency percentiles (p50/p95/p99).
   rpc GetAuthLatency(TimeSeriesRequest) returns (TimeSeriesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/analytics/auth-latency" };
   }
 
   // Top applications by login count.
   rpc GetTopApplications(TopApplicationsRequest) returns (TopApplicationsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/analytics/top-applications" };
   }
 
   // Auth method distribution (donut chart data).
   rpc GetAuthMethodDistribution(TimeSeriesRequest) returns (DistributionResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/analytics/auth-methods" };
   }
 }

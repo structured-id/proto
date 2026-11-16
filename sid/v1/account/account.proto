@@ -8,6 +8,7 @@ package sid.v1.account;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 import "sid/v1/identity/identity.proto";
 import "sid/v1/ids/ids.proto";
@@ -127,24 +128,40 @@ enum LinkedAccountStatus {
 // Service definition
 // ══════════════════════════════════════════════════════════════════════════
 
+// Reads of the caller's own account also admit a token a machine obtained to
+// act as the user; every change to the account (consents, sign-in methods,
+// contacts, preferences) is made only in the user's own interactive session
+// or through the account API.
 service AccountService {
   // ── Consents ──
 
   // List all active consents for the current profile.
   rpc ListConsents(ListConsentsRequest) returns (ListConsentsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_IMPERSONATION]
+      scopes: ["account.read"]
+    } };
     option (google.api.http) = { get: "/v1/account/consents" };
   }
 
   // Get claim-level detail for a specific consent.
   rpc GetConsentDetail(GetConsentDetailRequest) returns (GetConsentDetailResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_IMPERSONATION]
+      scopes: ["account.read"]
+    } };
     option (google.api.http) = { get: "/v1/account/consents/{site_id}" };
   }
 
   // Update consent for a single claim (grant or deny).
   rpc UpdateClaimConsent(UpdateClaimConsentRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/account/consents/{site_id}/claims/{claim_name}" body: "*" };
   }
@@ -154,6 +171,10 @@ service AccountService {
   // NOT_FOUND.
   rpc DisconnectSite(DisconnectSiteRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/account/consents/{site_id}" };
   }
@@ -163,12 +184,20 @@ service AccountService {
   // List activity events with optional filters.
   rpc ListActivityEvents(ListActivityEventsRequest) returns (ListActivityEventsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_IMPERSONATION]
+      scopes: ["account.read"]
+    } };
     option (google.api.http) = { get: "/v1/account/activity" };
   }
 
   // Get full details for a single event.
   rpc GetActivityEventDetail(GetActivityEventDetailRequest) returns (ActivityEvent) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_IMPERSONATION]
+      scopes: ["account.read"]
+    } };
     option (google.api.http) = { get: "/v1/account/activity/{event_id}" };
   }
 
@@ -176,6 +205,10 @@ service AccountService {
   // Side effects: revoke associated session, mark as disputed.
   rpc ReportSuspiciousEvent(ReportSuspiciousEventRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/account/activity/{event_id}/report" body: "*" };
   }
@@ -185,12 +218,20 @@ service AccountService {
   // List all linked upstream identity provider accounts.
   rpc ListLinkedAccounts(google.protobuf.Empty) returns (ListLinkedAccountsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_IMPERSONATION]
+      scopes: ["account.read"]
+    } };
     option (google.api.http) = { get: "/v1/account/linked-accounts" };
   }
 
   // Initiate linking to an upstream IdP. Returns a redirect URL.
   rpc LinkAccount(LinkAccountRequest) returns (LinkAccountResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = {
       ceremony: "each request opens its own single-use link state for the upstream redirect; nothing is linked before its callback"
     };
@@ -200,6 +241,10 @@ service AccountService {
   // Unlink an upstream IdP account. Blocked if this is the only login method.
   rpc UnlinkAccount(UnlinkAccountRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/account/linked-accounts/{linked_account_id}" };
   }
@@ -207,6 +252,10 @@ service AccountService {
   // Force re-authentication with the upstream IdP to refresh tokens/claims.
   rpc ReauthenticateLink(ReauthenticateLinkRequest) returns (ReauthenticateLinkResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = {
       ceremony: "each request opens its own single-use upstream sign-in state; the link is refreshed only by its callback"
     };
@@ -218,12 +267,21 @@ service AccountService {
   // List applications available for SSO quick-launch.
   rpc ListAvailableApps(google.protobuf.Empty) returns (ListAvailableAppsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_IMPERSONATION]
+      scopes: ["account.read"]
+    } };
     option (google.api.http) = { get: "/v1/account/apps" };
   }
 
-  // Launch SSO redirect to an application.
+  // Launch SSO redirect to an application: a sign-in the user starts in
+  // their own session.
   rpc LaunchApp(LaunchAppRequest) returns (LaunchAppResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = {
       ceremony: "each launch starts its own sign-in redirect with single-use state; nothing changes before the application completes it"
     };
@@ -235,6 +293,10 @@ service AccountService {
   // Get notification delivery preferences for the current profile.
   rpc GetNotificationPreferences(google.protobuf.Empty) returns (NotificationPreferences) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_IMPERSONATION]
+      scopes: ["account.read"]
+    } };
     option (google.api.http) = { get: "/v1/account/notification-preferences" };
   }
 
@@ -242,6 +304,10 @@ service AccountService {
   // Security-critical categories cannot be disabled (server enforces).
   rpc UpdateNotificationPreferences(UpdateNotificationPreferencesRequest) returns (NotificationPreferences) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/account/notification-preferences" body: "*" };
   }
@@ -251,6 +317,10 @@ service AccountService {
   // Get current passwordless status and requirement checks.
   rpc GetPasswordlessStatus(google.protobuf.Empty) returns (PasswordlessStatus) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_IMPERSONATION]
+      scopes: ["account.read"]
+    } };
     option (google.api.http) = { get: "/v1/account/passwordless" };
   }
 
@@ -258,6 +328,10 @@ service AccountService {
   // Requires step-up authentication. Blocked unless all requirements are met.
   rpc EnablePasswordless(google.protobuf.Empty) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/account/passwordless/enable" body: "*" };
   }
@@ -265,6 +339,10 @@ service AccountService {
   // Disable passwordless mode: triggers password enrollment flow.
   rpc DisablePasswordless(google.protobuf.Empty) returns (DisablePasswordlessResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/account/passwordless/disable" body: "*" };
   }
@@ -274,6 +352,10 @@ service AccountService {
   // Add a phone number to the current profile.
   rpc AddPhone(AddPhoneRequest) returns (sid.v1.identity.ProfilePhone) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/account/phones" body: "*" };
   }
@@ -282,6 +364,10 @@ service AccountService {
   // first removal; a new removal of a removed phone is NOT_FOUND.
   rpc RemovePhone(RemovePhoneRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/account/phones/{phone_id.value}" };
   }
@@ -290,6 +376,10 @@ service AccountService {
   // are written.
   rpc UpdatePhone(UpdatePhoneRequest) returns (sid.v1.identity.ProfilePhone) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/account/phones/{phone_id.value}" body: "*" };
   }
@@ -297,6 +387,10 @@ service AccountService {
   // Set a phone as the primary phone for this profile.
   rpc SetPrimaryPhone(SetPrimaryPhoneRequest) returns (sid.v1.identity.ProfilePhone) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/account/phones/{phone_id.value}/primary" body: "*" };
   }
@@ -304,6 +398,10 @@ service AccountService {
   // List all phone numbers for the current profile.
   rpc ListPhones(google.protobuf.Empty) returns (ListPhonesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_IMPERSONATION]
+      scopes: ["account.read"]
+    } };
     option (google.api.http) = { get: "/v1/account/phones" };
   }
 
@@ -312,6 +410,10 @@ service AccountService {
   // Add an email address to the current profile.
   rpc AddEmail(AddEmailRequest) returns (sid.v1.identity.ProfileEmail) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/account/emails" body: "*" };
   }
@@ -320,6 +422,10 @@ service AccountService {
   // first removal; a new removal of a removed address is NOT_FOUND.
   rpc RemoveEmail(RemoveEmailRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/account/emails/{email_id.value}" };
   }
@@ -327,6 +433,10 @@ service AccountService {
   // Update an email address's label. Only the given settings are written.
   rpc UpdateEmail(UpdateEmailRequest) returns (sid.v1.identity.ProfileEmail) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/account/emails/{email_id.value}" body: "*" };
   }
@@ -334,6 +444,10 @@ service AccountService {
   // Set an email as the primary email for this profile.
   rpc SetPrimaryEmail(SetPrimaryEmailRequest) returns (sid.v1.identity.ProfileEmail) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/account/emails/{email_id.value}/primary" body: "*" };
   }
@@ -341,6 +455,10 @@ service AccountService {
   // List all email addresses for the current profile.
   rpc ListEmails(google.protobuf.Empty) returns (ListEmailsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_IMPERSONATION]
+      scopes: ["account.read"]
+    } };
     option (google.api.http) = { get: "/v1/account/emails" };
   }
 }

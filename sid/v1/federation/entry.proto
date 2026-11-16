@@ -16,6 +16,7 @@ import "google/api/annotations.proto";
 import "google/api/httpbody.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
+import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 import "sid/v1/ids/ids.proto";
 
@@ -26,6 +27,7 @@ import "sid/v1/ids/ids.proto";
 service EntryConnectionService {
   rpc ListEntryConnections(ListEntryConnectionsRequest) returns (ListEntryConnectionsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = {protected: {credentials: [CREDENTIAL_KIND_OWN_SESSION]}};
     option (google.api.http) = {get: "/v1/admin/entry-connections"};
   }
   // Register a connection. The answer names the callback to register at the
@@ -33,6 +35,7 @@ service EntryConnectionService {
   // connection is refused: one issuer has one connection.
   rpc CreateEntryConnection(CreateEntryConnectionRequest) returns (EntryConnection) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = {protected: {credentials: [CREDENTIAL_KIND_OWN_SESSION]}};
     option (sid.v1.common.retry) = {keyed: true};
     option (google.api.http) = {
       post: "/v1/admin/entry-connections"
@@ -44,6 +47,7 @@ service EntryConnectionService {
   // callback are its identity: another issuer is another connection.
   rpc UpdateEntryConnection(UpdateEntryConnectionRequest) returns (EntryConnection) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = {protected: {credentials: [CREDENTIAL_KIND_OWN_SESSION]}};
     option (sid.v1.common.retry) = {keyed: true};
     option (google.api.http) = {
       patch: "/v1/admin/entry-connections/{handle}"
@@ -53,6 +57,7 @@ service EntryConnectionService {
   // Remove a connection: entries started through it complete nothing.
   rpc RemoveEntryConnection(RemoveEntryConnectionRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = {protected: {credentials: [CREDENTIAL_KIND_OWN_SESSION]}};
     option (sid.v1.common.retry) = {
       natural: "a connection handle is never reused, so a removed connection stays removed: a repeat removes nothing and answers as the first"
     };
@@ -64,6 +69,7 @@ service EntryConnectionService {
   // organization.
   rpc ListSignInConnections(ListSignInConnectionsRequest) returns (ListSignInConnectionsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = {open: "the sign-in page lists the connections it offers before anyone signs in"};
     option (google.api.http) = {get: "/i/{issuer_handle}/auth/federation/connections"};
   }
 }
@@ -80,6 +86,7 @@ service FederatedEntryService {
   // redirected. Each call starts a new entry.
   rpc StartFederatedEntry(StartFederatedEntryRequest) returns (google.api.HttpBody) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.access) = {open: "OpenID Connect Core 1.0 §3.1: a browser sign-in through a connection, before any session"};
     option (sid.v1.common.retry) = {
       ceremony: "each call starts a new entry with its own state, nonce and PKCE challenge (OpenID Connect Core 1.0 §3.1.2.1, RFC 7636 §4.1); nothing is replayed, and an unfinished entry simply expires"
     };
@@ -97,6 +104,7 @@ service FederatedEntryService {
   // (`error`) completes nothing (§3.1.2.6).
   rpc CompleteFederatedEntry(CompleteFederatedEntryRequest) returns (google.api.HttpBody) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.access) = {open: "OpenID Connect Core 1.0 §3.1: a browser sign-in through a connection, before any session"};
     option (sid.v1.common.retry) = {
       ceremony: "the entry its state names completes once and its code is exchanged once (RFC 6749 §4.1.2, OpenID Connect Core 1.0 §3.1.2.5); the same browser repeating a return whose response was lost gets the same session again, and any other repeat completes nothing"
     };

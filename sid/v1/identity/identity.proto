@@ -7,6 +7,7 @@ package sid.v1.identity;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 import "sid/v1/ids/ids.proto";
 
@@ -365,25 +366,40 @@ service IdentityService {
   // Profile management.
   rpc CreateProfile(CreateProfileRequest) returns (CreateProfileResponse) {
     option idempotency_level = IDEMPOTENT;
+    // Provisioning another user's account is an administrator's act in
+    // their own session.
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/profiles" body: "*" };
   }
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_IMPERSONATION]
+      scopes: ["account.read"]
+    } };
     option (google.api.http) = { get: "/v1/identity/profiles/{id.value}" };
   }
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_IMPERSONATION]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/identity/profiles/{id.value}" body: "*" };
   }
   rpc DeleteProfile(DeleteProfileRequest) returns (DeleteProfileResponse) {
     option idempotency_level = IDEMPOTENT;
+    // Hard deletion is an administrator's act in their own session.
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/identity/profiles/{id.value}" };
   }
   rpc ListProfiles(ListProfilesRequest) returns (ListProfilesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    // Listing every profile is an administrator's act in their own session.
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/identity/profiles" };
   }
 
@@ -391,6 +407,11 @@ service IdentityService {
   // caller's own Profile; naming another requires administrator authority.
   rpc AddCredential(AddCredentialRequest) returns (AddCredentialResponse) {
     option idempotency_level = IDEMPOTENT;
+    // Credentials are managed only in the user's own interactive session.
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = {
       post: "/v1/identity/credentials" body: "*"
@@ -399,6 +420,10 @@ service IdentityService {
   }
   rpc ListCredentials(ListCredentialsRequest) returns (ListCredentialsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_IMPERSONATION]
+      scopes: ["account.read"]
+    } };
     option (google.api.http) = {
       get: "/v1/identity/credentials"
       additional_bindings { get: "/v1/identity/profiles/{profile_id.value}/credentials" }
@@ -406,11 +431,19 @@ service IdentityService {
   }
   rpc UpdateCredential(UpdateCredentialRequest) returns (UpdateCredentialResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/identity/credentials/{credential_id.value}" body: "*" };
   }
   rpc RevokeCredential(RevokeCredentialRequest) returns (RevokeCredentialResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/identity/credentials/{credential_id.value}" };
   }
@@ -418,6 +451,11 @@ service IdentityService {
   // Principal management; `profile_id` as for credentials.
   rpc AddPrincipal(AddPrincipalRequest) returns (AddPrincipalResponse) {
     option idempotency_level = IDEMPOTENT;
+    // Login handles are managed only in the user's own interactive session.
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = {
       post: "/v1/identity/principals" body: "*"
@@ -426,6 +464,10 @@ service IdentityService {
   }
   rpc ListPrincipals(ListPrincipalsRequest) returns (ListPrincipalsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_IMPERSONATION]
+      scopes: ["account.read"]
+    } };
     option (google.api.http) = {
       get: "/v1/identity/principals"
       additional_bindings { get: "/v1/identity/profiles/{profile_id.value}/principals" }
@@ -433,6 +475,10 @@ service IdentityService {
   }
   rpc RemovePrincipal(RemovePrincipalRequest) returns (RemovePrincipalResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/identity/principals/{principal_id.value}" };
   }
@@ -440,6 +486,10 @@ service IdentityService {
   // Session management; `profile_id` as for credentials.
   rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_IMPERSONATION]
+      scopes: ["account.read"]
+    } };
     option (google.api.http) = {
       get: "/v1/identity/sessions"
       additional_bindings { get: "/v1/identity/profiles/{profile_id.value}/sessions" }
@@ -447,6 +497,11 @@ service IdentityService {
   }
   rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResponse) {
     option idempotency_level = IDEMPOTENT;
+    // Sessions are ended only from the user's own interactive session.
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = {
       natural: "an ended session stays ended and is never resumed: a repeat finds none and answers as the first, disclosing nothing"
     };
@@ -456,10 +511,18 @@ service IdentityService {
   // Passkey registration prompts.
   rpc GetPasskeyPromptState(GetPasskeyPromptStateRequest) returns (GetPasskeyPromptStateResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_IMPERSONATION]
+      scopes: ["account.read"]
+    } };
     option (google.api.http) = { get: "/v1/identity/passkey-prompt" };
   }
   rpc RecordPasskeyPromptDismissal(RecordPasskeyPromptDismissalRequest) returns (RecordPasskeyPromptDismissalResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/passkey-prompt/dismiss" body: "*" };
   }
@@ -467,6 +530,12 @@ service IdentityService {
   // Revocation cascade.
   rpc RevokeProfile(RevokeProfileRequest) returns (RevokeProfileResponse) {
     option idempotency_level = IDEMPOTENT;
+    // Revocation is decided in an interactive session: the owner's own or an
+    // administrator's, never through a token acting for the user.
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = {
       natural: "every cascade step ends only what is still active and a revoked profile is never reactivated: a repeat ends what an interrupted attempt left and nothing else, and counts what it ended"
     };
@@ -476,35 +545,66 @@ service IdentityService {
   // Account closure.
   rpc RequestClosure(RequestClosureRequest) returns (RequestClosureResponse) {
     option idempotency_level = IDEMPOTENT;
+    // Closing an account is the user's own interactive decision.
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/closure" body: "*" };
   }
   rpc CancelClosure(CancelClosureRequest) returns (CancelClosureResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/closure/cancel" body: "*" };
   }
   rpc GetClosureStatus(GetClosureStatusRequest) returns (GetClosureStatusResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_IMPERSONATION]
+      scopes: ["account.read"]
+    } };
     option (google.api.http) = { get: "/v1/identity/closure" };
   }
 
   // Data export (GDPR Art. 20).
   rpc PrepareExport(PrepareExportRequest) returns (PrepareExportResponse) {
     option idempotency_level = IDEMPOTENT;
+    // The export holds the whole account: requested and fetched only in the
+    // user's own interactive session.
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/export" body: "*" };
   }
   rpc GetExportStatus(GetExportStatusRequest) returns (GetExportStatusResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.read"]
+    } };
     option (google.api.http) = { get: "/v1/identity/export" };
   }
   rpc DownloadExport(DownloadExportRequest) returns (stream DownloadExportChunk) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.read"]
+    } };
     option (google.api.http) = { get: "/v1/identity/export/download" };
   }
   rpc AcknowledgeExport(AcknowledgeExportRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/export/acknowledge" body: "*" };
   }
@@ -512,12 +612,20 @@ service IdentityService {
   // Current profile (from Bearer token subject).
   rpc GetCurrentProfile(GetCurrentProfileRequest) returns (GetProfileResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_IMPERSONATION]
+      scopes: ["account.read"]
+    } };
     option (google.api.http) = { get: "/v1/identity/me" };
   }
 
   // Device management; `profile_id` as for credentials.
   rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_IMPERSONATION]
+      scopes: ["account.read"]
+    } };
     option (google.api.http) = {
       get: "/v1/identity/devices"
       additional_bindings { get: "/v1/identity/profiles/{profile_id.value}/devices" }
@@ -525,25 +633,47 @@ service IdentityService {
   }
   rpc GetDevice(GetDeviceRequest) returns (Device) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_IMPERSONATION]
+      scopes: ["account.read"]
+    } };
     option (google.api.http) = { get: "/v1/identity/devices/{device_id.value}" };
   }
+  // Device changes, trust included, are made only in the user's own
+  // interactive session.
   rpc UpdateDevice(UpdateDeviceRequest) returns (Device) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/identity/devices/{device_id.value}" body: "*" };
   }
   rpc RemoveDevice(RemoveDeviceRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/identity/devices/{device_id.value}" };
   }
   rpc TrustDevice(TrustDeviceRequest) returns (Device) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/devices/{device_id.value}/trust" body: "*" };
   }
   rpc RevokeDeviceTrust(RevokeDeviceTrustRequest) returns (Device) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/identity/devices/{device_id.value}/revoke-trust" body: "*" };
   }
