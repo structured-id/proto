@@ -63,6 +63,40 @@ message ProtectedRule {
   // authority, not the scope, limits what it may do. Empty only where the
   // admitted kinds are the own session alone.
   repeated string scopes = 2;
+  // The permission a receiver asks its issuer for before the call takes
+  // effect: a service protected by an issuer it does not run declares it on
+  // every method it serves. The scopes bound the credential; the permission
+  // is the subject's current right to the action on its target, and neither
+  // replaces the other. Absent on a service whose own handlers decide.
+  ReceiverPermission permission = 3;
+}
+
+// What a receiver asks its issuer before a call takes effect. The build of
+// every crate serving a method refuses a permission with an empty action or
+// an unspecified target, as it refuses a method without its access rule.
+message ReceiverPermission {
+  // The action the method performs, as the issuer's roles and policies name
+  // it (`ops.org.read`). Not empty.
+  string action = 1;
+  // What the action is decided on.
+  PermissionTarget target = 2;
+}
+
+// What a receiver's permission is decided on.
+enum PermissionTarget {
+  // Not a target; never declared.
+  PERMISSION_TARGET_UNSPECIFIED = 0;
+  // The receiver's resource as a whole, decided before the call reaches the
+  // service.
+  PERMISSION_TARGET_RESOURCE = 1;
+  // One object the request names, decided by the handler for that object
+  // before it reads or changes it.
+  PERMISSION_TARGET_OBJECT = 2;
+  // One object the request names whose owner acts on it by the service's
+  // own rule: the owner is let through once the token is current, and any
+  // other caller is decided for that object. The credential kind and scopes
+  // apply to the owner as to anyone.
+  PERMISSION_TARGET_OWNED_OBJECT = 3;
 }
 
 extend google.protobuf.MethodOptions {

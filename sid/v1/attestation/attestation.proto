@@ -127,6 +127,11 @@ message DeviceAttestation {
 // proofs are verified against the ceremony the server keeps, never against
 // values the request repeats.
 
+// A receiver of the installation's account API: each call carries an account
+// API token obtained for a user; a reading method also admits a service's own
+// token. A device's owner acts on its keys by this service's own rule; anyone
+// else is decided by the issuer for that device. Key changes need a user's
+// sign-in. The token's scopes bound the owner as anyone.
 service AttestationService {
   // Start a device-key ceremony: enrollment of a new device or of an
   // existing device without a live key, or rotation of an enrolled device's
@@ -136,7 +141,11 @@ service AttestationService {
   // the ceremony finishes. Each call issues a new single-use challenge.
   rpc StartDeviceEnrollment(StartDeviceEnrollmentRequest) returns (DeviceEnrollmentChallenge) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
-    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+      permission: { action: "attestation.device.change" target: PERMISSION_TARGET_OWNED_OBJECT }
+    } };
     option (sid.v1.common.retry) = {
       ceremony: "each start opens its own pending ceremony with its own single-use challenge; nothing is enrolled before its finish"
     };
@@ -150,7 +159,11 @@ service AttestationService {
   // device was removed meanwhile completes nothing.
   rpc FinishDeviceEnrollment(FinishDeviceEnrollmentRequest) returns (DeviceAttestation) {
     option idempotency_level = IDEMPOTENT;
-    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+      permission: { action: "attestation.device.change" target: PERMISSION_TARGET_OWNED_OBJECT }
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/attestation/enrollments/{enrollment_id.value}/finish" body: "*" };
   }
@@ -158,7 +171,11 @@ service AttestationService {
   // Get attestation details for a device.
   rpc GetDeviceAttestation(GetDeviceAttestationRequest) returns (DeviceAttestation) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_CLIENT]
+      scopes: ["account.read"]
+      permission: { action: "attestation.device.read" target: PERMISSION_TARGET_OWNED_OBJECT }
+    } };
     option (google.api.http) = { get: "/v1/attestation/devices/{device_id.value}" };
   }
 
@@ -170,7 +187,11 @@ service AttestationService {
   // enrollment.
   rpc RotateDeviceKey(RotateDeviceKeyRequest) returns (DeviceAttestation) {
     option idempotency_level = IDEMPOTENT;
-    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+      permission: { action: "attestation.device.change" target: PERMISSION_TARGET_OWNED_OBJECT }
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/attestation/enrollments/{enrollment_id.value}/rotate" body: "*" };
   }
@@ -178,7 +199,11 @@ service AttestationService {
   // Revoke a device key (device removed or compromised).
   rpc RevokeDeviceKey(RevokeDeviceKeyRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
-    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_ACCOUNT_API]
+      scopes: ["account.write"]
+      permission: { action: "attestation.device.change" target: PERMISSION_TARGET_OWNED_OBJECT }
+    } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/attestation/devices/{device_id.value}/revoke" body: "*" };
   }
@@ -186,7 +211,11 @@ service AttestationService {
   // List all attestations for a profile.
   rpc ListDeviceAttestations(ListDeviceAttestationsRequest) returns (ListDeviceAttestationsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.access) = { protected: {
+      credentials: [CREDENTIAL_KIND_ACCOUNT_API, CREDENTIAL_KIND_CLIENT]
+      scopes: ["account.read"]
+      permission: { action: "attestation.profile.read" target: PERMISSION_TARGET_OWNED_OBJECT }
+    } };
     option (google.api.http) = { get: "/v1/attestation/profiles/{profile_id.value}/devices" };
   }
 }
