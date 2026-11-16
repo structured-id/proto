@@ -71,7 +71,9 @@ message ProtectedRule {
   ReceiverPermission permission = 3;
 }
 
-// What a receiver asks its issuer before a call takes effect.
+// What a receiver asks its issuer before a call takes effect. The build of
+// every crate serving a method refuses a permission with an empty action or
+// an unspecified target, as it refuses a method without its access rule.
 message ReceiverPermission {
   // The action the method performs, as the issuer's roles and policies name
   // it (`ops.org.read`). Not empty.
