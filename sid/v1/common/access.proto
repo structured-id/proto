@@ -76,7 +76,7 @@ message ProtectedRule {
 // an unspecified target, as it refuses a method without its access rule.
 message ReceiverPermission {
   // The action the method performs, as the issuer's roles and policies name
-  // it (`ops.org.read`). Not empty.
+  // it (`orders.read`). Not empty.
   string action = 1;
   // What the action is decided on.
   PermissionTarget target = 2;
