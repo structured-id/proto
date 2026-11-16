@@ -7,6 +7,7 @@ package sid.v1.admin;
 
 import "google/protobuf/empty.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 
 service ScopeService {
@@ -14,28 +15,33 @@ service ScopeService {
 
   rpc ListScopes(google.protobuf.Empty) returns (ListScopesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/scopes" };
   }
 
   rpc GetScope(GetScopeRequest) returns (Scope) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/scopes/{scope_id}" };
   }
 
   rpc CreateScope(CreateScopeRequest) returns (Scope) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/scopes" body: "*" };
   }
 
   rpc UpdateScope(UpdateScopeRequest) returns (Scope) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/scopes/{scope_id}" body: "*" };
   }
 
   rpc DeleteScope(DeleteScopeRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/admin/scopes/{scope_id}" };
   }
@@ -44,11 +50,13 @@ service ScopeService {
 
   rpc GetRealmDefaults(google.protobuf.Empty) returns (RealmScopeDefaults) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/scopes/defaults" };
   }
 
   rpc UpdateRealmDefaults(RealmScopeDefaults) returns (RealmScopeDefaults) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/scopes/defaults" body: "*" };
   }
@@ -57,23 +65,27 @@ service ScopeService {
 
   rpc ListClaimMappings(ListClaimMappingsRequest) returns (ListClaimMappingsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/scopes/{scope_id}/claims" };
   }
 
   rpc AddClaimMapping(AddClaimMappingRequest) returns (ClaimMapping) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/scopes/{scope_id}/claims" body: "*" };
   }
 
   rpc UpdateClaimMapping(UpdateClaimMappingRequest) returns (ClaimMapping) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/scopes/{scope_id}/claims/{mapping_id}" body: "*" };
   }
 
   rpc DeleteClaimMapping(DeleteClaimMappingRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/admin/scopes/{scope_id}/claims/{mapping_id}" };
   }

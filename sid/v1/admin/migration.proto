@@ -8,6 +8,7 @@ package sid.v1.admin;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 
 service MigrationService {
@@ -15,17 +16,20 @@ service MigrationService {
 
   rpc ExportBlueprint(ExportBlueprintRequest) returns (ExportBlueprintResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { post: "/v1/admin/migration/blueprints/export" body: "*" };
   }
 
   rpc ImportBlueprint(ImportBlueprintRequest) returns (ImportBlueprintResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/migration/blueprints/import" body: "*" };
   }
 
   rpc ExportEntity(ExportEntityRequest) returns (ExportEntityResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { post: "/v1/admin/migration/blueprints/export-entity" body: "*" };
   }
 
@@ -33,18 +37,21 @@ service MigrationService {
 
   rpc ParseMigrationFile(ParseMigrationFileRequest) returns (ParseMigrationFileResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/migration/parse" body: "*" };
   }
 
   rpc ExecuteMigration(ExecuteMigrationRequest) returns (ExecuteMigrationResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/migration/execute" body: "*" };
   }
 
   rpc GetMigrationStatus(GetMigrationStatusRequest) returns (MigrationStatus) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/migration/{migration_id}/status" };
   }
 
@@ -52,6 +59,7 @@ service MigrationService {
 
   rpc GetPasswordMigrationProgress(google.protobuf.Empty) returns (PasswordMigrationProgress) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/migration/password-progress" };
   }
 }

@@ -15,6 +15,7 @@ package sid.v1.admin;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 import "sid/v1/ids/ids.proto";
 
@@ -27,6 +28,7 @@ service EnrollmentService {
   // the mode the deployment pins.
   rpc GetEnrollmentPolicy(google.protobuf.Empty) returns (EnrollmentPolicy) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { open: "the registration page reads the policy before anyone has an account" };
     option (google.api.http) = { get: "/v1/admin/enrollment/policy" };
   }
 
@@ -35,6 +37,7 @@ service EnrollmentService {
   // for the claim token.
   rpc GetInstanceStatus(google.protobuf.Empty) returns (InstanceStatus) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { open: "the registration page asks for the claim token before anyone has an account" };
     option (google.api.http) = { get: "/v1/admin/enrollment/instance-status" };
   }
 
@@ -45,6 +48,7 @@ service EnrollmentService {
   // allowed domain that is no domain name.
   rpc UpdateEnrollmentPolicy(UpdateEnrollmentPolicyRequest) returns (EnrollmentPolicy) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/enrollment/policy" body: "*" };
   }
@@ -54,6 +58,7 @@ service EnrollmentService {
   // Create a new invite code.
   rpc CreateInvite(CreateInviteRequest) returns (Invite) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/enrollment/invites" body: "*" };
   }
@@ -61,12 +66,14 @@ service EnrollmentService {
   // List invite codes (paginated, filterable by status).
   rpc ListInvites(ListInvitesRequest) returns (ListInvitesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/enrollment/invites" };
   }
 
   // One invite. NOT_FOUND for an unknown id.
   rpc GetInvite(GetInviteRequest) returns (Invite) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/enrollment/invites/{invite_id.value}" };
   }
 
@@ -74,12 +81,14 @@ service EnrollmentService {
   // NOT_FOUND for an unknown invite.
   rpc ListInviteRedemptions(ListInviteRedemptionsRequest) returns (ListInviteRedemptionsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/enrollment/invites/{invite_id.value}/redemptions" };
   }
 
   // Revoke an invite code (deactivate, cannot be used anymore).
   rpc RevokeInvite(RevokeInviteRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = {
       natural: "a revoked invite is never reactivated: a repeat finds it revoked and answers as the first"
     };
@@ -89,6 +98,7 @@ service EnrollmentService {
   // Bulk-generate invite codes.
   rpc BulkCreateInvites(BulkCreateInvitesRequest) returns (BulkCreateInvitesResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/enrollment/invites/bulk" body: "*" };
   }
@@ -98,6 +108,7 @@ service EnrollmentService {
   // Get registration statistics by source type for a given period.
   rpc GetRegistrationStats(GetRegistrationStatsRequest) returns (RegistrationStats) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/enrollment/stats" };
   }
 }

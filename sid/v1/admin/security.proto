@@ -8,6 +8,7 @@ package sid.v1.admin;
 
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 import "sid/v1/ids/ids.proto";
 
@@ -16,10 +17,12 @@ service SecurityService {
 
   rpc GetPasswordPolicy(GetPasswordPolicyRequest) returns (PasswordPolicy) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/security/password-policy" };
   }
   rpc UpdatePasswordPolicy(PasswordPolicy) returns (PasswordPolicy) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/security/password-policy" body: "*" };
   }
@@ -28,10 +31,12 @@ service SecurityService {
 
   rpc GetBruteForceConfig(GetBruteForceConfigRequest) returns (BruteForceConfig) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/security/brute-force" };
   }
   rpc UpdateBruteForceConfig(BruteForceConfig) returns (BruteForceConfig) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/security/brute-force" body: "*" };
   }
@@ -40,10 +45,12 @@ service SecurityService {
 
   rpc GetSecurityHeaders(GetSecurityHeadersRequest) returns (SecurityHeaders) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/security/headers" };
   }
   rpc UpdateSecurityHeaders(SecurityHeaders) returns (SecurityHeaders) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/security/headers" body: "*" };
   }
@@ -52,10 +59,12 @@ service SecurityService {
 
   rpc GetRateLimitConfig(GetRateLimitConfigRequest) returns (RateLimitConfig) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/security/rate-limits" };
   }
   rpc GetRateLimitDashboard(GetRateLimitDashboardRequest) returns (RateLimitDashboard) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/security/rate-limits/dashboard" };
   }
 
@@ -63,10 +72,12 @@ service SecurityService {
 
   rpc ListAnomalyRules(ListAnomalyRulesRequest) returns (ListAnomalyRulesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/security/anomaly-rules" };
   }
   rpc GetAnomalyEventLog(GetAnomalyEventLogRequest) returns (AnomalyEventLog) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/security/anomaly-events" };
   }
 
@@ -74,15 +85,18 @@ service SecurityService {
 
   rpc GetCaptchaConfig(GetCaptchaConfigRequest) returns (CaptchaConfig) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/security/captcha" };
   }
   rpc UpdateCaptchaConfig(CaptchaConfig) returns (CaptchaConfig) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/security/captcha" body: "*" };
   }
   rpc TestCaptchaProvider(TestCaptchaProviderRequest) returns (TestCaptchaProviderResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = {
       natural: "the test stores nothing: each call makes one request to the provider and reports its answer, so a repeat changes no state"
     };
@@ -93,10 +107,12 @@ service SecurityService {
 
   rpc GetSecurityPolicy(GetSecurityPolicyRequest) returns (SecurityPolicyResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/security/policy" };
   }
   rpc ListApplicationOverrides(ListApplicationOverridesRequest) returns (ListApplicationOverridesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/security/policy/overrides" };
   }
 
@@ -104,6 +120,7 @@ service SecurityService {
   // Returns the combined policy that would be applied when a user logs in to this app.
   rpc GetEffectivePolicy(GetEffectivePolicyRequest) returns (SecurityPolicyResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/security/policy/effective/{client_id}" };
   }
 
@@ -112,6 +129,7 @@ service SecurityService {
   // Used for admin debugging and policy preview.
   rpc EvaluateEnforcement(EvaluateEnforcementRequest) returns (EvaluateEnforcementResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/security/policy/evaluate" };
   }
 
@@ -119,10 +137,12 @@ service SecurityService {
 
   rpc GetNetworkPolicy(GetNetworkPolicyRequest) returns (NetworkPolicy) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/security/network-policy" };
   }
   rpc UpdateNetworkPolicy(NetworkPolicy) returns (NetworkPolicy) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/security/network-policy" body: "*" };
   }
@@ -131,10 +151,12 @@ service SecurityService {
 
   rpc GetBreachDetectionConfig(GetBreachDetectionConfigRequest) returns (BreachDetectionConfig) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/security/breach-detection" };
   }
   rpc UpdateBreachDetectionConfig(BreachDetectionConfig) returns (BreachDetectionConfig) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/security/breach-detection" body: "*" };
   }
@@ -144,6 +166,7 @@ service SecurityService {
   // Run integrity verification across the layers this server checks.
   rpc RunIntegrityCheck(RunIntegrityCheckRequest) returns (IntegrityCheckResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { post: "/v1/admin/security/integrity/check" body: "*" };
   }
 
@@ -153,6 +176,7 @@ service SecurityService {
   // Allowlisted IPs/CIDRs override ALL negative IP intelligence labels.
   rpc ListIpAllowlistEntries(ListIpAllowlistEntriesRequest) returns (IpAllowlistResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/security/ip-allowlist" };
   }
 
@@ -161,6 +185,7 @@ service SecurityService {
   // left it and never adds the entry back after a later removal.
   rpc AddIpAllowlistEntry(AddIpAllowlistEntryRequest) returns (IpAllowlistResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/security/ip-allowlist" body: "*" };
   }
@@ -170,6 +195,7 @@ service SecurityService {
   // again later.
   rpc RemoveIpAllowlistEntry(RemoveIpAllowlistEntryRequest) returns (IpAllowlistResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/admin/security/ip-allowlist/{cidr}" };
   }

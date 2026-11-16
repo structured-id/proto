@@ -7,6 +7,7 @@ package sid.v1.admin;
 
 import "google/protobuf/empty.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 import "sid/v1/ids/ids.proto";
 
@@ -19,10 +20,12 @@ service RealmService {
 
   rpc GetRealm(GetRealmRequest) returns (RealmSettings) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/realm" };
   }
   rpc UpdateRealm(UpdateRealmRequest) returns (RealmSettings) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/realm" body: "*" };
   }
@@ -31,10 +34,12 @@ service RealmService {
 
   rpc GetLoginSettings(GetLoginSettingsRequest) returns (LoginSettings) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/realm/login" };
   }
   rpc UpdateLoginSettings(UpdateLoginSettingsRequest) returns (LoginSettings) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/realm/login" body: "*" };
   }
@@ -43,10 +48,12 @@ service RealmService {
 
   rpc GetEmailSettings(google.protobuf.Empty) returns (EmailSettings) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/realm/email" };
   }
   rpc UpdateEmailSettings(EmailSettings) returns (EmailSettings) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/realm/email" body: "*" };
   }
@@ -57,6 +64,7 @@ service RealmService {
   // DEPENDENCY_UNAVAILABLE with a RetryInfo delay.
   rpc TestEmailConnection(google.protobuf.Empty) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = {
       natural: "the test stores and sends nothing: each call opens one connection to the provider and reports whether it was accepted"
     };
@@ -67,24 +75,29 @@ service RealmService {
 
   rpc GetLocalizationSettings(google.protobuf.Empty) returns (LocalizationSettings) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/realm/localization" };
   }
   rpc UpdateLocalizationSettings(LocalizationSettings) returns (LocalizationSettings) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/realm/localization" body: "*" };
   }
   rpc ListTranslationOverrides(ListTranslationOverridesRequest) returns (ListTranslationOverridesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/realm/localization/overrides" };
   }
   rpc SetTranslationOverride(SetTranslationOverrideRequest) returns (TranslationOverride) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/realm/localization/overrides/{locale}/{key}" body: "*" };
   }
   rpc DeleteTranslationOverride(DeleteTranslationOverrideRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/admin/realm/localization/overrides/{locale}/{key}" };
   }
@@ -93,15 +106,18 @@ service RealmService {
 
   rpc ExportRealm(ExportRealmRequest) returns (ExportRealmResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/realm/export" };
   }
   rpc ImportRealm(ImportRealmRequest) returns (ImportRealmResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/admin/realm/import" body: "*" };
   }
   rpc PreviewImport(ImportRealmRequest) returns (ImportPreviewResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { post: "/v1/admin/realm/import/preview" body: "*" };
   }
 
@@ -109,10 +125,12 @@ service RealmService {
 
   rpc GetSessionConfig(google.protobuf.Empty) returns (SessionConfig) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/realm/sessions" };
   }
   rpc UpdateSessionConfig(SessionConfig) returns (SessionConfig) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/realm/sessions" body: "*" };
   }
@@ -121,10 +139,12 @@ service RealmService {
 
   rpc GetTokenConfig(google.protobuf.Empty) returns (TokenConfig) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/realm/tokens" };
   }
   rpc UpdateTokenConfig(TokenConfig) returns (TokenConfig) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/realm/tokens" body: "*" };
   }
@@ -137,10 +157,12 @@ service RealmService {
 service FeatureService {
   rpc ListFeatures(google.protobuf.Empty) returns (ListFeaturesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/features" };
   }
   rpc SetFeature(SetFeatureRequest) returns (Feature) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { put: "/v1/admin/features/{key}" body: "*" };
   }
