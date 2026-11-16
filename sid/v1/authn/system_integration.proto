@@ -6,6 +6,7 @@ syntax = "proto3";
 
 package sid.v1.authn;
 
+import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 
 // SystemIntegrationService gives a system integration's backend its
@@ -26,6 +27,7 @@ service SystemIntegrationService {
   // (SYSTEM_INTEGRATION_UNAVAILABLE): the BFF is not ready and serves no
   // sign-in until it is.
   rpc GetAccountConnection(GetAccountConnectionRequest) returns (AccountConnection) {
+    option (sid.v1.common.access) = { open: "RFC 7523 §3: the account client's key proof authenticates the call" };
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.retry) = {
       ceremony: "RFC 7519 §4.1.7: the key proof's jti is admitted once and a replayed proof is refused; the answer otherwise only reads the integration"

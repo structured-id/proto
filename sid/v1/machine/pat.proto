@@ -10,6 +10,7 @@ package sid.v1.machine;
 
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 import "sid/v1/ids/ids.proto";
 
@@ -19,19 +20,23 @@ service PatService {
   // created and an empty `token`: the value is shown once and never stored.
   rpc CreatePat(CreatePatRequest) returns (CreatePatResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/pats" body: "*" };
   }
   rpc ListPats(ListPatsRequest) returns (ListPatsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/pats" };
   }
   rpc GetPat(GetPatRequest) returns (PatResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/pats/{pat_id.value}" };
   }
   rpc RevokePat(RevokePatRequest) returns (RevokePatResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = {
       natural: "a revoked token is never reactivated: a repeat finds it revoked and answers as the first"
     };
@@ -41,6 +46,7 @@ service PatService {
   // Token exchange (opaque-JWT-swap model).
   rpc ExchangePat(ExchangePatRequest) returns (ExchangePatResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.access) = { open: "the exchange-only token presented in the request authenticates the exchange" };
     option (sid.v1.common.retry) = {
       ceremony: "RFC 8693 §2: each exchange issues its own short-lived access token from the presented token; an issued token is never replayed from a record"
     };
@@ -50,10 +56,12 @@ service PatService {
   // Admin.
   rpc ListAllPats(ListAllPatsRequest) returns (ListAllPatsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/admin/pats" };
   }
   rpc AdminRevokePat(AdminRevokePatRequest) returns (RevokePatResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = {
       natural: "a revoked token is never reactivated: a repeat finds it revoked and answers as the first"
     };

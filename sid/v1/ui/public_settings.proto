@@ -11,6 +11,7 @@ package sid.v1.ui;
 
 import "google/protobuf/empty.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/access.proto";
 import "sid/v1/identity/identity.proto";
 
 // PublicUiSettingsService answers the public projection of the installation's
@@ -21,6 +22,7 @@ service PublicUiSettingsService {
   // The current projection.
   rpc GetPublicUiSettings(google.protobuf.Empty) returns (PublicUiSettings) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { open: "public settings the pages read before anyone signs in" };
     option (google.api.http) = { get: "/v1/ui/settings" };
   }
 
@@ -31,6 +33,7 @@ service PublicUiSettingsService {
   // intermediate one. No HTTP mapping: UI hosts read it over gRPC.
   rpc WatchPublicUiSettings(google.protobuf.Empty) returns (stream PublicUiSettings) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { open: "public settings the pages read before anyone signs in" };
   }
 }
 

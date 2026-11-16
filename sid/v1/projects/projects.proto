@@ -9,6 +9,7 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 import "sid/v1/authz/authz.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 import "sid/v1/ids/ids.proto";
 
@@ -223,24 +224,29 @@ service ProjectService {
   // Project CRUD.
   rpc CreateProject(CreateProjectRequest) returns (Project) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/projects" body: "*" };
   }
   rpc GetProject(GetProjectRequest) returns (Project) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/projects/{id.value}" };
   }
   rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/projects" };
   }
   rpc UpdateProject(UpdateProjectRequest) returns (Project) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/projects/{id.value}" body: "*" };
   }
   rpc DeleteProject(DeleteProjectRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/projects/{id.value}" };
   }
@@ -251,6 +257,7 @@ service ProjectService {
   // never stored in plaintext.
   rpc CreateApplication(CreateApplicationRequest) returns (CreateApplicationResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = {
       post: "/v1/projects/{project_id.value}/applications"
@@ -259,14 +266,17 @@ service ProjectService {
   }
   rpc GetApplication(GetApplicationRequest) returns (Application) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/applications/{id.value}" };
   }
   rpc ListApplications(ListApplicationsRequest) returns (ListApplicationsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/projects/{project_id.value}/applications" };
   }
   rpc UpdateApplication(UpdateApplicationRequest) returns (Application) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/applications/{id.value}" body: "*" };
   }
@@ -274,6 +284,7 @@ service ProjectService {
   // deleted, its resource role is retired and access to it ends.
   rpc DeleteApplication(DeleteApplicationRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/applications/{id.value}" };
   }
@@ -284,6 +295,7 @@ service ProjectService {
   // in the first response only.
   rpc AddClientRole(AddClientRoleRequest) returns (CreateApplicationResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = {
       post: "/v1/applications/{application_id.value}/client"
@@ -292,6 +304,7 @@ service ProjectService {
   }
   rpc UpdateClientRole(UpdateClientRoleRequest) returns (Application) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/clients/{client_id}" body: "*" };
   }
@@ -300,6 +313,7 @@ service ProjectService {
   // taken indicator is refused and adds nothing.
   rpc AddResourceRole(AddResourceRoleRequest) returns (Application) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = {
       post: "/v1/applications/{application_id.value}/resource"
@@ -308,6 +322,7 @@ service ProjectService {
   }
   rpc UpdateResourceRole(UpdateResourceRoleRequest) returns (ProtectedResource) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/resources/{resource_id.value}" body: "*" };
   }
@@ -315,6 +330,7 @@ service ProjectService {
   // Client-to-resource access.
   rpc SetResourceAccess(SetResourceAccessRequest) returns (ResourceAccess) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = {
       put: "/v1/clients/{client_id}/resources/{resource_id.value}"
@@ -323,6 +339,7 @@ service ProjectService {
   }
   rpc RemoveResourceAccess(RemoveResourceAccessRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = {
       delete: "/v1/clients/{client_id}/resources/{resource_id.value}"
@@ -330,6 +347,7 @@ service ProjectService {
   }
   rpc ListResourceAccess(ListResourceAccessRequest) returns (ListResourceAccessResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = {
       get: "/v1/clients/{client_id}/resources"
       additional_bindings { get: "/v1/resources/{resource_id.value}/clients" }
@@ -339,11 +357,13 @@ service ProjectService {
   // Roles within project (uses Role type from authz.proto).
   rpc AddRole(AddRoleRequest) returns (sid.v1.authz.Role) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/projects/{project_id.value}/roles" body: "*" };
   }
   rpc RemoveRole(RemoveRoleRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = {
       delete: "/v1/projects/{project_id.value}/roles/{role_id.value}"
@@ -359,21 +379,25 @@ service ProjectService {
   // access to one.
   rpc RegisterClient(RegisterClientRequest) returns (RegisterClientResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = {
       ceremony: "RFC 7591 §3: the client presents no operation key; each registration issues a new client, its secret and registration access token once"
     };
   }
   rpc GetRegisteredClient(GetRegisteredClientRequest) returns (OAuthClient) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
   }
   rpc UpdateRegisteredClient(UpdateRegisteredClientRequest) returns (OAuthClient) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = {
       ceremony: "RFC 7592 §2.2: the request carries the client's whole metadata and replaces it, so a repeat leaves the same registration"
     };
   }
   rpc DeleteRegisteredClient(DeleteRegisteredClientRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = {
       ceremony: "RFC 7592 §2.3: deletion invalidates the client and its registration access token, so a repeat is refused and changes nothing"
     };
@@ -384,15 +408,18 @@ service ProjectService {
   // `token_value`: the bearer value is shown once and never stored.
   rpc CreateInitialAccessToken(CreateInitialAccessTokenRequest) returns (CreateInitialAccessTokenResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { post: "/v1/projects/{project_id.value}/iat" body: "*" };
   }
   rpc ListInitialAccessTokens(ListInitialAccessTokensRequest) returns (ListInitialAccessTokensResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { get: "/v1/projects/{project_id.value}/iat" };
   }
   rpc RevokeInitialAccessToken(RevokeInitialAccessTokenRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { delete: "/v1/projects/iat/{id.value}" };
   }

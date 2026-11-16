@@ -19,6 +19,7 @@ syntax = "proto3";
 package sid.v1.federation;
 
 import "google/api/annotations.proto";
+import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 import "sid/v1/ids/ids.proto";
 
@@ -28,6 +29,7 @@ service FederationSiteService {
   // What to take to the platform to have this installation enrolled.
   rpc PrepareSiteEnrollment(PrepareSiteEnrollmentRequest) returns (SiteEnrollmentRequest) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = {
       natural: "the site's key is made once, on the first call, and kept: every repeat answers the same key and changes nothing"
     };
@@ -44,6 +46,7 @@ service FederationSiteService {
   // held.
   rpc HoldSiteCertificate(HoldSiteCertificateRequest) returns (FederationSite) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = {
       natural: "holding the certificate already held changes nothing and answers the same site"
     };
@@ -58,6 +61,7 @@ service FederationSiteService {
   // (FAILED_PRECONDITION), not answered as a site.
   rpc GetFederationSite(GetFederationSiteRequest) returns (FederationSiteState) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = {get: "/v1/admin/federation-site"};
   }
 
@@ -66,6 +70,7 @@ service FederationSiteService {
   // call signs the settings in force at that moment.
   rpc SignSiteAdmission(SignSiteAdmissionRequest) returns (SiteAdmission) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = {
       post: "/v1/admin/federation-site/admission"
       body: "*"

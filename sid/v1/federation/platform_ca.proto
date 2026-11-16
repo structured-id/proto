@@ -9,6 +9,7 @@ package sid.v1.federation;
 
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/common/access.proto";
 import "google/api/httpbody.proto";
 
 // PlatformCaService publishes the admitted platform CA set and, separately,
@@ -19,6 +20,7 @@ service PlatformCaService {
   // The current admitted set, the same for every caller.
   rpc GetPlatformCas(GetPlatformCasRequest) returns (PlatformCas) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { open: "public trust material: the platform CA set and its revocation list" };
     option (google.api.http) = { get: "/.well-known/sid-ca/index.json" };
   }
 
@@ -34,6 +36,7 @@ service PlatformCaService {
   // omits what it does not know.
   rpc GetPlatformCaCrl(GetPlatformCaCrlRequest) returns (google.api.HttpBody) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { open: "public trust material: the platform CA set and its revocation list" };
     option (google.api.http) = { get: "/.well-known/sid-ca/{generation}/crl" };
   }
 }

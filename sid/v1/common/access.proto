@@ -57,8 +57,8 @@ message ProtectedRule {
   // before any effect. At least one.
   repeated CredentialKind credentials = 1;
   // The resource scopes the credential must carry, all of them. A scope
-  // names an API capability (`identity.read`, `identity.write`) shared by
-  // methods with the same meaning. The installation's own sign-in session
+  // names an API capability (`account.read`, `enrollment.invite.create`)
+  // shared by methods with the same meaning. The installation's own sign-in session
   // carries every scope of the installation's API: the user's current
   // authority, not the scope, limits what it may do. Empty only where the
   // admitted kinds are the own session alone.

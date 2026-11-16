@@ -9,6 +9,7 @@ package sid.v1.common;
 import "google/api/annotations.proto";
 import "google/protobuf/descriptor.proto";
 import "google/protobuf/timestamp.proto";
+import "sid/v1/common/access.proto";
 
 // The retry rule of one method.
 message RetryRule {
@@ -55,6 +56,7 @@ service OperationService {
   // permission and selects no issuer, tenant or store.
   rpc GetOperationPeriod(GetOperationPeriodRequest) returns (OperationPeriod) {
     option idempotency_level = IDEMPOTENT;
+    option (access) = { open: "a period conveys no permission and selects no issuer, tenant or store" };
     option (retry) = {
       natural: "the current period is answered, issued when none is current: a repeat answers the same period until a later one replaces it, and no call retires a period another caller still holds within its acceptance bound"
     };

@@ -17,6 +17,7 @@ package sid.v1.federation;
 
 import "google/api/annotations.proto";
 import "google/protobuf/empty.proto";
+import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 
 // SiteAdmissionService takes an enrolled site's admission statements.
@@ -40,6 +41,7 @@ service SiteAdmissionService {
   // deliver. All three reasons are sid.v1.common.ErrorReason values.
   rpc PublishSiteAdmission(PublishSiteAdmissionRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { open: "the statement authenticates itself with the site's participant certificate, as stated above" };
     option (sid.v1.common.retry) = {
       natural: "a statement is held by its entry and settings revision: publishing the same revision with the same conditions again changes nothing"
     };
