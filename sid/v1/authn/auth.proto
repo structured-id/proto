@@ -22,7 +22,10 @@ service AuthService {
   rpc OpaqueLoginStart(OpaqueLoginStartRequest) returns (OpaqueLoginStartResponse) {
     option (sid.v1.common.access) = { open: "RFC 9807 §6: the sign-in ceremony that establishes a session" };
     option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
-    option idempotency_level = NO_SIDE_EFFECTS;
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 9807 §6: each start stores its own login state; a repeat opens another attempt and changes no account state"
+    };
     option (google.api.http) = { post: "/v1/auth/opaque/login/start" body: "*" };
   }
   rpc OpaqueLoginFinish(OpaqueLoginFinishRequest) returns (OpaqueLoginFinishResponse) {
@@ -121,7 +124,10 @@ service AuthService {
       scopes: ["account.write"]
     } };
     option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
-    option idempotency_level = NO_SIDE_EFFECTS;
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "WebAuthn §13.4.3: each start stores its own single-use challenge; a repeat opens another ceremony and registers nothing"
+    };
     option (google.api.http) = { post: "/v1/auth/webauthn/registration/start" body: "*" };
   }
   rpc WebAuthnRegistrationFinish(WebAuthnRegistrationFinishRequest) returns (WebAuthnRegistrationFinishResponse) {
@@ -139,7 +145,10 @@ service AuthService {
   rpc WebAuthnAuthenticationStart(WebAuthnAuthenticationStartRequest) returns (WebAuthnAuthenticationStartResponse) {
     option (sid.v1.common.access) = { open: "WebAuthn §7.2: the sign-in ceremony that establishes a session" };
     option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
-    option idempotency_level = NO_SIDE_EFFECTS;
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "WebAuthn §13.4.3: each start stores its own single-use challenge; a repeat opens another ceremony and creates no session"
+    };
     option (google.api.http) = { post: "/v1/auth/webauthn/authentication/start" body: "*" };
   }
   rpc WebAuthnAuthenticationFinish(WebAuthnAuthenticationFinishRequest) returns (WebAuthnAuthenticationFinishResponse) {
@@ -268,7 +277,10 @@ service AuthService {
   rpc LegacyMigrateStart(LegacyMigrateStartRequest) returns (LegacyMigrateStartResponse) {
     option (sid.v1.common.access) = { open: "a sign-in ceremony: the imported password authenticates the call" };
     option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
-    option idempotency_level = NO_SIDE_EFFECTS;
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "each start stores its own migration attempt; a repeat opens another and changes no account state"
+    };
     option (google.api.http) = { post: "/v1/auth/legacy/migrate/start" body: "*" };
   }
   rpc LegacyMigrateFinish(LegacyMigrateFinishRequest) returns (LegacyMigrateFinishResponse) {
