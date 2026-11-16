@@ -1,0 +1,72 @@
+// StructuredID method access rules.
+// Who may call a method, declared on the method itself: the kinds of
+// credential it admits and the resource scopes the credential must carry.
+// SID's serving guard reads these declarations from the descriptors and
+// enforces them on native gRPC and on transcoded HTTP alike, before the
+// handler runs, so no method list lives in code. A rule is a ceiling on the
+// credential, not a grant: a call it admits still needs the caller's current
+// authority for the action and its target, decided by the service.
+syntax = "proto3";
+
+package sid.v1.common;
+
+import "google/protobuf/descriptor.proto";
+
+// The kind of credential a call is made with.
+enum CredentialKind {
+  // Not a kind; never declared.
+  CREDENTIAL_KIND_UNSPECIFIED = 0;
+  // The user's own sign-in session at this installation: the session the
+  // user signed in with, presented by the installation's own pages.
+  CREDENTIAL_KIND_OWN_SESSION = 1;
+  // An access token an application obtained for this API on a user's
+  // behalf (authorization code, refresh, device grant): it acts for that
+  // user within its scopes, never as the user's session.
+  CREDENTIAL_KIND_DELEGATED = 2;
+  // An access token a client obtained for itself (client credentials,
+  // RFC 6749 §4.4): a machine acting as itself, with no user.
+  CREDENTIAL_KIND_CLIENT = 3;
+  // A personal access token or the access token exchanged from one: a
+  // durable credential a user created for one resource and its scopes.
+  CREDENTIAL_KIND_PERSONAL_ACCESS_TOKEN = 4;
+  // A token a machine obtained to act as a user (RFC 8693 impersonation),
+  // carrying the acting machine.
+  CREDENTIAL_KIND_IMPERSONATION = 5;
+  // The access token of the installation's registered account integration
+  // (its account pages and their API): the user's own account in an
+  // application session, without administrator authority.
+  CREDENTIAL_KIND_ACCOUNT_API = 6;
+}
+
+// The access rule of one method.
+message AccessRule {
+  oneof rule {
+    // The method runs before or without an access token: a protocol or
+    // ceremony step (token issuance, sign-in, discovery, a public read). The
+    // value states why, with the protocol's normative section where it has
+    // one; the method's own contract decides what it accepts.
+    string open = 1;
+    // The method requires a verified access token for this API.
+    ProtectedRule protected = 2;
+  }
+}
+
+// What a protected method requires of the credential it is called with.
+message ProtectedRule {
+  // The kinds of credential the method admits; any other kind is refused
+  // before any effect. At least one.
+  repeated CredentialKind credentials = 1;
+  // The resource scopes the credential must carry, all of them. A scope
+  // names an API capability (`identity.read`, `identity.write`) shared by
+  // methods with the same meaning. The installation's own sign-in session
+  // carries every scope of the installation's API: the user's current
+  // authority, not the scope, limits what it may do. Empty only where the
+  // admitted kinds are the own session alone.
+  repeated string scopes = 2;
+}
+
+extend google.protobuf.MethodOptions {
+  // The access rule of the method. Every method of a served service
+  // declares it; a method without one fails the build.
+  AccessRule access = 51201;
+}
