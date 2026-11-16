@@ -379,25 +379,25 @@ service ProjectService {
   // access to one.
   rpc RegisterClient(RegisterClientRequest) returns (RegisterClientResponse) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
-    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.access) = { open: "RFC 7591 §3: dynamic registration, admitted by the issuer's registration policy and its initial access token" };
     option (sid.v1.common.retry) = {
       ceremony: "RFC 7591 §3: the client presents no operation key; each registration issues a new client, its secret and registration access token once"
     };
   }
   rpc GetRegisteredClient(GetRegisteredClientRequest) returns (OAuthClient) {
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.access) = { open: "RFC 7592 §2: the client's registration access token authenticates the call" };
   }
   rpc UpdateRegisteredClient(UpdateRegisteredClientRequest) returns (OAuthClient) {
     option idempotency_level = IDEMPOTENT;
-    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.access) = { open: "RFC 7592 §2: the client's registration access token authenticates the call" };
     option (sid.v1.common.retry) = {
       ceremony: "RFC 7592 §2.2: the request carries the client's whole metadata and replaces it, so a repeat leaves the same registration"
     };
   }
   rpc DeleteRegisteredClient(DeleteRegisteredClientRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
-    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.access) = { open: "RFC 7592 §2: the client's registration access token authenticates the call" };
     option (sid.v1.common.retry) = {
       ceremony: "RFC 7592 §2.3: deletion invalidates the client and its registration access token, so a repeat is refused and changes nothing"
     };

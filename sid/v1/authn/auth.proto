@@ -605,10 +605,7 @@ service AuthService {
 
   // Generic step-up Phase 2: submit proof → elevate session → rotate token.
   rpc CompleteStepUp(CompleteStepUpRequest) returns (CompleteStepUpResponse) {
-    option (sid.v1.common.access) = { protected: {
-      credentials: [CREDENTIAL_KIND_OWN_SESSION, CREDENTIAL_KIND_ACCOUNT_API]
-      scopes: ["account.write"]
-    } };
+    option (sid.v1.common.access) = { open: "the caller's current session, or the token its committed step-up stopped, which receives only what that step-up committed" };
     option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
     option (sid.v1.common.retry) = {
