@@ -11,15 +11,15 @@ import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 
 // NotificationTemplateService manages notification templates across channels.
-// A receiver of the account API resource the administration UI signs in to:
-// each call carries that resource's token, obtained by the UI for its user,
-// and the issuer decides the user's permission for the method's action.
+// A receiver of the installation's account API: each call carries an account
+// API token obtained for a user, and the issuer decides the user's permission
+// for the method's action.
 service NotificationTemplateService {
   // List all available notification templates.
   rpc ListTemplates(ListTemplatesRequest) returns (ListTemplatesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
     option (sid.v1.common.access) = { protected: {
-      credentials: [CREDENTIAL_KIND_DELEGATED]
+      credentials: [CREDENTIAL_KIND_ACCOUNT_API]
       scopes: ["account.read"]
       permission: { action: "notify.template.read" target: PERMISSION_TARGET_RESOURCE }
     } };
@@ -30,7 +30,7 @@ service NotificationTemplateService {
   rpc GetTemplate(GetTemplateRequest) returns (NotificationTemplate) {
     option idempotency_level = NO_SIDE_EFFECTS;
     option (sid.v1.common.access) = { protected: {
-      credentials: [CREDENTIAL_KIND_DELEGATED]
+      credentials: [CREDENTIAL_KIND_ACCOUNT_API]
       scopes: ["account.read"]
       permission: { action: "notify.template.read" target: PERMISSION_TARGET_RESOURCE }
     } };
@@ -41,7 +41,7 @@ service NotificationTemplateService {
   rpc UpdateTemplate(UpdateTemplateRequest) returns (NotificationTemplate) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.access) = { protected: {
-      credentials: [CREDENTIAL_KIND_DELEGATED]
+      credentials: [CREDENTIAL_KIND_ACCOUNT_API]
       scopes: ["account.write"]
       permission: { action: "notify.template.change" target: PERMISSION_TARGET_RESOURCE }
     } };
@@ -53,7 +53,7 @@ service NotificationTemplateService {
   rpc ResetTemplate(ResetTemplateRequest) returns (NotificationTemplate) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.access) = { protected: {
-      credentials: [CREDENTIAL_KIND_DELEGATED]
+      credentials: [CREDENTIAL_KIND_ACCOUNT_API]
       scopes: ["account.write"]
       permission: { action: "notify.template.change" target: PERMISSION_TARGET_RESOURCE }
     } };
@@ -65,7 +65,7 @@ service NotificationTemplateService {
   rpc PreviewTemplate(PreviewTemplateRequest) returns (PreviewTemplateResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
     option (sid.v1.common.access) = { protected: {
-      credentials: [CREDENTIAL_KIND_DELEGATED]
+      credentials: [CREDENTIAL_KIND_ACCOUNT_API]
       scopes: ["account.read"]
       permission: { action: "notify.template.read" target: PERMISSION_TARGET_RESOURCE }
     } };
@@ -79,7 +79,7 @@ service NotificationTemplateService {
   rpc SendTestNotification(SendTestNotificationRequest) returns (google.protobuf.Empty) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.access) = { protected: {
-      credentials: [CREDENTIAL_KIND_DELEGATED]
+      credentials: [CREDENTIAL_KIND_ACCOUNT_API]
       scopes: ["account.write"]
       permission: { action: "notify.template.test" target: PERMISSION_TARGET_RESOURCE }
     } };
