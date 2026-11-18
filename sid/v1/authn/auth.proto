@@ -1098,9 +1098,11 @@ message OAuth2AuthorizeRequest {
   // Handle of the OIDC issuer whose authorization endpoint received the
   // request: the `<handle>` in `https://<host>/i/<handle>/oauth2/authorize`,
   // taken from that path by the protocol edge (or carried by the sign-in UI
-  // from the request it is completing). Required. An unknown handle, and a
-  // client registered under another issuer, are refused as an unknown client
-  // (never redirected), without falling back to another issuer.
+  // from the request it is completing). Empty names the installation's
+  // root-addressed base issuer, whose endpoint is at the root. An unknown
+  // handle, and a client registered under another issuer, are refused as an
+  // unknown client (never redirected), without falling back to another
+  // issuer.
   string issuer_handle = 10;
   // Resource indicators (RFC 8707 §2): absolute URIs without a fragment
   // naming the registered protected resource the access token is for. At most
@@ -1218,7 +1220,8 @@ message OAuth2TokenRequest {
   // "urn:ietf:params:oauth:token-type:id_token". RFC 8693 §2.1.
   optional string subject_token_type = 13;
   // Handle of the OIDC issuer whose token endpoint received the request,
-  // bound from the path `/i/{issuer_handle}/oauth2/token`. The client, and
+  // bound from the path `/i/{issuer_handle}/oauth2/token`; empty names the
+  // installation's root-addressed base issuer. The client, and
   // every code or refresh token redeemed, must belong to this issuer; anything
   // issued in another context is refused as unknown before any side effect.
   string issuer_handle = 14;
@@ -1272,8 +1275,9 @@ message OAuth2IntrospectRequest {
   // Token to introspect. RFC 7662 §2.1.
   string token = 1;
   // Handle of the OIDC issuer whose introspection endpoint received the
-  // request, bound from the path `/i/{issuer_handle}/oauth2/introspect`. The
-  // caller must be a service identity this issuer serves; a token issued by
+  // request, bound from the path `/i/{issuer_handle}/oauth2/introspect`;
+  // empty names the installation's root-addressed base issuer. The caller
+  // must be a service identity this issuer serves; a token issued by
   // another issuer is reported inactive (RFC 7662 §2.2).
   string issuer_handle = 2;
   // Identifier of the calling service (RFC 6749 §2.2): a confidential OAuth
@@ -1327,8 +1331,9 @@ message OAuth2RevokeRequest {
   // Server validates independently — hint is optimization, not trusted. RFC 7009 §2.1.
   optional string token_type_hint = 2;
   // Handle of the OIDC issuer whose revocation endpoint received the request,
-  // bound from the path `/i/{issuer_handle}/oauth2/revoke`. The caller must
-  // be a client of this issuer; a token issued by another issuer is left
+  // bound from the path `/i/{issuer_handle}/oauth2/revoke`; empty names the
+  // installation's root-addressed base issuer. The caller must be a client
+  // of this issuer; a token issued by another issuer is left
   // untouched and the answer is still success (RFC 7009 §2.2).
   string issuer_handle = 3;
   // Identifier of the calling client (RFC 6749 §2.2). A confidential client
@@ -1388,9 +1393,9 @@ message DeviceAuthorizationRequest {
   // Requested scopes (space-separated). RFC 8628 §3.1.
   optional string scope = 2;
   // Handle of the OIDC issuer whose device authorization endpoint received
-  // the request, bound from the path `/i/{issuer_handle}/oauth2/device`. The
-  // client must belong to this issuer; the device transaction stays bound to
-  // it.
+  // the request, bound from the path `/i/{issuer_handle}/oauth2/device`;
+  // empty names the installation's root-addressed base issuer. The client
+  // must belong to this issuer; the device transaction stays bound to it.
   string issuer_handle = 3;
   // Client secret of a confidential client registered for
   // `client_secret_post`, which authenticates here as at the token endpoint
