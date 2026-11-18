@@ -518,16 +518,18 @@ message JsonWebKey {
   string x = 6 [json_name = "x"];
 }
 
-// OidcIssuerService lets services that verify an issuer's tokens resolve the
-// issuer and its keys by handle, and the registered resource a token must be
-// issued for.
+// OidcIssuerService lets services that verify or request an issuer's tokens
+// resolve an issuer of this installation by its exact identifier: whether it
+// is one, its keys and its routing handle, and the registered resource a
+// token must be issued for. The registry is the authority for that
+// association; an address form proves nothing about it.
 //
 // Internal only, no HTTP annotation: relying parties use OidcProviderService.
 service OidcIssuerService {
-  // Look up an issuer by handle. An unknown handle is NOT_FOUND with
-  // ErrorInfo reason OIDC_ISSUER_NOT_FOUND and a ResourceInfo naming the
-  // handle; the caller refuses the request and never falls back to another
-  // issuer.
+  // Look up an issuer by its exact identifier. A URL no active issuer of this
+  // installation holds is NOT_FOUND with ErrorInfo reason
+  // OIDC_ISSUER_NOT_FOUND and a ResourceInfo naming it; the caller refuses
+  // the request and never falls back to another issuer.
   rpc GetOidcIssuer(GetOidcIssuerRequest) returns (OidcIssuer) {
     option (sid.v1.common.access) = { open: "public trust material a verifier resolves before it can verify any token" };
     option idempotency_level = NO_SIDE_EFFECTS;
@@ -585,33 +587,36 @@ message AdmitSenderProofRequest {
 }
 
 message GetOidcIssuerRequest {
-  // The opaque issuer handle: the `<handle>` path segment of the issuer URL
-  // `https://<host>/i/<handle>` that received the request. 32 lowercase hex
-  // characters, allocated by the server at issuer creation and never reused;
-  // empty names the installation's root-addressed base issuer, whose URL is
-  // the root origin (NOT_FOUND when the base issuer is not root-addressed).
-  string handle = 1;
+  // The exact issuer identifier the caller holds: from its configuration, a
+  // connection the installation delivered, or a token's `iss`. Compared byte
+  // for byte with the stored canonical URL (OpenID Connect Discovery 1.0
+  // §4.3); nothing is derived from its form.
+  string issuer = 1;
 }
 
 // A logical OIDC issuer as its relying parties see it.
 message OidcIssuer {
-  // Exact issuer identifier (the stored canonical URL, `https://<host>/i/<handle>`).
-  // Discovery `issuer`, token `iss` and relying-party configuration must equal
-  // it byte for byte (OpenID Connect Discovery 1.0 §4.3). Never derived from
-  // request Host or Forwarded headers.
+  // Exact issuer identifier: the stored canonical URL. Discovery `issuer`,
+  // token `iss` and relying-party configuration must equal it byte for byte
+  // (OpenID Connect Discovery 1.0 §4.3). Never derived from request Host or
+  // Forwarded headers.
   string issuer = 1;
   // Public signing keys of this issuer, newest generation first: the current
   // key and every earlier generation still needed to verify artifacts it
   // issued. Keys of any other issuer never appear here, even under an equal
   // key identifier.
   repeated IssuerPublicKey keys = 2;
+  // The issuer's registry handle: 32 lowercase hex characters, allocated at
+  // creation and never reused. A caller names the issuer with it in the
+  // `issuer_handle` of its token, introspection and authorization requests;
+  // it is never read out of the issuer URL.
+  string handle = 3;
 }
 
 message GetProtectedResourceRequest {
-  // Handle of the issuer the resource is registered under: the `<handle>`
-  // path segment of the issuer URL `https://<host>/i/<handle>`; empty names
-  // the installation's root-addressed base issuer.
-  string issuer_handle = 1;
+  // The exact identifier of the issuer the resource is registered under,
+  // compared byte for byte with the stored canonical URL.
+  string issuer = 1;
   // The resource indicator (RFC 8707 §2) as the ingress configuration names
   // it: an absolute URI without a fragment, in canonical form. Compared
   // exactly; another spelling of the same URI names no resource.
