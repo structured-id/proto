@@ -1,6 +1,7 @@
 // StructuredID OIDC Issuers
-// A logical OIDC issuer (`https://<host>/i/<handle>`): its public metadata and
-// key set, and the internal lookup verifiers use.
+// A logical OIDC issuer: an installation's base issuer at its configured root
+// origin (`https://<host>`), or a scoped issuer at `https://<host>/i/<handle>`;
+// its public metadata and key set, and the internal lookup verifiers use.
 syntax = "proto3";
 
 package sid.v1.authn;
@@ -17,7 +18,10 @@ import "sid/v1/ids/ids.proto";
 // OidcProviderService publishes one issuer's metadata and signing keys to its
 // relying parties. Every document belongs to the issuer the handle names; an
 // unknown handle is NOT_FOUND with ErrorInfo reason OIDC_ISSUER_NOT_FOUND and
-// never falls back to another issuer. There is no issuer-less document.
+// never falls back to another issuer. Each route also has a root binding with
+// no handle, served by the installation's root-addressed base issuer only:
+// without one it is NOT_FOUND the same way, and no issuer is derived from the
+// request's host.
 service OidcProviderService {
   // The issuer's metadata (OpenID Connect Discovery 1.0 §3–4, RFC 8414 §2–3).
   // One document answers both discovery algorithms: the OIDC location under
@@ -29,6 +33,8 @@ service OidcProviderService {
     option (google.api.http) = {
       get: "/i/{issuer_handle}/.well-known/openid-configuration"
       additional_bindings {get: "/.well-known/oauth-authorization-server/i/{issuer_handle}"}
+      additional_bindings {get: "/.well-known/openid-configuration"}
+      additional_bindings {get: "/.well-known/oauth-authorization-server"}
     };
   }
 
@@ -37,7 +43,10 @@ service OidcProviderService {
   rpc GetJwks(IssuerHandleRequest) returns (JsonWebKeySet) {
     option (sid.v1.common.access) = { open: "RFC 7517 §5: the issuer's public signing keys" };
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = {get: "/i/{issuer_handle}/jwks"};
+    option (google.api.http) = {
+      get: "/i/{issuer_handle}/jwks"
+      additional_bindings {get: "/jwks"}
+    };
   }
 
   // UserInfo (OIDC Core 1.0 §5.3) over GET. The access token travels in the
@@ -54,7 +63,10 @@ service OidcProviderService {
     option (sid.v1.common.retry) = {
       ceremony: "RFC 9449 §11.1: a DPoP proof is admitted once; the request otherwise only reads"
     };
-    option (google.api.http) = {get: "/i/{issuer_handle}/userinfo"};
+    option (google.api.http) = {
+      get: "/i/{issuer_handle}/userinfo"
+      additional_bindings {get: "/userinfo"}
+    };
   }
 
   // UserInfo over POST (OIDC Core 1.0 §5.3.1); the same answer as GetUserInfo.
@@ -67,6 +79,10 @@ service OidcProviderService {
     option (google.api.http) = {
       post: "/i/{issuer_handle}/userinfo"
       body: "*"
+      additional_bindings {
+        post: "/userinfo"
+        body: "*"
+      }
     };
   }
 
@@ -85,7 +101,10 @@ service OidcProviderService {
     option (sid.v1.common.retry) = {
       ceremony: "RFC 6749 §4.1.2: each authorization request issues its own single-use code"
     };
-    option (google.api.http) = {get: "/i/{issuer_handle}/oauth2/authorize"};
+    option (google.api.http) = {
+      get: "/i/{issuer_handle}/oauth2/authorize"
+      additional_bindings {get: "/oauth2/authorize"}
+    };
   }
 
   // The authorization endpoint over POST with a form body (OIDC Core 1.0
@@ -100,6 +119,10 @@ service OidcProviderService {
     option (google.api.http) = {
       post: "/i/{issuer_handle}/oauth2/authorize"
       body: "body"
+      additional_bindings {
+        post: "/oauth2/authorize"
+        body: "body"
+      }
     };
   }
 
@@ -121,7 +144,10 @@ service OidcProviderService {
     option (sid.v1.common.retry) = {
       ceremony: "OpenID RP-Initiated Logout 1.0: an ended session stays ended; a repeat finds nothing to end and signs nobody else out, and a confirmation is answered once"
     };
-    option (google.api.http) = {get: "/i/{issuer_handle}/oauth2/end-session"};
+    option (google.api.http) = {
+      get: "/i/{issuer_handle}/oauth2/end-session"
+      additional_bindings {get: "/oauth2/end-session"}
+    };
   }
 
   // RP-Initiated Logout over POST with a form body: the same parameters as
@@ -138,6 +164,10 @@ service OidcProviderService {
     option (google.api.http) = {
       post: "/i/{issuer_handle}/oauth2/end-session"
       body: "body"
+      additional_bindings {
+        post: "/oauth2/end-session"
+        body: "body"
+      }
     };
   }
 
@@ -164,6 +194,10 @@ service OidcProviderService {
     option (google.api.http) = {
       post: "/i/{issuer_handle}/oauth2/token"
       body: "body"
+      additional_bindings {
+        post: "/oauth2/token"
+        body: "body"
+      }
     };
   }
 
@@ -179,6 +213,10 @@ service OidcProviderService {
     option (google.api.http) = {
       post: "/i/{issuer_handle}/oauth2/introspect"
       body: "body"
+      additional_bindings {
+        post: "/oauth2/introspect"
+        body: "body"
+      }
     };
   }
 
@@ -193,6 +231,10 @@ service OidcProviderService {
     option (google.api.http) = {
       post: "/i/{issuer_handle}/oauth2/revoke"
       body: "body"
+      additional_bindings {
+        post: "/oauth2/revoke"
+        body: "body"
+      }
     };
   }
 
@@ -207,6 +249,10 @@ service OidcProviderService {
     option (google.api.http) = {
       post: "/i/{issuer_handle}/oauth2/device"
       body: "body"
+      additional_bindings {
+        post: "/oauth2/device"
+        body: "body"
+      }
     };
   }
 
@@ -231,6 +277,10 @@ service OidcProviderService {
     option (google.api.http) = {
       post: "/i/{issuer_handle}/oauth2/register"
       body: "body"
+      additional_bindings {
+        post: "/oauth2/register"
+        body: "body"
+      }
     };
   }
 
@@ -240,7 +290,10 @@ service OidcProviderService {
   rpc ReadRegistration(RegistrationRequest) returns (google.api.HttpBody) {
     option (sid.v1.common.access) = { open: "RFC 7592 §2: the client's registration access token authenticates the call" };
     option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = {get: "/i/{issuer_handle}/oauth2/register/{client_id}"};
+    option (google.api.http) = {
+      get: "/i/{issuer_handle}/oauth2/register/{client_id}"
+      additional_bindings {get: "/oauth2/register/{client_id}"}
+    };
   }
 
   // Update a registration (RFC 7592 §2.2): the body replaces the client's
@@ -255,6 +308,10 @@ service OidcProviderService {
     option (google.api.http) = {
       put: "/i/{issuer_handle}/oauth2/register/{client_id}"
       body: "body"
+      additional_bindings {
+        put: "/oauth2/register/{client_id}"
+        body: "body"
+      }
     };
   }
 
@@ -265,7 +322,10 @@ service OidcProviderService {
     option (sid.v1.common.retry) = {
       ceremony: "RFC 7592 §2.3: deletion invalidates the client and its registration access token, so a repeat is refused and changes nothing"
     };
-    option (google.api.http) = {delete: "/i/{issuer_handle}/oauth2/register/{client_id}"};
+    option (google.api.http) = {
+      delete: "/i/{issuer_handle}/oauth2/register/{client_id}"
+      additional_bindings {delete: "/oauth2/register/{client_id}"}
+    };
   }
 }
 
@@ -273,7 +333,8 @@ service OidcProviderService {
 // HTTP form.
 message RegistrationRequest {
   // The opaque issuer handle: the `<handle>` path segment of the issuer URL
-  // `https://<host>/i/<handle>`. 32 lowercase hex characters.
+  // `https://<host>/i/<handle>`. 32 lowercase hex characters; empty on the
+  // root route, which names the installation's root-addressed base issuer.
   string issuer_handle = 1;
   // The client being managed, the last segment of its
   // `registration_client_uri` (RFC 7592 §3).
@@ -287,7 +348,8 @@ message RegistrationRequest {
 // one issuer's end-session endpoint.
 message EndSessionRequest {
   // The opaque issuer handle: the `<handle>` path segment of the issuer URL
-  // `https://<host>/i/<handle>`. 32 lowercase hex characters.
+  // `https://<host>/i/<handle>`. 32 lowercase hex characters; empty on the
+  // root route, which names the installation's root-addressed base issuer.
   string issuer_handle = 1;
   // An ID token this issuer gave the relying party, naming the application
   // session (`sid`) and the client (`aud`) that asks to log out. Accepted
@@ -308,7 +370,8 @@ message EndSessionRequest {
 // An OAuth request to one issuer's endpoint in its HTTP form.
 message ProtocolRequest {
   // The opaque issuer handle: the `<handle>` path segment of the issuer URL
-  // `https://<host>/i/<handle>`. 32 lowercase hex characters.
+  // `https://<host>/i/<handle>`. 32 lowercase hex characters; empty on the
+  // root route, which names the installation's root-addressed base issuer.
   string issuer_handle = 1;
   // The HTTP request body as the client sent it, with its `Content-Type`;
   // absent for a request without one (a GET). The endpoints read
@@ -351,7 +414,8 @@ message UserInfo {
 message IssuerHandleRequest {
   // The opaque issuer handle: the `<handle>` path segment of the issuer URL
   // `https://<host>/i/<handle>`. 32 lowercase hex characters, allocated by
-  // the server at issuer creation and never reused.
+  // the server at issuer creation and never reused; empty on the root route,
+  // which names the installation's root-addressed base issuer.
   string issuer_handle = 1;
 }
 
