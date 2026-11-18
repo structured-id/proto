@@ -587,7 +587,9 @@ message AdmitSenderProofRequest {
 message GetOidcIssuerRequest {
   // The opaque issuer handle: the `<handle>` path segment of the issuer URL
   // `https://<host>/i/<handle>` that received the request. 32 lowercase hex
-  // characters, allocated by the server at issuer creation and never reused.
+  // characters, allocated by the server at issuer creation and never reused;
+  // empty names the installation's root-addressed base issuer, whose URL is
+  // the root origin (NOT_FOUND when the base issuer is not root-addressed).
   string handle = 1;
 }
 
@@ -607,7 +609,8 @@ message OidcIssuer {
 
 message GetProtectedResourceRequest {
   // Handle of the issuer the resource is registered under: the `<handle>`
-  // path segment of the issuer URL `https://<host>/i/<handle>`.
+  // path segment of the issuer URL `https://<host>/i/<handle>`; empty names
+  // the installation's root-addressed base issuer.
   string issuer_handle = 1;
   // The resource indicator (RFC 8707 §2) as the ingress configuration names
   // it: an absolute URI without a fragment, in canonical form. Compared

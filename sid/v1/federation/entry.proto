@@ -70,13 +70,18 @@ service EntryConnectionService {
   rpc ListSignInConnections(ListSignInConnectionsRequest) returns (ListSignInConnectionsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
     option (sid.v1.common.access) = {open: "the sign-in page lists the connections it offers before anyone signs in"};
-    option (google.api.http) = {get: "/i/{issuer_handle}/auth/federation/connections"};
+    option (google.api.http) = {
+      get: "/i/{issuer_handle}/auth/federation/connections"
+      additional_bindings {get: "/auth/federation/connections"}
+    };
   }
 }
 
 // FederatedEntryService carries one sign-in through a connection (OpenID
 // Connect Core 1.0 §3.1). Both endpoints are browser navigations below the
-// installation issuer the user signs in at. They read no session cookie;
+// installation issuer the user signs in at: under `/i/{issuer_handle}` for a
+// scoped issuer, at the root for the installation's root-addressed base
+// issuer, and never a route of another issuer. They read no session cookie;
 // the return completes only the entry its state names.
 service FederatedEntryService {
   // Start an entry: a redirect to the connection's issuer, asking for the
@@ -90,7 +95,10 @@ service FederatedEntryService {
     option (sid.v1.common.retry) = {
       ceremony: "each call starts a new entry with its own state, nonce and PKCE challenge (OpenID Connect Core 1.0 §3.1.2.1, RFC 7636 §4.1); nothing is replayed, and an unfinished entry simply expires"
     };
-    option (google.api.http) = {get: "/i/{issuer_handle}/auth/federation/start"};
+    option (google.api.http) = {
+      get: "/i/{issuer_handle}/auth/federation/start"
+      additional_bindings {get: "/auth/federation/start"}
+    };
   }
 
   // The issuer's return (OpenID Connect Core 1.0 §3.1.2.5) to the
@@ -108,7 +116,10 @@ service FederatedEntryService {
     option (sid.v1.common.retry) = {
       ceremony: "the entry its state names completes once and its code is exchanged once (RFC 6749 §4.1.2, OpenID Connect Core 1.0 §3.1.2.5); the same browser repeating a return whose response was lost gets the same session again, and any other repeat completes nothing"
     };
-    option (google.api.http) = {get: "/i/{issuer_handle}/auth/federation/callback"};
+    option (google.api.http) = {
+      get: "/i/{issuer_handle}/auth/federation/callback"
+      additional_bindings {get: "/auth/federation/callback"}
+    };
   }
 }
 
@@ -143,7 +154,8 @@ message EntryConnection {
   // signs in identities of more than one origin.
   sid.v1.ids.OrgId source_organization = 5;
   // The handle of this installation's issuer whose sign-in the connection
-  // serves: the `<handle>` segment of `https://<host>/i/<handle>`.
+  // serves: the `<handle>` segment of `https://<host>/i/<handle>`. A
+  // root-addressed base issuer still has a handle, given here.
   string issuer_handle = 6;
   // The exact redirect URI to register at the issuer for this client: the
   // federated entry's callback below the installation issuer's URL, the same
@@ -175,8 +187,8 @@ message CreateEntryConnectionRequest {
   string issuer = 2;
   // As EntryConnection.source_organization; optional.
   sid.v1.ids.OrgId source_organization = 3;
-  // As EntryConnection.issuer_handle; required, an issuer of this
-  // installation.
+  // As EntryConnection.issuer_handle; an issuer of this installation. Empty
+  // names its root-addressed base issuer.
   string issuer_handle = 4;
   // As EntryConnection.client_id; required.
   string client_id = 5;
@@ -215,7 +227,8 @@ message RemoveEntryConnectionRequest {
 
 message ListSignInConnectionsRequest {
   // The opaque handle of the installation issuer the user signs in at,
-  // bound from the path. 32 lowercase hex characters.
+  // bound from the path. 32 lowercase hex characters; empty on the root
+  // route, which names the installation's root-addressed base issuer.
   string issuer_handle = 1;
 }
 
@@ -238,7 +251,8 @@ message ListSignInConnectionsResponse {
 message StartFederatedEntryRequest {
   // The opaque handle of the installation issuer the user signs in at:
   // the `<handle>` path segment of `https://<host>/i/<handle>`. 32 lowercase
-  // hex characters.
+  // hex characters; empty on the root route, which names the installation's
+  // root-addressed base issuer.
   string issuer_handle = 1;
   // The connection the entry goes through (EntryConnection.handle). The
   // browser names a registered connection; it never supplies an issuer, an

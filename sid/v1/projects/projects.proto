@@ -685,7 +685,8 @@ message RegisterClientRequest {
   repeated string contacts = 9;
   repeated string scope = 10;
   // Handle of the OIDC issuer the client registers under, the `<handle>` of
-  // `https://<host>/i/<handle>`. The client belongs to the organization this
+  // `https://<host>/i/<handle>`; empty names the installation's
+  // root-addressed base issuer. The client belongs to the organization this
   // issuer serves, and its registration access token manages it only under
   // this issuer. An unknown handle is NOT_FOUND (OIDC_ISSUER_NOT_FOUND).
   string issuer_handle = 11;
@@ -712,9 +713,10 @@ message RegisterClientResponse {
 // RFC 7592: client reads own registration. RAT in authorization header.
 message GetRegisteredClientRequest {
   string client_id = 1;
-  // Handle of the issuer the client is registered under. A client of another
-  // issuer, or none, is refused exactly like an invalid registration access
-  // token (RFC 7592 §2.1).
+  // Handle of the issuer the client is registered under; empty names the
+  // installation's root-addressed base issuer. A client of another issuer,
+  // or none, is refused exactly like an invalid registration access token
+  // (RFC 7592 §2.1).
   string issuer_handle = 2;
 }
 
