@@ -182,9 +182,9 @@ service AuthService {
   // The context of the authorization request a sign-in page was sent to
   // complete: the server checks the request against its saved state (the
   // addressed issuer, a client registered under it, the client's exact
-  // registered redirect URI) and answers where the page runs its ceremonies:
-  // the admitted ceremony route of that issuer, never derived from its URL.
-  // Nothing is consumed or changed, so showing or reloading the page reads it
+  // registered redirect URI) and answers the issuer and the client's name.
+  // The page runs its ceremonies at the address it read the context through,
+  // never at one derived from the issuer URL. Nothing is consumed or changed, so showing or reloading the page reads it
   // again. A request that does not match saved state is refused before the
   // page asks for any credential: INVALID_ARGUMENT, ErrorInfo reason
   // INVALID_FIELD_VALUE, BadRequest field `authorization_request`.
@@ -1242,13 +1242,6 @@ message SignInContext {
   // The requesting client's display name, as registered; empty when the
   // registration names none.
   string client_name = 2;
-  // The absolute base URL the page's ceremony calls use, followed by
-  // `/<package.Service>/<Method>`: the admitted sign-in surface of this
-  // issuer on the route that serves it, chosen by the server. `/api` on a
-  // single-authority installation's public origin, `/i/<handle>/api` on a
-  // shared host, also for a root-addressed base issuer whose `issuer` has no
-  // path. The page never derives it from `issuer`.
-  string ceremony_api = 3;
 }
 
 message OAuth2TokenRequest {
