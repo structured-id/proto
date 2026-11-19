@@ -454,6 +454,77 @@ service AuthService {
     option (google.api.http) = { post: "/v1/auth/otp/resend" body: "*" };
   }
 
+  // ── Passwordless registration (email code, first passkey) ──
+  //
+  // A new local account whose first credential is a passkey: an email code
+  // confirms the address and opens the registration's context, which admits
+  // only that registration's first passkey. Registering the key opens no
+  // session; the account then signs in with it (WebAuthnAuthentication*).
+
+  // Admits the registration under the enrollment policy (instance claim,
+  // registration switch, enrollment mode, invite) before anything about the
+  // address is told, then mails a code to it. When admitted, an address
+  // already registered is refused before a code is created or sent
+  // (ALREADY_EXISTS, EMAIL_ALREADY_REGISTERED).
+  rpc StartEmailRegistration(StartEmailRegistrationRequest) returns (StartEmailRegistrationResponse) {
+    option (sid.v1.common.access) = { open: "self-registration: admitted by the enrollment policy and the registration's own state" };
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "each start opens its own code session under the rate limit; nothing is registered before its passkey finish"
+    };
+    option (google.api.http) = { post: "/v1/auth/registration/email/start" body: "*" };
+  }
+  // A new code for the registration a start opened, replacing its previous
+  // one; refused like a start while registration is not admitted.
+  rpc ResendEmailRegistration(ResendEmailRegistrationRequest) returns (ResendEmailRegistrationResponse) {
+    option (sid.v1.common.access) = { open: "self-registration: the registration's code session authenticates the call" };
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "a new code replaces the registration's previous one under the rate limit; nothing is registered"
+    };
+    option (google.api.http) = { post: "/v1/auth/registration/email/resend" body: "*" };
+  }
+  // Confirms the address with its code and opens the registration's
+  // context: an HttpOnly cookie for a browser (with the CSRF token of its
+  // later steps in the answer) or `authorization` metadata for a native
+  // client, never a token in the body. The context admits the registration's
+  // first passkey only: no account call, consent or grant.
+  rpc VerifyEmailRegistration(VerifyEmailRegistrationRequest) returns (VerifyEmailRegistrationResponse) {
+    option (sid.v1.common.access) = { open: "self-registration: the registration's code session authenticates the call" };
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "the code session is consumed by its first valid code; wrong codes count toward its attempt limit"
+    };
+    option (google.api.http) = { post: "/v1/auth/registration/email/verify" body: "*" };
+  }
+  // Starts the registration's first passkey, admitted by its context only;
+  // an existing account's passkeys are managed by WebAuthnRegistration*.
+  rpc PasskeyRegistrationStart(PasskeyRegistrationStartRequest) returns (PasskeyRegistrationStartResponse) {
+    option (sid.v1.common.access) = { open: "WebAuthn §7.1: the first passkey of a self-registration, admitted by the registration's context" };
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
+    option idempotency_level = IDEMPOTENCY_UNKNOWN;
+    option (sid.v1.common.retry) = {
+      ceremony: "WebAuthn §13.4.3: each start stores its own single-use challenge; a repeat opens another ceremony and registers nothing"
+    };
+    option (google.api.http) = { post: "/v1/auth/registration/passkey/start" body: "*" };
+  }
+  // Commits the account with its confirmed address and its first passkey in
+  // one operation, rechecking the registration's admission and the address.
+  // A retry by the same context answers the recorded credential; no second
+  // key and no session.
+  rpc PasskeyRegistrationFinish(PasskeyRegistrationFinishRequest) returns (PasskeyRegistrationFinishResponse) {
+    option (sid.v1.common.access) = { open: "WebAuthn §7.1: the first passkey of a self-registration, admitted by the registration's context" };
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_CHANGE;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      ceremony: "the registration is consumed by its commit, which records its own outcome for a retry by the same registration context"
+    };
+    option (google.api.http) = { post: "/v1/auth/registration/passkey/finish" body: "*" };
+  }
+
   // ── Email/Phone verification ──
 
   rpc ResendEmailVerification(ResendEmailVerificationRequest) returns (ResendEmailVerificationResponse) {
@@ -1789,6 +1860,98 @@ message ResendOtpRequest {
 
 message ResendOtpResponse {
   int32 expires_in = 1;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Passwordless registration (email code, first passkey)
+// ══════════════════════════════════════════════════════════════════════════
+
+message StartEmailRegistrationRequest {
+  // The email address the new account registers with, as the registrant
+  // typed it: its resolution key follows the installation's email policy and
+  // the new contact keeps this spelling. Only an email address registers on
+  // this path.
+  string principal = 1;
+  // The invite code the registrant presents, for an installation whose
+  // enrollment mode requires one. Checked at start; spent only when the
+  // registration commits.
+  optional string invite_code = 2;
+  // The installation's one-time claim token, while the installation has
+  // never been claimed: the account becomes its first administrator when it
+  // commits, which consumes the claim.
+  optional string claim_token = 3;
+}
+
+message StartEmailRegistrationResponse {
+  // The registration's code session, for its resend and verify. A reference
+  // to the challenge, not a credential.
+  sid.v1.ids.OtpSessionId otp_session_id = 1;
+  // The address the code was sent to, masked for display
+  // ("a****@example.com").
+  string masked_target = 2;
+  // Seconds until the code expires.
+  uint32 expires_in_seconds = 3;
+  // Digits in the code.
+  uint32 code_length = 4;
+}
+
+message ResendEmailRegistrationRequest {
+  // The registration's code session, from
+  // StartEmailRegistrationResponse.otp_session_id.
+  sid.v1.ids.OtpSessionId otp_session_id = 1;
+}
+
+message ResendEmailRegistrationResponse {
+  // Seconds until the new code expires.
+  uint32 expires_in_seconds = 1;
+}
+
+message VerifyEmailRegistrationRequest {
+  // The registration's code session, from
+  // StartEmailRegistrationResponse.otp_session_id.
+  sid.v1.ids.OtpSessionId otp_session_id = 1;
+  // The code from the mail, as typed.
+  string code = 2;
+}
+
+message VerifyEmailRegistrationResponse {
+  // Seconds until the registration's context expires: its first passkey
+  // must be registered before then.
+  int64 expires_in = 1;
+  // For a browser: the CSRF token its later registration steps send in
+  // `x-csrf-token` with the context's cookie. Absent for a native client,
+  // whose context arrives as `authorization` metadata.
+  optional string browser_csrf = 2;
+}
+
+message PasskeyRegistrationStartRequest {
+  // A label for the passkey ("iPhone 15 Pro"), shown when the account
+  // manages its credentials. The server generates one when absent.
+  optional string label = 1;
+}
+
+message PasskeyRegistrationStartResponse {
+  // The WebAuthn challenge the ceremony is bound to; the server keeps its
+  // state, bound to the registration, until the finish or its expiry.
+  bytes challenge = 1;
+  // PublicKeyCredentialCreationOptions as JSON (WebAuthn §5.4), for
+  // navigator.credentials.create(): the relying party, the new account's
+  // opaque user handle, the accepted algorithms and the selection criteria.
+  bytes options = 2;
+}
+
+message PasskeyRegistrationFinishRequest {
+  // The PublicKeyCredential JSON navigator.credentials.create() returned
+  // (WebAuthn §5.1), with its attestation object and client data.
+  bytes credential = 1;
+  // A label for the passkey, replacing the start's when given.
+  optional string label = 2;
+}
+
+message PasskeyRegistrationFinishResponse {
+  // The new account's passkey credential, for its later management. Not the
+  // authenticator's WebAuthn credential ID.
+  sid.v1.ids.CredentialId credential_id = 1;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
