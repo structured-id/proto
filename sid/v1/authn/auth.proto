@@ -182,7 +182,8 @@ service AuthService {
   // The context of the authorization request a sign-in page was sent to
   // complete: the server checks the request against its saved state (the
   // addressed issuer, a client registered under it, the client's exact
-  // registered redirect URI) and answers where the page runs its ceremonies.
+  // registered redirect URI) and answers where the page runs its ceremonies:
+  // the admitted ceremony route of that issuer, never derived from its URL.
   // Nothing is consumed or changed, so showing or reloading the page reads it
   // again. A request that does not match saved state is refused before the
   // page asks for any credential: INVALID_ARGUMENT, ErrorInfo reason
@@ -1221,7 +1222,10 @@ message OAuth2AuthorizeResponse {
 message GetSignInContextRequest {
   // The authorization request the page was redirected with (its `rd`): the
   // issuer's authorization endpoint URL continuing the request the issuer
-  // kept, `https://<host>/i/<handle>/oauth2/authorize?client_id=...&request_uri=...`.
+  // kept, `https://<host>/i/<handle>/oauth2/authorize?client_id=...&request_uri=...`
+  // (`https://<host>/oauth2/authorize?...` for a root-addressed base issuer).
+  // A candidate only: the page sends it to its own installation, never to the
+  // host it names.
   // The kept request is read, not taken: it must exist, belong to that
   // issuer and client, and the client must be active with the request's
   // redirect URI registered. The full request is checked again when the page
@@ -1232,11 +1236,19 @@ message GetSignInContextRequest {
 // Where and for whom a sign-in page completes an authorization request.
 message SignInContext {
   // The canonical URL of the issuer the request addressed (OIDC Discovery
-  // §4.3 Issuer Identifier). The page's ceremony calls go to `<issuer>/grpc`.
+  // §4.3 Issuer Identifier): the page shows it and returns only to
+  // authorization requests at it. It is not where the ceremonies run.
   string issuer = 1;
   // The requesting client's display name, as registered; empty when the
   // registration names none.
   string client_name = 2;
+  // The absolute base URL the page's ceremony calls use, followed by
+  // `/<package.Service>/<Method>`: the admitted sign-in surface of this
+  // issuer on the route that serves it, chosen by the server. `/api` on a
+  // single-authority installation's public origin, `/i/<handle>/api` on a
+  // shared host, also for a root-addressed base issuer whose `issuer` has no
+  // path. The page never derives it from `issuer`.
+  string ceremony_api = 3;
 }
 
 message OAuth2TokenRequest {
