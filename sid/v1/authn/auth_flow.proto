@@ -1,0 +1,248 @@
+// StructuredID runtime authentication flow: the calls the trusted sign-in
+// and consent surface of an issuer makes while a browser authorization is in
+// progress. Not the administrator's FlowService, which edits flow
+// configuration, and not AccountService, which manages grants already given.
+//
+// This service carries the authorization consent interaction: the user
+// reviews one authorization operation the issuer keeps, records an approve or
+// deny decision for exactly that reviewed revision, and reads the
+// operation's durable state after a reload or a lost response. Recording a
+// decision never issues an authorization code: only the issuer's
+// authorization endpoint does that, when the browser follows the
+// continuation this service returns.
+//
+// Every call is a POST authenticated by the issuer's own HttpOnly IdP
+// session cookie, from the exact trusted sign-in origin (a missing, `null`
+// or other Origin is refused). It works before any application or account
+// session exists. Responses are served with `Cache-Control: no-store`.
+syntax = "proto3";
+
+package sid.v1.authn;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "sid/v1/common/access.proto";
+import "sid/v1/common/maintenance.proto";
+import "sid/v1/common/operation.proto";
+import "sid/v1/ids/ids.proto";
+
+service AuthFlowService {
+  // The review of one authorization operation: the registered client, the
+  // resource and scopes it asks for, the claims each scope releases with
+  // the sharing choices allowed, the selected identity, the operation's
+  // revision and the CSRF value a decision on that revision must carry.
+  //
+  // The browser's IdP session must be live, not provisional, and the one the
+  // operation is bound to; a reference alone reads nothing. An operation that
+  // is not this session's, does not exist or is no longer awaiting a
+  // decision is NOT_FOUND, the same for every cause (ErrorInfo reason
+  // CONSENT_NOT_FOUND). A missing or foreign Origin is PERMISSION_DENIED.
+  //
+  // Reading creates no approval. The CSRF value is bound to the session, the
+  // operation and the revision; a replaced session or a newer revision
+  // makes an earlier value useless.
+  rpc GetConsent(GetConsentRequest) returns (ConsentDetails) {
+    option (sid.v1.common.access) = { open: "the issuer's own IdP session cookie authenticates the browser authorization interaction; checked by the handler with the exact trusted Origin" };
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = {
+      post: "/v1/auth/flows/{operation_id.value}/consent:review"
+      body: "*"
+    };
+  }
+
+  // Record the user's approve or deny decision for the reviewed revision of
+  // an operation. The issuer, client, redirect, resource and subject come
+  // from the operation the issuer keeps, never from the request; the request
+  // carries only the decision, the claim choices the review allowed, the
+  // revision and its CSRF value.
+  //
+  // One owning-store transaction records the decision, the consent grants it
+  // gives, the audit entry and the operation's new state. Approval answers
+  // with the issuer continuation the browser follows to complete the
+  // authorization; denial answers with the same continuation, which returns
+  // `access_denied` to the client's validated redirect URI. A denial grants
+  // nothing and revokes no earlier grant.
+  //
+  // A stale revision is ABORTED (CONCURRENT_MODIFICATION); a CSRF value that
+  // is absent or not this session's, operation's and revision's is
+  // PERMISSION_DENIED (CSRF_TOKEN_INVALID); a choice the review did not offer
+  // is INVALID_ARGUMENT with BadRequest naming the claim; an operation that
+  // is not this session's or no longer exists is NOT_FOUND
+  // (CONSENT_NOT_FOUND).
+  rpc SubmitConsent(SubmitConsentRequest) returns (FlowState) {
+    option (sid.v1.common.access) = { open: "the issuer's own IdP session cookie authenticates the browser authorization interaction; checked by the handler with the exact trusted Origin and the operation's CSRF value" };
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "the operation records one decision per revision: the same decision submitted again answers the committed state and records no second grant or audit entry, and a different decision for that revision is refused"
+    };
+    option (google.api.http) = {
+      post: "/v1/auth/flows/{operation_id.value}/consent"
+      body: "*"
+    };
+  }
+
+  // The durable state of an operation after a reload or a lost response:
+  // awaiting a decision, approved, denied, code issued, or expired. A
+  // transport failure is never read as approval or denial. For an approved
+  // or denied operation whose code the issuer has not yet issued, the answer
+  // carries the issuer continuation again; once the code was issued it
+  // carries none, and a new authorization starts at the client.
+  //
+  // Authenticated as GetConsent; an operation that is not this session's or
+  // does not exist is NOT_FOUND (CONSENT_NOT_FOUND).
+  rpc GetFlowState(GetFlowStateRequest) returns (FlowState) {
+    option (sid.v1.common.access) = { open: "the issuer's own IdP session cookie authenticates the browser authorization interaction; checked by the handler with the exact trusted Origin" };
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_SIGN_IN;
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = {
+      post: "/v1/auth/flows/{operation_id.value}/state:read"
+      body: "*"
+    };
+  }
+}
+
+message GetConsentRequest {
+  // The operation the consent page was sent to review, from the issuer's
+  // redirect to that page. A reference only: the IdP session decides
+  // whether it may be read.
+  sid.v1.ids.AuthorizationOperationId operation_id = 1;
+}
+
+// What the user is asked to decide for one authorization operation.
+message ConsentDetails {
+  // The operation under review.
+  sid.v1.ids.AuthorizationOperationId operation_id = 1;
+  // The revision this review shows. A decision names it; the operation
+  // refuses a decision for any other revision.
+  uint64 revision = 2;
+  // Server-generated value bound to the browser's IdP session, this
+  // operation and this revision; echoed unchanged in SubmitConsent. Not a
+  // credential by itself and never logged.
+  bytes csrf_token = 3;
+  // The canonical URL of the issuer the authorization is for (OIDC
+  // Discovery 1.0 §4.3), shown to the user.
+  string issuer = 4;
+  // The requesting client's registered identifier (RFC 6749 §2.2).
+  string client_id = 5;
+  // The client's display name as registered; empty when it names none.
+  string client_name = 6;
+  // The resource indicator the access tokens will be for (RFC 8707 §2).
+  string resource = 7;
+  // The scopes the request asks for that the client may be granted
+  // (RFC 6749 §3.3), in the order requested. Approval grants exactly these.
+  repeated string scopes = 8;
+  // The claims these scopes release, one entry each, with the sharing
+  // choices the user may make for it.
+  repeated ConsentClaim claims = 9;
+  // How the selected identity is shown to the user: the display name of the
+  // Profile signing in, for the user's own recognition. Never sent to the
+  // client.
+  string identity_display_name = 10;
+  // When the operation stops waiting for a decision; afterwards it is
+  // expired and a new authorization starts at the client.
+  google.protobuf.Timestamp expires_at = 11;
+}
+
+// One claim the reviewed scopes release.
+message ConsentClaim {
+  // The claim name (OIDC Core 1.0 §5.1), for example `email`.
+  string name = 1;
+  // How important the claim is to the client.
+  ClaimRequestLevel level = 2;
+  // The client's stated reason; present for a DEMANDED claim.
+  optional string justification = 3;
+  // The sharing modes the user may choose for this claim; one of them is
+  // chosen in SubmitConsent. Never empty for an approvable claim.
+  repeated ClaimSharing allowed = 4;
+}
+
+// How important a claim is to the requesting client.
+enum ClaimRequestLevel {
+  CLAIM_REQUEST_LEVEL_UNSPECIFIED = 0;
+  // The authorization cannot complete without this claim: refusing it
+  // refuses the authorization.
+  CLAIM_REQUEST_LEVEL_REQUIRED = 1;
+  // The client gives a justification; the user can refuse and still sign in.
+  CLAIM_REQUEST_LEVEL_DEMANDED = 2;
+  // The user can skip it freely.
+  CLAIM_REQUEST_LEVEL_OPTIONAL = 3;
+}
+
+// How a claim is shared with the client.
+enum ClaimSharing {
+  CLAIM_SHARING_UNSPECIFIED = 0;
+  // Not shared.
+  CLAIM_SHARING_NONE = 1;
+  // The current value only; a later change is not delivered.
+  CLAIM_SHARING_STATIC = 2;
+  // The current value and its later changes, as the client subscribed.
+  CLAIM_SHARING_SUBSCRIBED = 3;
+}
+
+message SubmitConsentRequest {
+  // The operation decided.
+  sid.v1.ids.AuthorizationOperationId operation_id = 1;
+  // The revision the user reviewed, as ConsentDetails answered it.
+  uint64 revision = 2;
+  // The CSRF value ConsentDetails answered for that revision.
+  bytes csrf_token = 3;
+  // The user's explicit decision.
+  ConsentDecision decision = 4;
+  // For an approval, the sharing choice for each claim of the review, one
+  // entry per claim, each among that claim's allowed choices. Ignored for a
+  // denial.
+  repeated ClaimChoice choices = 5;
+}
+
+// The user's choice for one reviewed claim.
+message ClaimChoice {
+  // The claim name, as ConsentClaim named it.
+  string name = 1;
+  // The chosen sharing mode, one of that claim's allowed modes.
+  ClaimSharing sharing = 2;
+}
+
+// The user's decision on an authorization operation.
+enum ConsentDecision {
+  CONSENT_DECISION_UNSPECIFIED = 0;
+  // Grant the reviewed authorization with the given claim choices.
+  CONSENT_DECISION_APPROVE = 1;
+  // Refuse this authorization request; earlier grants are not affected.
+  CONSENT_DECISION_DENY = 2;
+}
+
+message GetFlowStateRequest {
+  // The operation whose state is read.
+  sid.v1.ids.AuthorizationOperationId operation_id = 1;
+}
+
+// The durable state of an authorization operation.
+message FlowState {
+  // The operation.
+  sid.v1.ids.AuthorizationOperationId operation_id = 1;
+  // Where the operation stands.
+  AuthorizationStep step = 2;
+  // The issuer continuation the browser navigates to, present while the
+  // operation is approved or denied and its outcome not yet delivered: the
+  // issuer's own authorization endpoint continuing this operation. It
+  // carries no code or token and is never a client-supplied URL.
+  optional string continuation_uri = 3;
+}
+
+// Where an authorization operation stands.
+enum AuthorizationStep {
+  AUTHORIZATION_STEP_UNSPECIFIED = 0;
+  // Waiting for the user's decision.
+  AUTHORIZATION_STEP_AWAITING_CONSENT = 1;
+  // Approved; the issuer issues the code when the browser continues.
+  AUTHORIZATION_STEP_APPROVED = 2;
+  // Denied; the issuer returns `access_denied` when the browser continues.
+  AUTHORIZATION_STEP_DENIED = 3;
+  // The issuer issued the operation's one code or delivered its denial;
+  // nothing more is issued for it.
+  AUTHORIZATION_STEP_COMPLETED = 4;
+  // The operation expired or was superseded before completing.
+  AUTHORIZATION_STEP_EXPIRED = 5;
+}
