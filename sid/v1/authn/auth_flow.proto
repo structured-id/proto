@@ -157,6 +157,9 @@ message ConsentClaim {
   // The sharing modes the user may choose for this claim; one of them is
   // chosen in SubmitConsent. Never empty for an approvable claim.
   repeated ClaimSharing allowed = 4;
+  // What sharing discloses: the claim's value, or only that it was
+  // verified, as the client registered the request.
+  sid.v1.common.ClaimType type = 5;
 }
 
 // How a claim is shared with the client.
