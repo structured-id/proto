@@ -24,6 +24,7 @@ import "google/protobuf/timestamp.proto";
 import "sid/v1/common/access.proto";
 import "sid/v1/common/maintenance.proto";
 import "sid/v1/common/operation.proto";
+import "sid/v1/common/claims.proto";
 import "sid/v1/ids/ids.proto";
 
 service AuthFlowService {
@@ -150,24 +151,12 @@ message ConsentClaim {
   // The claim name (OIDC Core 1.0 §5.1), for example `email`.
   string name = 1;
   // How important the claim is to the client.
-  ClaimRequestLevel level = 2;
+  sid.v1.common.ClaimRequestLevel level = 2;
   // The client's stated reason; present for a DEMANDED claim.
   optional string justification = 3;
   // The sharing modes the user may choose for this claim; one of them is
   // chosen in SubmitConsent. Never empty for an approvable claim.
   repeated ClaimSharing allowed = 4;
-}
-
-// How important a claim is to the requesting client.
-enum ClaimRequestLevel {
-  CLAIM_REQUEST_LEVEL_UNSPECIFIED = 0;
-  // The authorization cannot complete without this claim: refusing it
-  // refuses the authorization.
-  CLAIM_REQUEST_LEVEL_REQUIRED = 1;
-  // The client gives a justification; the user can refuse and still sign in.
-  CLAIM_REQUEST_LEVEL_DEMANDED = 2;
-  // The user can skip it freely.
-  CLAIM_REQUEST_LEVEL_OPTIONAL = 3;
 }
 
 // How a claim is shared with the client.

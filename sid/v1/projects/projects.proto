@@ -10,6 +10,7 @@ import "google/protobuf/empty.proto";
 import "sid/v1/authz/authz.proto";
 import "google/api/annotations.proto";
 import "sid/v1/common/access.proto";
+import "sid/v1/common/claims.proto";
 import "sid/v1/common/operation.proto";
 import "sid/v1/ids/ids.proto";
 
@@ -119,6 +120,20 @@ message OAuthClient {
   // RP-Initiated Logout 1.0 §3.1): absolute URIs without a fragment, compared
   // exactly. Empty means the endpoint never redirects for this client.
   repeated string post_logout_redirect_uris = 24;
+  // The claims the client asks for; the authorization consent review offers
+  // exactly these, each with the sharing its subscription allows.
+  repeated sid.v1.common.ClaimRequest claim_requests = 25;
+  // An administrator's exemption of this managed client from the
+  // authorization consent screen: false unless an administrator set it,
+  // never set by dynamic registration. It does not waive a required claim's
+  // disclosure, the selected identity or a requested `prompt=consent`.
+  bool consent_exempt = 26;
+}
+
+// A client's claim requests, set as a whole by an update.
+message ClaimRequestList {
+  // The requests; empty clears them.
+  repeated sid.v1.common.ClaimRequest requests = 1;
 }
 
 // The protected-resource role of an application: an API or application at
@@ -496,6 +511,13 @@ message ClientRoleSettings {
   // and nothing is created. A statement that does not verify is refused the
   // same way. Each site of an organization is its own client.
   optional bytes participant_admission = 7;
+  // The claims the client asks for (see OAuthClient.claim_requests). A
+  // demanded claim without a justification, or a repeated name, is
+  // INVALID_ARGUMENT, field `claim_requests`.
+  repeated sid.v1.common.ClaimRequest claim_requests = 8;
+  // The administrator's consent-screen exemption (see
+  // OAuthClient.consent_exempt).
+  bool consent_exempt = 9;
 }
 
 // A list of URIs, set as a whole by an update.
@@ -589,6 +611,12 @@ message UpdateClientRoleRequest {
   // Replaces the post-logout redirect URIs (see ClientRoleSettings); left out,
   // they are unchanged.
   optional UriList post_logout_redirect_uris = 9;
+  // Replaces the claim requests (see ClientRoleSettings); left out, they are
+  // unchanged.
+  optional ClaimRequestList claim_requests = 10;
+  // Sets or clears the administrator's consent-screen exemption; left out,
+  // it is unchanged.
+  optional bool consent_exempt = 11;
 }
 
 // A client's default resource, set as a whole by an update.
