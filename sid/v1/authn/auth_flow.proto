@@ -160,6 +160,11 @@ message ConsentClaim {
   // What sharing discloses: the claim's value, or only that it was
   // verified, as the client registered the request.
   sid.v1.common.ClaimType type = 5;
+  // The value approving discloses, from the selected Profile's current
+  // version as this review reads it, for example `alice@example.com`.
+  // Absent when the Profile holds no value: the claim cannot be shared.
+  // A value changed after this review makes its decision stale.
+  optional string value = 6;
 }
 
 // How a claim is shared with the client.
