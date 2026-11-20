@@ -167,9 +167,14 @@ service AuthService {
   // are that issuer's endpoints: `/i/{issuer_handle}/oauth2/*`, as advertised
   // in its discovery document. There is no issuer-less OAuth surface; SID's
   // own sign-in sessions are issued by the authentication RPCs above, not
-  // here. The sign-in UI calls OAuth2Authorize with the signed-in user's
-  // token after consent and redirects the browser itself; the issuer's
-  // browser authorization endpoint (OidcProviderService) runs the same logic.
+  // here. The issuer's browser authorization endpoint (OidcProviderService)
+  // runs the same logic. Both enforce one consent gate: a code is issued only
+  // when a current recorded consent of the selected identity covers the
+  // client, resource and scopes, and `prompt=consent` needs a decision
+  // recorded for this request. Otherwise the call is FAILED_PRECONDITION
+  // with ErrorInfo reason CONSENT_REQUIRED; a caller showing its own consent
+  // screen does not count as a recorded decision (the browser records one
+  // through AuthFlowService).
   rpc OAuth2Authorize(OAuth2AuthorizeRequest) returns (OAuth2AuthorizeResponse) {
     // Only the signed-in user's own session authorizes a client for them.
     option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };

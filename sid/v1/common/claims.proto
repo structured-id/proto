@@ -1,0 +1,53 @@
+// What a client asks for about a user: the claim requests it registers and
+// the authorization consent review offers.
+syntax = "proto3";
+
+package sid.v1.common;
+
+// A claim a client asks for at registration, along the two orthogonal
+// dimensions of the consent review: how critical it is for login and
+// whether the client needs its later changes.
+message ClaimRequest {
+  // The claim name (OIDC Core 1.0 §5.1), for example `email`.
+  string name = 1;
+  // How important the claim is to the client.
+  ClaimRequestLevel level = 2;
+  // Whether the client needs the claim's later changes.
+  ClaimSubscription subscription = 3;
+  // Whether the client asks for the value or only a verification of it.
+  ClaimType type = 4;
+  // The client's reason, shown to the user; required for a DEMANDED claim.
+  optional string justification = 5;
+}
+
+// How important a claim is to the requesting client.
+enum ClaimRequestLevel {
+  CLAIM_REQUEST_LEVEL_UNSPECIFIED = 0;
+  // The authorization cannot complete without this claim: refusing it
+  // refuses the authorization.
+  CLAIM_REQUEST_LEVEL_REQUIRED = 1;
+  // The client gives a justification; the user can refuse and still sign in.
+  CLAIM_REQUEST_LEVEL_DEMANDED = 2;
+  // The user can skip it freely.
+  CLAIM_REQUEST_LEVEL_OPTIONAL = 3;
+}
+
+// Whether a client needs a claim's later changes.
+enum ClaimSubscription {
+  CLAIM_SUBSCRIPTION_UNSPECIFIED = 0;
+  // Shared only with its later changes, or not at all.
+  CLAIM_SUBSCRIPTION_REQUIRED = 1;
+  // Later changes recommended; the current value alone is accepted.
+  CLAIM_SUBSCRIPTION_PREFERRED = 2;
+  // The current value only.
+  CLAIM_SUBSCRIPTION_NONE = 3;
+}
+
+// Whether a client asks for a claim's value or only its verification.
+enum ClaimType {
+  CLAIM_TYPE_UNSPECIFIED = 0;
+  // The value itself, for example the address `alice@example.com`.
+  CLAIM_TYPE_DATA = 1;
+  // Only the verification status, for example that a passport was verified.
+  CLAIM_TYPE_ATTESTATION = 2;
+}
