@@ -313,6 +313,20 @@ service AuthService {
     option (google.api.http) = { post: "/v1/auth/native-session/refresh" body: "*" };
   }
 
+  // The installation sign-in session of the calling browser, as a page on an
+  // admitted origin (the account pages, the administration console) reads
+  // it: whether one is signed in, the CSRF token its later calls echo in
+  // `x-csrf-token` with the session cookie, and whether its Profile
+  // administers the installation now. The cookie authenticates the read; a
+  // request from any other Origin is refused, so no other page learns the
+  // token. Reading it changes nothing.
+  rpc GetBrowserSession(google.protobuf.Empty) returns (BrowserSession) {
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_ISSUED_CREDENTIAL;
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = { get: "/v1/auth/browser-session" };
+  }
+
   // Session validation.
   rpc ValidateSession(ValidateSessionRequest) returns (ValidateSessionResponse) {
     option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
@@ -1442,6 +1456,21 @@ message OAuth2RevokeResponse {}
 // Session validation (internal, forward-auth).
 // Used by sid-auth proxy to validate session tokens on behalf of upstream apps.
 // ══════════════════════════════════════════════════════════════════════════
+
+// The calling browser's installation sign-in session.
+message BrowserSession {
+  // The synchronizer token the page sends in `x-csrf-token` with every
+  // state-changing call made with the session cookie. Base64url, generated
+  // with the session; it authenticates nothing by itself.
+  string csrf_token = 1;
+  // When the session ends at the latest, whatever activity follows.
+  google.protobuf.Timestamp expires_at = 2;
+  // Whether the session's Profile holds the installation administrator
+  // role now, decided from its current assignments, not from when it signed
+  // in. A page uses it to show what it may do; every call is still decided
+  // on its own.
+  bool administrator = 3;
+}
 
 message ValidateSessionRequest {
   // The session to validate, from the token's `sid` claim or the cookie.
