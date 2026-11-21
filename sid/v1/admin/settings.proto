@@ -30,6 +30,24 @@ service RealmService {
     option (google.api.http) = { patch: "/v1/admin/realm" body: "*" };
   }
 
+  // The installation's browser-facing addresses: its public URL and where
+  // the administration console is served. Every installation has them, so
+  // the answer is always complete.
+  rpc GetInstallationAddresses(google.protobuf.Empty) returns (InstallationAddresses) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (google.api.http) = { get: "/v1/admin/realm/addresses" };
+  }
+  // Change the addresses. Moving the console changes neither the issuer nor
+  // the authority that serves the administrative API; the new console
+  // address is served from the next request on.
+  rpc UpdateInstallationAddresses(UpdateInstallationAddressesRequest) returns (InstallationAddresses) {
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.retry) = { keyed: true };
+    option (google.api.http) = { patch: "/v1/admin/realm/addresses" body: "*" };
+  }
+
   // ── Login Configuration ──
 
   rpc GetLoginSettings(GetLoginSettingsRequest) returns (LoginSettings) {
@@ -134,6 +152,23 @@ service RealmService {
     option (sid.v1.common.retry) = { keyed: true };
     option (google.api.http) = { patch: "/v1/admin/realm/sessions" body: "*" };
   }
+  // Where the installation's browser sign-in can be used: the domain scope
+  // of its session cookie, with the base domain it derives from.
+  rpc GetSessionCookieScope(google.protobuf.Empty) returns (SessionCookieScope) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (google.api.http) = { get: "/v1/admin/realm/sessions/cookie-scope" };
+  }
+  // Change the scope. Narrowing it expires the cookie at its former domain
+  // and ends the sessions whose secret was shared under it, so a formerly
+  // wide cookie keeps no access. A scope the base domain cannot carry (a
+  // public suffix, an address) is refused with INVALID_ARGUMENT.
+  rpc UpdateSessionCookieScope(UpdateSessionCookieScopeRequest) returns (SessionCookieScope) {
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.retry) = { keyed: true };
+    option (google.api.http) = { patch: "/v1/admin/realm/sessions/cookie-scope" body: "*" };
+  }
 
   // ── Token Configuration ──
 
@@ -175,16 +210,93 @@ message GetRealmRequest {}
 message RealmSettings {
   string realm_name = 1;        // URL-safe, readonly after creation
   string display_name = 2;      // Shown in UI
-  string frontend_url = 3;      // Base URL for login pages
-  bool enabled = 4;             // false = all logins rejected
-  bool user_managed_access = 5; // Allow users to manage own resources
+  bool enabled = 3;             // false = all logins rejected
+  bool user_managed_access = 4; // Allow users to manage own resources
 }
 
 message UpdateRealmRequest {
   optional string display_name = 1;
-  optional string frontend_url = 2;
-  optional bool enabled = 3;
-  optional bool user_managed_access = 4;
+  optional bool enabled = 2;
+  optional bool user_managed_access = 3;
+}
+
+// ── Installation addresses ──
+
+// The installation's browser-facing addresses.
+message InstallationAddresses {
+  // The URL browsers reach the installation at: its sign-in pages, the
+  // session cookie's host and the base of every address it builds. The
+  // installation's own URL unless an administrator set another one for a
+  // deployment behind a reverse proxy; never derived from a request's Host
+  // or forwarded headers. Absolute https URL (http on a loopback host), no
+  // credentials, query or fragment.
+  string public_url = 1;
+  // Whether public_url is an administrator's override rather than the
+  // installation's own URL.
+  bool public_url_overridden = 2;
+  // Where the administration console is served: an origin and base path,
+  // such as `https://sid.example.com/admin/` (the default), another prefix
+  // on that origin, or the root of an admin host on the same site
+  // (`https://admin.example.com/`). Always ends with `/`. The console calls
+  // the installation's cookie-owning endpoint, so a host on another site is
+  // refused: a browser would not send it the session.
+  string console_url = 3;
+}
+
+// The addresses to change; an absent field keeps its stored value.
+message UpdateInstallationAddressesRequest {
+  // A new public URL override (see InstallationAddresses.public_url); an
+  // empty string removes the override.
+  optional string public_url = 1;
+  // A new console address (see InstallationAddresses.console_url); an empty
+  // string restores the default.
+  optional string console_url = 2;
+}
+
+// ── Session cookie scope ──
+
+// Where the installation's browser session cookie is sent.
+enum SessionCookieDomain {
+  SESSION_COOKIE_DOMAIN_UNSPECIFIED = 0;
+  // The exact public host only (host-only cookie, the default).
+  SESSION_COOKIE_DOMAIN_THIS_HOST = 1;
+  // The base domain and every subdomain, including future ones: the cookie
+  // carries `Domain` and reaches every server under it.
+  SESSION_COOKIE_DOMAIN_ALL_SUBDOMAINS = 2;
+  // The base domain and the subdomains that match `subdomains` or
+  // `subdomain_pattern`: each such host establishes its own host-only
+  // cookie through the installation's session endpoint served there; no
+  // other host receives one.
+  SESSION_COOKIE_DOMAIN_SELECTED_SUBDOMAINS = 3;
+}
+
+// The installation's session cookie scope as an administrator reads it.
+message SessionCookieScope {
+  // The selected scope.
+  SessionCookieDomain domain = 1;
+  // The base domain the scope derives from: the public URL's host.
+  // Server-derived, shown so the administrator sees what "this domain"
+  // means.
+  string base_domain = 2;
+  // Full host names admitted under SELECTED_SUBDOMAINS, each a descendant
+  // of base_domain, lowercase. Empty otherwise.
+  repeated string subdomains = 3;
+  // A regular expression admitting full host names under
+  // SELECTED_SUBDOMAINS, matched against the whole normalized name of a
+  // descendant of base_domain. Empty when unused.
+  string subdomain_pattern = 4;
+  // Changes of the scope so far; 0 while never changed.
+  uint64 revision = 5;
+}
+
+// The scope to set, replacing the stored one whole.
+message UpdateSessionCookieScopeRequest {
+  // The scope; UNSPECIFIED is refused.
+  SessionCookieDomain domain = 1;
+  // As SessionCookieScope.subdomains; only with SELECTED_SUBDOMAINS.
+  repeated string subdomains = 2;
+  // As SessionCookieScope.subdomain_pattern; only with SELECTED_SUBDOMAINS.
+  string subdomain_pattern = 3;
 }
 
 // ── Login Settings messages ──
