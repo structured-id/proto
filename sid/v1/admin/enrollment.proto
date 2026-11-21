@@ -242,11 +242,6 @@ message EnrollmentPolicy {
   // Whether to track registration source metadata on profiles.
   // Default: true.
   bool track_source = 4;
-
-  // Output only: the deployment pins `mode`, which then applies whatever
-  // mode an administrator stored; an update that changes it is refused.
-  // Ignored in an update request.
-  bool mode_pinned = 5;
 }
 
 // Configuration for the invite system.
