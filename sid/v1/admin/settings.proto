@@ -207,6 +207,9 @@ service FeatureService {
 
 message GetRealmRequest {}
 
+// Pre-release messages are numbered from 1 in declaration order; every
+// producer and consumer is regenerated with each change, so no old encoding
+// is in circulation to reserve numbers for.
 message RealmSettings {
   string realm_name = 1;        // URL-safe, readonly after creation
   string display_name = 2;      // Shown in UI
