@@ -327,6 +327,22 @@ service AuthService {
     option (google.api.http) = { get: "/v1/auth/browser-session" };
   }
 
+  // Sign out of the installation in the calling browser: the session its
+  // cookie names ends and the response clears the cookie, so a page that acts
+  // in that session (the administration console) is signed out wherever it
+  // runs. The cookie names the session, so the request carries nothing; the
+  // call echoes the session's CSRF token from an admitted origin. The
+  // browser's other sessions and the user's sessions elsewhere are untouched.
+  rpc EndBrowserSession(google.protobuf.Empty) returns (google.protobuf.Empty) {
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.maintenance) = MAINTENANCE_PURPOSE_ISSUED_CREDENTIAL;
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.retry) = {
+      natural: "an ended session stays ended: a repeat finds no session and is refused as signed out, which is the state the first call produced"
+    };
+    option (google.api.http) = { post: "/v1/auth/browser-session/end" body: "*" };
+  }
+
   // Session validation.
   rpc ValidateSession(ValidateSessionRequest) returns (ValidateSessionResponse) {
     option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
