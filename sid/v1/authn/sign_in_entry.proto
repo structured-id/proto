@@ -1,0 +1,17 @@
+// The issuer's sign-in a user can choose for one authorization request: what
+// the authorization endpoint accepts and what an application's browser
+// adapter passes on from its own sign-in start.
+
+syntax = "proto3";
+
+package sid.v1.authn;
+
+// The issuer's sign-in a user can choose for one authorization request.
+enum SignInEntry {
+  // The issuer's ordinary sign-in for the client, which may continue at
+  // another authority the issuer trusts.
+  SIGN_IN_ENTRY_UNSPECIFIED = 0;
+  // The issuer's own ceremony, with a login the issuer assigned: no other
+  // authority takes part.
+  SIGN_IN_ENTRY_LOCAL = 1;
+}

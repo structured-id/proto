@@ -10,6 +10,7 @@ import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
 import "sid/v1/authn/native_session.proto";
 import "sid/v1/authn/password_history.proto";
+import "sid/v1/authn/sign_in_entry.proto";
 import "sid/v1/common/access.proto";
 import "sid/v1/common/maintenance.proto";
 import "sid/v1/common/operation.proto";
@@ -1244,16 +1245,6 @@ message OAuth2AuthorizeRequest {
   // issuer follows it where its own policy admits that sign-in for this
   // client, and otherwise signs the user in as it does without it.
   optional SignInEntry sign_in = 15;
-}
-
-// The issuer's sign-in a user can choose for one authorization request.
-enum SignInEntry {
-  // The issuer's ordinary sign-in for the client, which may continue at
-  // another authority the issuer trusts.
-  SIGN_IN_ENTRY_UNSPECIFIED = 0;
-  // The issuer's own ceremony, with a login the issuer assigned: no other
-  // authority takes part.
-  SIGN_IN_ENTRY_LOCAL = 1;
 }
 
 message OAuth2AuthorizeResponse {
