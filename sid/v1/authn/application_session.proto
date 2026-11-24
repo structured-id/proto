@@ -11,6 +11,7 @@ package sid.v1.authn;
 
 import "google/api/annotations.proto";
 import "google/api/httpbody.proto";
+import "sid/v1/authn/sign_in_entry.proto";
 import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 
@@ -142,6 +143,10 @@ message StartSignInRequest {
   // `/\host`, control characters) returns to `/` (RFC 9700 §4.11). Supplied
   // by the page that sends the browser here.
   string rd = 1;
+  // The issuer's sign-in the user chose on that page, passed on in the
+  // authorization request this sign-in makes. A preference: the issuer
+  // decides whether it applies.
+  optional SignInEntry sign_in = 2;
 }
 
 message CompleteSignInRequest {

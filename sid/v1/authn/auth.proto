@@ -10,6 +10,7 @@ import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
 import "sid/v1/authn/native_session.proto";
 import "sid/v1/authn/password_history.proto";
+import "sid/v1/authn/sign_in_entry.proto";
 import "sid/v1/common/access.proto";
 import "sid/v1/common/maintenance.proto";
 import "sid/v1/common/operation.proto";
@@ -1238,6 +1239,12 @@ message OAuth2AuthorizeRequest {
   // `issuer_handle` comes from the stored request, and a `client_id` that
   // differs from the stored one is refused.
   optional string request_uri = 14;
+  // Which of the issuer's sign-ins the user chose in the application, when
+  // this request needs one. A preference of this request only, kept with
+  // it: it enables no method, names no principal and grants nothing. The
+  // issuer follows it where its own policy admits that sign-in for this
+  // client, and otherwise signs the user in as it does without it.
+  optional SignInEntry sign_in = 15;
 }
 
 message OAuth2AuthorizeResponse {
