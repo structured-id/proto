@@ -1238,6 +1238,22 @@ message OAuth2AuthorizeRequest {
   // `issuer_handle` comes from the stored request, and a `client_id` that
   // differs from the stored one is refused.
   optional string request_uri = 14;
+  // Which of the issuer's sign-ins the user chose in the application, when
+  // this request needs one. A preference of this request only, kept with
+  // it: it enables no method, names no principal and grants nothing. The
+  // issuer follows it where its own policy admits that sign-in for this
+  // client, and otherwise signs the user in as it does without it.
+  optional SignInEntry sign_in = 15;
+}
+
+// The issuer's sign-in a user can choose for one authorization request.
+enum SignInEntry {
+  // The issuer's ordinary sign-in for the client, which may continue at
+  // another authority the issuer trusts.
+  SIGN_IN_ENTRY_UNSPECIFIED = 0;
+  // The issuer's own ceremony, with a login the issuer assigned: no other
+  // authority takes part.
+  SIGN_IN_ENTRY_LOCAL = 1;
 }
 
 message OAuth2AuthorizeResponse {
