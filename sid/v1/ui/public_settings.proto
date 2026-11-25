@@ -63,4 +63,18 @@ message PublicUiSettings {
   // before anything is typed; it never grants anything, and the server still
   // decides each registration. A claim's continuation is not governed by it.
   bool registration_open = 5;
+
+  // The local sign-in methods this installation offers before an identifier
+  // is typed, in the vocabulary of ResolvePrincipalResponse.available_methods:
+  // "opaque" (the password form) and "webauthn" (a passkey used without
+  // naming an account first). Empty: the installation signs nobody in locally
+  // and the page shows no local form. An installation choice, the same for
+  // every visitor: whether one account holds a password or a passkey changes
+  // nothing here, and each ceremony still decides at its own step.
+  repeated string sign_in_methods = 6;
+
+  // Whether this installation serves self-service password reset now. False
+  // shows no reset link; it never refuses a reset already started, which the
+  // server decides at its own step.
+  bool password_reset_open = 7;
 }
