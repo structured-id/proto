@@ -7,6 +7,8 @@ syntax = "proto3";
 package sid.v1.authn;
 
 // The issuer's sign-in a user can choose for one authorization request.
+// Its values are numbered consecutively: a value that is no longer a choice
+// leaves no gap, since no released issuer or adapter reads the number of one.
 enum SignInEntry {
   // The issuer's ordinary sign-in for the client: its own ceremony, or the
   // authority it trusts, as its installation decides.
