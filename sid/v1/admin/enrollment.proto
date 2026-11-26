@@ -44,8 +44,9 @@ service EnrollmentService {
   // Replace the stored enrollment policy (mode, domains, invite defaults,
   // tracking); returns the policy in force. Administrators only. Refused with
   // FAILED_PRECONDITION when it changes a mode the deployment pins, and with
-  // INVALID_ARGUMENT for a domain-restricted policy without a domain or an
-  // allowed domain that is no domain name.
+  // INVALID_ARGUMENT for a policy without a mode or without its invite terms,
+  // a domain-restricted policy without a domain or an allowed domain that is
+  // no domain name.
   rpc UpdateEnrollmentPolicy(UpdateEnrollmentPolicyRequest) returns (EnrollmentPolicy) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
@@ -232,7 +233,11 @@ message EnrollmentPolicy {
   // Registration gating mode.
   EnrollmentMode mode = 1;
 
-  // Invite configuration (only used when mode = INVITE_ONLY).
+  // The terms of new invite codes: their default use count and lifetime.
+  // Part of the policy in every mode: stored and returned whatever the mode,
+  // and required in an update, which replaces the whole policy. The mode
+  // decides whether a registration needs an invite; these terms apply to
+  // the invites an administrator creates in any mode.
   InviteConfig invite = 2;
 
   // Allowed email domains (only used when mode = DOMAIN_RESTRICTED).
