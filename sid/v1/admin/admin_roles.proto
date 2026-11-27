@@ -8,6 +8,7 @@ package sid.v1.admin;
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "sid/v1/admin/login_policy_types.proto";
 import "sid/v1/common/access.proto";
 import "sid/v1/common/operation.proto";
 
@@ -115,14 +116,6 @@ enum AdminPrincipalType {
   ADMIN_PRINCIPAL_TYPE_USER = 1;
   ADMIN_PRINCIPAL_TYPE_GROUP = 2;
   ADMIN_PRINCIPAL_TYPE_MACHINE_USER = 3;
-}
-
-enum AssuranceLevel {
-  ASSURANCE_LEVEL_UNSPECIFIED = 0;
-  ASSURANCE_LEVEL_BASIC = 1;
-  ASSURANCE_LEVEL_STANDARD = 2;
-  ASSURANCE_LEVEL_ELEVATED = 3;
-  ASSURANCE_LEVEL_CRITICAL = 4;
 }
 
 enum RequiredMfaMethod {
