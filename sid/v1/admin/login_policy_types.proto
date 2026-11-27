@@ -1,0 +1,31 @@
+// StructuredID Login Policy Value Types
+// The values a login policy is stated in: the assurance an authentication
+// reached and how an unmet requirement is enforced. This file declares only
+// these enums, so a schema that states a policy imports no service with them.
+syntax = "proto3";
+
+package sid.v1.admin;
+
+// The assurance an authentication reached, lowest first.
+enum AssuranceLevel {
+  ASSURANCE_LEVEL_UNSPECIFIED = 0;
+  // A single factor.
+  ASSURANCE_LEVEL_BASIC = 1;
+  // Multi-factor.
+  ASSURANCE_LEVEL_STANDARD = 2;
+  // Phishing-resistant multi-factor.
+  ASSURANCE_LEVEL_ELEVATED = 3;
+  // A hardware-bound key with re-authentication.
+  ASSURANCE_LEVEL_CRITICAL = 4;
+}
+
+// How an unmet policy requirement is enforced.
+enum EnforcementMode {
+  ENFORCEMENT_MODE_UNSPECIFIED = 0;
+  // The requirement is met before access is given.
+  ENFORCEMENT_MODE_HARD = 1;
+  // Access is given for a grace period while the user is asked to comply.
+  ENFORCEMENT_MODE_SOFT = 2;
+  // The violation is recorded and access is given.
+  ENFORCEMENT_MODE_AUDIT = 3;
+}
