@@ -221,6 +221,17 @@ message MachineUserId {
   bytes value = 1;
 }
 
+// A user resource of an installation's directory: the identifier the
+// directory assigns to the resource and a SCIM client knows the user by
+// (RFC 7643 §3.1 `id`). It is not the identifier of the account behind the
+// resource and is never given to another resource, also after a deletion.
+message DirectoryUserId {
+  // Exactly 16 bytes: an RFC 9562 UUID of version 7 and the RFC 9562 variant,
+  // in network byte order. Nil, max, other lengths, versions and variants are
+  // invalid. Issued by SID; compared by exact byte equality.
+  bytes value = 1;
+}
+
 // A provisioning connector: one directory source sending SCIM to an
 // organization, or one target the organization provisions, acting as its own
 // actor with its own credentials and grants. Not a machine user or a Profile.
