@@ -241,6 +241,12 @@ enum DirectoryUserRight {
   // resource stands for. Where the deletion would end more than the
   // connector has authority over, it is refused whole.
   DIRECTORY_USER_RIGHT_DELETE = 12;
+  // Rename the login the organization issued to the user (`userName`).
+  // The user keeps its resource, its account and every source's own
+  // identifier; the name it leaves is released under the organization's
+  // reuse setting. It gives nothing over the login of an identity that
+  // signs in elsewhere.
+  DIRECTORY_USER_RIGHT_USER_NAME = 13;
 }
 
 message SetDirectoryManagementRequest {
