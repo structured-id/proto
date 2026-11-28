@@ -2,9 +2,11 @@
 // The provisioning connectors of this installation's organization and their
 // credentials. A connector is one directory source sending SCIM to the
 // organization (inbound) or one target it provisions (outbound), acting as
-// its own non-human actor. What a connector may do is granted through the
-// common role assignments (sid.v1.authz.AuthzService/AssignRole) on the SCIM
-// directory resource; this service grants nothing.
+// its own non-human actor. The actions a connector may perform are granted
+// through the common role assignments (sid.v1.authz.AuthzService/AssignRole)
+// on the SCIM directory resource; this service grants no action. It selects
+// which users an inbound connector manages and what it may change of them:
+// a role alone selects no user.
 // Administrator role required for all RPCs.
 syntax = "proto3";
 
@@ -74,6 +76,52 @@ service ProvisioningService {
     option idempotency_level = NO_SIDE_EFFECTS;
     option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (google.api.http) = { post: "/v1/admin/provisioning/connectors:scim-config" body: "*" };
+  }
+
+  // ── What an inbound connector manages ──
+
+  // Set what an active inbound connector, still at `revision`, may change
+  // of every user of the directory, the ones it creates later included: one
+  // selection, not an assignment per user. An empty list ends the
+  // directory-wide selection; users assigned one by one keep theirs. A
+  // changed connector is ABORTED (CONCURRENT_MODIFICATION).
+  rpc SetDirectoryManagement(SetDirectoryManagementRequest) returns (ProvisioningConnector) {
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.retry) = {
+      natural: "the change names the revision it edits: a repeat names one the first change moved past, so it is refused as changed and never undoes a later selection"
+    };
+    option (google.api.http) = { post: "/v1/admin/provisioning/connectors:directory-management" body: "*" };
+  }
+
+  // Assign one existing user of the directory to an active inbound
+  // connector still at `revision`, with what the connector may change of
+  // that user. The user keeps its identifier and every other assignment;
+  // the connector is recorded as a source of the user without an identifier
+  // of its own until it sets one. Replaces what the connector was assigned
+  // of this user before. An unknown or deleted user is NOT_FOUND, a changed
+  // connector ABORTED (CONCURRENT_MODIFICATION).
+  rpc AssignDirectoryUser(AssignDirectoryUserRequest) returns (ProvisioningConnector) {
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.retry) = {
+      natural: "the assignment names the revision it edits: a repeat names one the first assignment moved past, so it is refused as changed and never restores an assignment withdrawn since"
+    };
+    option (google.api.http) = { post: "/v1/admin/provisioning/connectors:assign-user" body: "*" };
+  }
+
+  // Withdraw a user from a connector still at `revision`: the connector may
+  // change nothing of the user by this assignment any more. It stays
+  // recorded as a source of the user, with its own identifier of it. A
+  // user never assigned is a no-op that still moves the revision; a changed
+  // connector is ABORTED (CONCURRENT_MODIFICATION).
+  rpc WithdrawDirectoryUser(WithdrawDirectoryUserRequest) returns (ProvisioningConnector) {
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
+    option (sid.v1.common.retry) = {
+      natural: "the withdrawal names the revision it edits: a repeat names one the first withdrawal moved past, so it is refused as changed and never cancels an assignment made since"
+    };
+    option (google.api.http) = { post: "/v1/admin/provisioning/connectors:withdraw-user" body: "*" };
   }
 
   // ── Credentials of an inbound connector ──
@@ -148,11 +196,69 @@ message ProvisioningConnector {
   // Administrator-chosen label.
   string display_name = 3;
   ProvisioningConnectorState state = 4;
-  // Moved on by every change of the connector, its state or its grants. A
-  // rename names the revision it was based on.
+  // Moved on by every change of the connector, its state, its grants or
+  // what it manages. A change that names a revision was based on it.
   int64 revision = 5;
   google.protobuf.Timestamp created_at = 6;
   google.protobuf.Timestamp updated_at = 7;
+  // What the connector may change of every user of the directory
+  // (SetDirectoryManagement). Empty: it manages only users assigned to it
+  // one by one. Always empty for an outbound connector.
+  repeated DirectoryUserRight directory_rights = 8;
+}
+
+// One thing an inbound connector may change of a user it manages. A right
+// bounds the user and the part of it; the action itself still needs the
+// connector's role on the directory resource.
+enum DirectoryUserRight {
+  DIRECTORY_USER_RIGHT_UNSPECIFIED = 0;
+  // The name: its components and the display name.
+  DIRECTORY_USER_RIGHT_NAME = 1;
+  // Email addresses, with the login handles made of them.
+  DIRECTORY_USER_RIGHT_EMAILS = 2;
+  // Phone numbers, with the login handles made of them.
+  DIRECTORY_USER_RIGHT_PHONE_NUMBERS = 3;
+  DIRECTORY_USER_RIGHT_TITLE = 4;
+  DIRECTORY_USER_RIGHT_DEPARTMENT = 5;
+  // The employee number of the enterprise user extension.
+  DIRECTORY_USER_RIGHT_EMPLOYEE_NUMBER = 6;
+  DIRECTORY_USER_RIGHT_COST_CENTER = 7;
+  DIRECTORY_USER_RIGHT_ORGANIZATION = 8;
+  DIRECTORY_USER_RIGHT_DIVISION = 9;
+  // The connector's own identifier of the user (SCIM `externalId`).
+  DIRECTORY_USER_RIGHT_EXTERNAL_ID = 10;
+  // Deactivate and reactivate the account: a deactivation ends every
+  // sign-in and token of the account, whoever granted them.
+  DIRECTORY_USER_RIGHT_ACTIVE = 11;
+  // Delete the user resource from the directory. Alone it retires the
+  // resource and leaves the account and its sign-ins; ending those needs
+  // DIRECTORY_USER_RIGHT_ACTIVE as well.
+  DIRECTORY_USER_RIGHT_DELETE = 12;
+}
+
+message SetDirectoryManagementRequest {
+  sid.v1.ids.ProvisioningConnectorId connector_id = 1;
+  // The revision the change is based on (ProvisioningConnector.revision).
+  int64 revision = 2;
+  // What the connector may change of every user; empty for nothing.
+  repeated DirectoryUserRight rights = 3;
+}
+
+message AssignDirectoryUserRequest {
+  sid.v1.ids.ProvisioningConnectorId connector_id = 1;
+  // The revision the assignment is based on (ProvisioningConnector.revision).
+  int64 revision = 2;
+  // The user, by the identifier the directory serves it under.
+  sid.v1.ids.DirectoryUserId user_id = 3;
+  // What the connector may change of this user; at least one.
+  repeated DirectoryUserRight rights = 4;
+}
+
+message WithdrawDirectoryUserRequest {
+  sid.v1.ids.ProvisioningConnectorId connector_id = 1;
+  // The revision the withdrawal is based on (ProvisioningConnector.revision).
+  int64 revision = 2;
+  sid.v1.ids.DirectoryUserId user_id = 3;
 }
 
 message ListProvisioningConnectorsRequest {}
