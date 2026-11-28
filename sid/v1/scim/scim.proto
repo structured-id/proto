@@ -91,6 +91,16 @@ service ScimService {
     option (sid.v1.common.access) = { open: "RFC 7644 §2: a provisioning connector authenticates with its own credential, checked with the action by the connector verifier" };
   }
 
+  // Full replacement of a group's attributes and of the calling source's
+  // members of it (RFC 7644 §3.5.1).
+  rpc ReplaceGroup(ScimReplaceGroupRequest) returns (ScimGroup) {
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { open: "RFC 7644 §2: a provisioning connector authenticates with its own credential, checked with the action by the connector verifier" };
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 7644 §3.5.1: the request carries the whole resource and replaces it, so a repeat leaves the same group; the directory orders its own writes (RFC 7644 §3.14)"
+    };
+  }
+
   // Partial update via SCIM PATCH operations.
   rpc PatchGroup(ScimPatchGroupRequest) returns (ScimGroup) {
     option idempotency_level = IDEMPOTENCY_UNKNOWN;
@@ -213,6 +223,16 @@ service ScimProtocolService {
     option idempotency_level = NO_SIDE_EFFECTS;
     option (sid.v1.common.access) = { open: "RFC 7644 §2: a provisioning connector authenticates with its own credential, checked with the action by the connector verifier" };
     option (google.api.http) = { get: "/scim/v2/Groups" };
+  }
+
+  // Replace a group (RFC 7644 §3.5.1).
+  rpc ReplaceGroup(ScimHttpRequest) returns (google.api.HttpBody) {
+    option idempotency_level = IDEMPOTENT;
+    option (sid.v1.common.access) = { open: "RFC 7644 §2: a provisioning connector authenticates with its own credential, checked with the action by the connector verifier" };
+    option (sid.v1.common.retry) = {
+      ceremony: "RFC 7644 §3.5.1: the request carries the whole resource and replaces it, so a repeat leaves the same group; the directory orders its own writes (RFC 7644 §3.14)"
+    };
+    option (google.api.http) = { put: "/scim/v2/Groups/{id}" body: "body" };
   }
 
   // Modify a group (RFC 7644 §3.5.2).
@@ -475,6 +495,27 @@ message ScimListGroupsResponse {
 message ScimPatchGroupRequest {
   string id = 1;
   repeated ScimPatchOp operations = 2;
+}
+
+message ScimReplaceGroupRequest {
+  // The group to replace.
+  string id = 1;
+  // The group's name after the replacement.
+  string display_name = 2;
+  // The members the calling source assigns to the group. Absent, the
+  // request states no member list and the source's assignments stay as
+  // they are; present, they become exactly this list, an empty list
+  // clearing them. Members another source or a local administrator
+  // assigned are not the caller's to replace.
+  ScimGroupMembers members = 3;
+}
+
+// A member list whose presence carries meaning: a repeated field alone
+// cannot tell an omitted list from an empty one.
+message ScimGroupMembers {
+  // The members, each named by the identifier the directory serves the
+  // user under.
+  repeated ScimMemberRef values = 1;
 }
 
 message ScimDeleteGroupRequest {
