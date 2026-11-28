@@ -96,11 +96,12 @@ service ProvisioningService {
 
   // Assign one existing user of the directory to an active inbound
   // connector still at `revision`, with what the connector may change of
-  // that user. The user keeps its identifier and every other assignment;
-  // the connector is recorded as a source of the user without an identifier
-  // of its own until it sets one. Replaces what the connector was assigned
-  // of this user before. An unknown or deleted user is NOT_FOUND, a changed
-  // connector ABORTED (CONCURRENT_MODIFICATION).
+  // that user. The user keeps its identifier and every other assignment.
+  // A connector not yet recorded as a source of the user becomes one,
+  // without an identifier of its own until it sets one; one already
+  // recorded keeps the identifier it has. Replaces what the connector was
+  // assigned of this user before. An unknown or deleted user is NOT_FOUND,
+  // a changed connector ABORTED (CONCURRENT_MODIFICATION).
   rpc AssignDirectoryUser(AssignDirectoryUserRequest) returns (ProvisioningConnector) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
@@ -111,15 +112,17 @@ service ProvisioningService {
   }
 
   // Withdraw a user from a connector still at `revision`: the connector may
-  // change nothing of the user by this assignment any more. It stays
-  // recorded as a source of the user, with its own identifier of it. A
-  // user never assigned is a no-op that still moves the revision; a changed
-  // connector is ABORTED (CONCURRENT_MODIFICATION).
+  // change nothing of the user by this assignment any more. What it may
+  // change of every user of the directory (SetDirectoryManagement) still
+  // applies to this user. It stays recorded as a source of the user, with
+  // its own identifier of it. A user not assigned to the connector changes
+  // nothing and keeps the revision; a changed connector is ABORTED
+  // (CONCURRENT_MODIFICATION).
   rpc WithdrawDirectoryUser(WithdrawDirectoryUserRequest) returns (ProvisioningConnector) {
     option idempotency_level = IDEMPOTENT;
     option (sid.v1.common.access) = { protected: { credentials: [CREDENTIAL_KIND_OWN_SESSION] } };
     option (sid.v1.common.retry) = {
-      natural: "the withdrawal names the revision it edits: a repeat names one the first withdrawal moved past, so it is refused as changed and never cancels an assignment made since"
+      natural: "the withdrawal names the revision it edits: after it took effect a repeat names a revision it moved past and is refused as changed, so it never cancels an assignment made since; a repeat that found nothing to withdraw changes nothing"
     };
     option (google.api.http) = { post: "/v1/admin/provisioning/connectors:withdraw-user" body: "*" };
   }
@@ -209,7 +212,10 @@ message ProvisioningConnector {
 
 // One thing an inbound connector may change of a user it manages. A right
 // bounds the user and the part of it; the action itself still needs the
-// connector's role on the directory resource.
+// connector's role on the directory resource. A right permits an action on
+// its target and decides no more: what the action ends is decided by the
+// operation asked for, by what the user resource stands for and who owns
+// that now, and by the directory's policy.
 enum DirectoryUserRight {
   DIRECTORY_USER_RIGHT_UNSPECIFIED = 0;
   // The name: its components and the display name.
@@ -227,12 +233,13 @@ enum DirectoryUserRight {
   DIRECTORY_USER_RIGHT_DIVISION = 9;
   // The connector's own identifier of the user (SCIM `externalId`).
   DIRECTORY_USER_RIGHT_EXTERNAL_ID = 10;
-  // Deactivate and reactivate the account: a deactivation ends every
-  // sign-in and token of the account, whoever granted them.
+  // Deactivate and reactivate the user (SCIM `active`). A deactivation ends
+  // the access the user resource stands for; access held independently of
+  // that resource is not the connector's to end.
   DIRECTORY_USER_RIGHT_ACTIVE = 11;
-  // Delete the user resource from the directory. Alone it retires the
-  // resource and leaves the account and its sign-ins; ending those needs
-  // DIRECTORY_USER_RIGHT_ACTIVE as well.
+  // Delete the user resource from the directory, with the access that
+  // resource stands for. Where the deletion would end more than the
+  // connector has authority over, it is refused whole.
   DIRECTORY_USER_RIGHT_DELETE = 12;
 }
 
