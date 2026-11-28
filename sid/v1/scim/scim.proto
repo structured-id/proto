@@ -543,6 +543,19 @@ message ScimResourceType {
   string endpoint = 4;
   string schema = 5;
   ScimMeta meta = 6;
+  // The schema extensions resources of this type may carry (RFC 7643 §6,
+  // `schemaExtensions`), each described in the schemas listing. Empty when
+  // the type has none.
+  repeated ScimSchemaExtension schema_extensions = 7;
+}
+
+// One schema extension of a resource type (RFC 7643 §6).
+message ScimSchemaExtension {
+  // URI of the extension schema, as listed among the schemas.
+  string schema = 1;
+  // Whether every resource of the type must carry the extension. False: a
+  // resource may omit it entirely.
+  bool required = 2;
 }
 
 message ScimGetSchemasRequest {}
