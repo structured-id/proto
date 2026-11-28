@@ -280,10 +280,13 @@ message ScimHttpRequest {
 
 // SCIM User resource (RFC 7643 §4.1).
 message ScimUser {
-  // SID ProfileId (read-only, assigned by SID).
+  // Identifier of the user resource in this directory (read-only, assigned
+  // by the server). It is not the identifier of the account behind it.
   string id = 1;
 
-  // External identifier from the provisioning source (e.g., employee_id).
+  // The asking provisioning client's own identifier of the user (RFC 7643
+  // §3.1). Each client sees and sets only its own; empty when the client
+  // has none for this user. Not the employee number.
   string external_id = 2;
 
   // Login handle (maps to Profile.username).
@@ -315,6 +318,11 @@ message ScimUser {
 
   // SCIM resource metadata.
   ScimMeta meta = 12;
+
+  // Employee number of the enterprise user extension (RFC 7643 §4.3,
+  // `employeeNumber`): an attribute of the user, the same for every client.
+  // Empty when the user has none.
+  string employee_number = 13;
 }
 
 // Structured name (RFC 7643 §4.1.1).
@@ -359,6 +367,8 @@ message ScimMeta {
 // ── User Request/Response Messages ──
 
 message ScimCreateUserRequest {
+  // The creating client's own identifier of the user (RFC 7643 §3.1); a
+  // value the client already gives another user is refused. Empty for none.
   string external_id = 1;
   string user_name = 2;
   ScimName name = 3;
@@ -368,6 +378,9 @@ message ScimCreateUserRequest {
   string department = 7;
   string title = 8;
   bool active = 9;
+  // Employee number of the enterprise user extension (RFC 7643 §4.3).
+  // Empty for none.
+  string employee_number = 10;
 }
 
 message ScimGetUserRequest {
@@ -394,6 +407,8 @@ message ScimListUsersResponse {
 
 message ScimReplaceUserRequest {
   string id = 1;
+  // Replaces the asking client's own identifier of the user, an empty
+  // value dropping it; another client's identifier is not affected.
   string external_id = 2;
   string user_name = 3;
   ScimName name = 4;
@@ -403,6 +418,9 @@ message ScimReplaceUserRequest {
   string department = 8;
   string title = 9;
   bool active = 10;
+  // Replaces the user's employee number (RFC 7643 §4.3), an empty value
+  // clearing it.
+  string employee_number = 11;
 }
 
 message ScimPatchUserRequest {
